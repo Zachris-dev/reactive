@@ -1,0 +1,15 @@
+{
+  "name": "reactive-rpg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rules engine and test tools for the Reactive tabletop RPG system.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test": "npm run build && node dist/tests/rules_engine/run.js",
+    "roll": "npm run build --silent && node dist/apps/dice_roller/src/main.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
