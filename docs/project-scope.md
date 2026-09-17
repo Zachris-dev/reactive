@@ -8,6 +8,8 @@ Reactive should have one shared implementation of its mechanics. User interfaces
 
 The system is intended to support the same Setup → Contest → Effect structure across very different kinds of scenes, from seconds of combat to hours-long social, artistic, or other extended actions.
 
+Human-readable system rules, examples, and explanations of the reasons behind rules belong under `RULES/`. Approved rules flowcharts belong under `RULES/charts/`. Software architecture and implementation planning remain under `docs/`.
+
 ## Major components
 
 ### Shared rules engine
