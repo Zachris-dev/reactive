@@ -71,9 +71,26 @@ Campaign synchronization should support:
 - offline/local-first use, with durable changes synchronized when a connection is available;
 - conflicts preserved rather than silently overwritten;
 - conflicting versions presented to the GM for resolution;
-- transient roll and round UI state remaining local unless a later feature specifically requires synchronization.
+- transient local UI state remaining local unless it is part of a live shared interaction.
 
 Separate repositories or equivalent true access boundaries should be used where necessary. Merely hiding GM files in the player UI is not considered access control.
+
+### Live session synchronization
+
+Some game actions require participants to share temporary state in real time rather than merely synchronize files after the fact.
+
+In particular, an opposed roll may involve a GM and player, or two player-controlled sides, rolling from separate devices. The live synchronization layer should therefore be able to:
+
+- create a shared opposed-roll session identified with the relevant campaign and participants;
+- let each participating client submit or perform its own side of the roll through the shared rules engine;
+- synchronize roll state needed by the opposed-roll procedure, including completion state, pending Risk, Edge use, doubling chains, fumbles, and nested Risk contests;
+- preserve which participant is the recipient of Risk and propagate Risk and fumble state correctly through nested contests;
+- allow one side to continue rolling when the other has completed or fumbled;
+- hand the completed opposed-roll state to the common resolution procedure;
+- avoid exposing hidden character or GM-only information merely because two clients are participating in the same roll;
+- cope with temporary connection loss without silently inventing or discarding a roll result.
+
+Live roll synchronization is conceptually separate from durable repository synchronization. Repository-backed storage is appropriate for campaign history and persistent data, while a live opposed roll may need a lower-latency session channel. The exact transport should remain an implementation choice until the rules engine and application data models are stable.
 
 ## Testing goals
 
