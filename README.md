@@ -11,7 +11,7 @@ The planned software consists of several cooperating parts:
 - **Rules engine** — the shared implementation of Reactive's dice, Risk, Edge, doubling, fumble, opposed-roll, and resolution mechanics. Other applications use this engine rather than reimplementing the rules.
 - **Dice roller** — a standalone interface to the rules engine for players, GMs, testing, and rolls made without an electronic character sheet.
 - **Character sheet** — character creation, campaign-specific skill templates, play-time skill activation, round tracking, Risk skill selection, and XP/training advancement.
-- **Campaign synchronization tools** — software for synchronizing campaign data between the GM, individual players, and repository-backed campaign storage while exposing each player only to material they are permitted to receive.
+- **Campaign synchronization tools** — software for synchronizing campaign data between the GM, individual players, and repository-backed campaign storage while exposing each player only to material they are permitted to receive. This also includes live session synchronization so a GM and one or more players can participate in the same opposed roll from their own devices.
 - **Documentation and testing** — rules text, design notes, flowcharts, worked examples, and automated tests intended to exercise the mechanics systematically, including unusual combinations of Risk, Edge, doubling, and fumbles.
 
 The intended end-user applications should be usable on phones, tablets, and laptops, preferably through a local-first installable web application that remains useful without a network connection.
