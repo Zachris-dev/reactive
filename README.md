@@ -23,10 +23,10 @@ See [`docs/project-scope.md`](docs/project-scope.md) for the current architectur
 - `apps/dice_roller/` — standalone dice-roller application.
 - `apps/character_sheet/` — digital character-sheet application.
 - `packages/` — shared code such as the rules engine and character/template models.
-- `docs/` — architecture, project scope, and design documentation.
-- `rules/` — system rules and designer's notes.
-- `flowcharts/` — player-facing and GM-facing diagrams.
-- `examples/` — worked examples and edge cases.
+- `docs/` — architecture, project scope, and software design documentation.
+- `RULES/` — Reactive system rules, explanations, examples, and designer's notes.
+- `RULES/charts/` — approved player-facing and GM-facing rules flowcharts.
+- `examples/` — worked examples and edge cases that are useful outside the main rules documents.
 - `tests/` — systematic and regression tests for the rules and applications.
 
 Some of these directories are planned and will be added as implementation begins.
