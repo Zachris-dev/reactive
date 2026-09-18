@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "description": "Rules engine and test tools for the Reactive tabletop RPG system.",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
+    "prebuild": "node scripts/check-node.js",
     "build": "tsc -p tsconfig.json",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "test": "npm run build && node dist/tests/rules_engine/run.js",
