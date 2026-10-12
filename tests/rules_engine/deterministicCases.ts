@@ -87,12 +87,18 @@ function opposedDetails(result: OpposedRollResult): string[] {
         " edgeUsedBy=" + (frame.edgeUsedBy === null ? "none" : frame.edgeUsedBy),
     );
   }
-  lines.push(
-    "returned final state: totals A/B=" + result.aFinalTotal + "/" + result.bFinalTotal +
-      " Risk A/B=" + result.riskA + "/" + result.riskB +
-      " Fumble A/B=" + (result.aFumbleSeverity === null ? "none" : result.aFumbleSeverity) +
-      "/" + (result.bFumbleSeverity === null ? "none" : result.bFumbleSeverity),
-  );
+  lines.push("resolution returns, deepest first:");
+  for (const returned of result.returns) {
+    lines.push(
+      "  depth=" + returned.depth +
+        " totals A/B=" + returned.aTotal + "/" + returned.bTotal +
+        " Risk A/B=" + returned.riskA + "/" + returned.riskB +
+        " Fumble A/B=" +
+        (returned.aFumbleSeverity === null ? "none" : returned.aFumbleSeverity) +
+        "/" +
+        (returned.bFumbleSeverity === null ? "none" : returned.bFumbleSeverity),
+    );
+  }
   return lines;
 }
 
@@ -179,8 +185,9 @@ const CASES: DeterministicCase[] = [
         new SequenceDiceSource([2, 3, 4]),
       );
       equal(result.frames.length, 1, "frame count");
-      equal(result.aFinalTotal, 5, "A final total");
-      equal(result.bFinalTotal, 4, "B final total");
+      equal(result.returns.length, 1, "return count");
+      equal(result.returns[0].aTotal, 5, "A returned total");
+      equal(result.returns[0].bTotal, 4, "B returned total");
       return { id: "07", name: "ordinary opposed roll", details: opposedDetails(result), trace: opposedTrace(result) };
     },
   },
@@ -199,8 +206,11 @@ const CASES: DeterministicCase[] = [
       equal(result.frames[1].enteredWithRiskA, true, "nested A Risk");
       equal(result.riskA, true, "A Risk");
       equal(result.riskB, false, "B Risk");
-      equal(result.aFinalTotal, result.frames[0].contest.a.finalTotal, "A returned initial total");
-      equal(result.bFinalTotal, result.frames[0].contest.b.finalTotal, "B returned initial total");
+      equal(result.returns.length, 2, "return count");
+      equal(result.returns[0].depth, 1, "first return is Risk contest");
+      equal(result.returns[1].depth, 0, "second return is original contest");
+      equal(result.returns[1].aTotal, result.frames[0].contest.a.finalTotal, "A returned initial total");
+      equal(result.returns[1].bTotal, result.frames[0].contest.b.finalTotal, "B returned initial total");
       return { id: "08", name: "single Risk, one nested contest, then return to initial totals", details: opposedDetails(result), trace: opposedTrace(result) };
     },
   },
@@ -273,7 +283,11 @@ const CASES: DeterministicCase[] = [
       );
       equal(result.frames.length, 3, "frame count");
       equal(result.frames[1].enteredWithRiskA, true, "first nested A Risk");
+      equal(result.frames[2].enteredWithRiskA, true, "second nested retains A Risk");
       equal(result.frames[2].enteredWithRiskB, true, "second nested B Risk");
+      equal(result.returns.length, 3, "return count");
+      equal(result.returns[0].depth, 2, "deepest return");
+      equal(result.returns[2].depth, 0, "original return");
       equal(result.riskA, true, "A accumulated Risk");
       equal(result.riskB, true, "B accumulated Risk");
       return { id: "12", name: "Risk inside a Risk contest creates a deeper nested contest", details: opposedDetails(result), trace: opposedTrace(result) };
@@ -311,7 +325,9 @@ const CASES: DeterministicCase[] = [
       equal(result.frames.length, 2, "frame count");
       equal(result.frames[1].contest.a.steps.length, 3, "nested A step count");
       equal(result.aFumbleSeverity, 2, "A propagated fumble");
-      equal(result.aFinalTotal, 0, "A propagated total");
+      equal(result.returns.length, 2, "return count");
+      equal(result.returns[0].aTotal, 0, "nested A fumble total");
+      equal(result.returns[1].aTotal, 0, "A propagated original total");
       equal(result.riskA, true, "already-started A Risk retained");
       return { id: "14", name: "two doublings then Fumble 2 inside nested Risk", details: opposedDetails(result), trace: opposedTrace(result) };
     },
@@ -330,11 +346,47 @@ const CASES: DeterministicCase[] = [
       equal(result.frames.length, 2, "frame count");
       equal(result.aFumbleSeverity, 1, "A fumble");
       equal(result.bFumbleSeverity, 1, "B fumble");
-      equal(result.aFinalTotal, 0, "A final total");
-      equal(result.bFinalTotal, 0, "B final total");
+      equal(result.returns.length, 2, "return count");
+      equal(result.returns[0].aTotal, 0, "nested A total");
+      equal(result.returns[0].bTotal, 0, "nested B total");
+      equal(result.returns[1].aTotal, 0, "original A propagated total");
+      equal(result.returns[1].bTotal, 0, "original B propagated total");
       equal(result.riskA, true, "A accumulated Risk");
       equal(result.riskB, true, "B accumulated Risk");
       return { id: "15", name: "double Risk followed by both sides fumbling in the nested contest", details: opposedDetails(result), trace: opposedTrace(result) };
+    },
+  },
+
+  {
+    id: "16",
+    name: "four nested Risks produce five return values",
+    run: () => {
+      const result = rollOpposed(
+        [20, 40, 20, 40, 40],
+        [40, 20, 40, 20, 40],
+        new SequenceDiceSource([
+          3, 4, 5,
+          2, 3, 4,
+          3, 4, 5,
+          2, 3, 4,
+          2, 3, 4,
+        ]),
+        new SequenceDiceSource([
+          2, 3, 4,
+          3, 4, 5,
+          2, 3, 4,
+          3, 4, 5,
+          2, 3, 4,
+        ]),
+      );
+      equal(result.frames.length, 5, "frame count");
+      equal(result.returns.length, 5, "return count");
+      equal(result.returns[0].depth, 4, "first return is deepest");
+      equal(result.returns[1].depth, 3, "second return");
+      equal(result.returns[2].depth, 2, "third return");
+      equal(result.returns[3].depth, 1, "fourth return");
+      equal(result.returns[4].depth, 0, "last return is original");
+      return { id: "16", name: "four nested Risks produce five return values", details: opposedDetails(result), trace: opposedTrace(result) };
     },
   },
 ];
