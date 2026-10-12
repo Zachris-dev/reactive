@@ -5,22 +5,25 @@ declare const process: {
 
 import {
   LogLevel,
-  OpposedContestResult,
+  OpposedRollResult,
   RandomDiceSource,
   SimpleRollResult,
-  SkillSequence,
-  rollOpposedContest,
+  rollOpposed,
   rollSimple,
 } from "../../../packages/rules_engine/src";
+
+type EdgePolicy = "always" | "never";
 
 interface ParsedArgs {
   command: "roll";
   aSkills: number[];
   bSkills: number[] | null;
   log: LogLevel;
+  edgePolicy: EdgePolicy;
 }
 
 const LOG_LEVELS = new Set<LogLevel>(["trace", "verbose", "summary", "quiet"]);
+const EDGE_POLICIES = new Set<EdgePolicy>(["always", "never"]);
 
 function usage(): string {
   return [
@@ -34,12 +37,14 @@ function usage(): string {
     "Options:",
     "  --a-skills LIST   A-side skill sequence in integer tenths.",
     "  --b-skills LIST   B-side skill sequence in integer tenths.",
+    "  --edge POLICY     always | never for optional one-sided Edge (default: never)",
     "  --log LEVEL       trace | verbose | summary | quiet (default: verbose)",
     "",
     "Examples:",
     "  40 means skill 4.0; 33 means skill 3.3.",
-    "  Later list entries are reserved for nested Risk contests.",
+    "  Later list entries are used by nested Risk contests.",
     "  When a skill sequence is exhausted, later Risk tests use Skill 0.",
+    "  Both-sides Edge is always automatic double Risk regardless of --edge.",
   ].join("\n");
 }
 
@@ -71,10 +76,16 @@ function parseArgs(argv: string[]): ParsedArgs {
   let aSkills: number[] | null = null;
   let bSkills: number[] | null = null;
   let log: LogLevel = "verbose";
+  let edgePolicy: EdgePolicy = "never";
 
   for (let i = 1; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--a-skills" || arg === "--b-skills" || arg === "--log") {
+    if (
+      arg === "--a-skills" ||
+      arg === "--b-skills" ||
+      arg === "--log" ||
+      arg === "--edge"
+    ) {
       const value = argv[i + 1];
       if (value === undefined) {
         throw new Error(`${arg} requires a value.`);
@@ -85,11 +96,16 @@ function parseArgs(argv: string[]): ParsedArgs {
         aSkills = parseSkillList(value);
       } else if (arg === "--b-skills") {
         bSkills = parseSkillList(value);
-      } else {
+      } else if (arg === "--log") {
         if (!LOG_LEVELS.has(value as LogLevel)) {
           throw new Error(`Unknown log level '${value}'.`);
         }
         log = value as LogLevel;
+      } else {
+        if (!EDGE_POLICIES.has(value as EdgePolicy)) {
+          throw new Error(`Unknown Edge policy '${value}'. Use always or never.`);
+        }
+        edgePolicy = value as EdgePolicy;
       }
       continue;
     }
@@ -117,7 +133,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     throw new Error("A-side skill is required.");
   }
 
-  return { command: "roll", aSkills, bSkills, log };
+  return { command: "roll", aSkills, bSkills, log, edgePolicy };
 }
 
 function formatSkill(stored: number): string {
@@ -177,71 +193,97 @@ function printSimple(label: string, result: SimpleRollResult, level: LogLevel): 
   }
 }
 
-function printOpposed(result: OpposedContestResult, level: LogLevel): void {
-  printSimple("Side A", result.a, level);
-  if (level !== "quiet") {
-    console.log("");
-  }
-  printSimple("Side B", result.b, level);
-
+function printOpposed(result: OpposedRollResult, level: LogLevel): void {
   if (level === "quiet") {
     return;
   }
 
-  console.log("");
-  console.log("Opposed interaction:");
-  console.log(`  Risk against A: ${result.riskAgainstA ? "yes" : "no"}`);
-  console.log(`  Risk against B: ${result.riskAgainstB ? "yes" : "no"}`);
-  console.log(`  Both sides have Edge: ${result.bothHaveEdge ? "yes" : "no"}`);
-  if (result.oneSidedEdgeDecision !== null) {
+  if (level === "summary") {
     console.log(
-      `  Edge decision required: Side ${result.oneSidedEdgeDecision.sideWithEdge} may add Risk ` +
-        `against Side ${result.oneSidedEdgeDecision.target}.`,
+      `Opposed result: A=${result.aFinalTotal} B=${result.bFinalTotal} ` +
+        `Risk(A/B)=${result.riskA}/${result.riskB} ` +
+        `Fumble(A/B)=${result.aFumbleSeverity ?? "none"}/${result.bFumbleSeverity ?? "none"} ` +
+        `frames=${result.frames.length}`,
     );
+    return;
   }
+
+  for (const frame of result.frames) {
+    console.log(frame.depth === 0 ? "Initial contest" : `Risk contest ${frame.depth}`);
+    if (frame.depth > 0) {
+      console.log(
+        `  Entered with Risk: A=${frame.enteredWithRiskA ? "yes" : "no"}, ` +
+          `B=${frame.enteredWithRiskB ? "yes" : "no"}`,
+      );
+    }
+    if (frame.aSkillFallback) {
+      console.log("  A skill list exhausted -> Skill 0");
+    }
+    if (frame.bSkillFallback) {
+      console.log("  B skill list exhausted -> Skill 0");
+    }
+
+    printSimple("  Side A", frame.contest.a, level);
+    console.log("");
+    printSimple("  Side B", frame.contest.b, level);
+
+    console.log("  Interaction:");
+    if (frame.contest.bothHaveEdge) {
+      console.log("    Both sides have Edge -> automatic double Risk.");
+    } else if (frame.contest.oneSidedEdgeDecision !== null) {
+      const offered = frame.contest.oneSidedEdgeDecision;
+      const used = frame.edgeUsedBy === offered.sideWithEdge;
+      console.log(
+        `    Side ${offered.sideWithEdge} Edge against ${offered.target}: ` +
+          (used ? "used" : "declined by Edge policy"),
+      );
+    }
+    console.log(`    New Risk on A: ${frame.riskStartedForA ? "yes" : "no"}`);
+    console.log(`    New Risk on B: ${frame.riskStartedForB ? "yes" : "no"}`);
+    console.log("");
+  }
+
+  console.log("Final opposed state:");
+  console.log(`  A total: ${result.aFinalTotal}`);
+  console.log(`  B total: ${result.bFinalTotal}`);
+  console.log(`  A Risk: ${result.riskA ? "yes" : "no"}`);
+  console.log(`  B Risk: ${result.riskB ? "yes" : "no"}`);
+  console.log(`  A fumble: ${result.aFumbleSeverity ?? "none"}`);
+  console.log(`  B fumble: ${result.bFumbleSeverity ?? "none"}`);
+  console.log(`  Contest frames: ${result.frames.length}`);
 }
 
 function main(): void {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const aSequence = new SkillSequence(args.aSkills);
-    const aSkill = aSequence.next();
 
     if (args.log !== "quiet") {
       console.log("Reactive dice tester");
       console.log(`A skills: ${args.aSkills.join(", ")}`);
       if (args.bSkills !== null) {
         console.log(`B skills: ${args.bSkills.join(", ")}`);
+        console.log(`One-sided Edge policy: ${args.edgePolicy}`);
       }
       console.log(`Log level: ${args.log}`);
       console.log("");
     }
 
     if (args.bSkills === null) {
-      const result = rollSimple(aSkill, new RandomDiceSource());
+      const result = rollSimple(args.aSkills[0], new RandomDiceSource());
       printSimple("Roll", result, args.log);
       return;
     }
 
-    const bSequence = new SkillSequence(args.bSkills);
-    const bSkill = bSequence.next();
-    const result = rollOpposedContest(
-      aSkill,
-      bSkill,
+    const result = rollOpposed(
+      args.aSkills,
+      args.bSkills,
       new RandomDiceSource(),
       new RandomDiceSource(),
+      {
+        edgeDecision: () => args.edgePolicy === "always",
+      },
     );
     printOpposed(result, args.log);
-
-    if (args.log !== "quiet") {
-      if (aSequence.remaining().length > 0 || bSequence.remaining().length > 0) {
-        console.log("");
-        console.log(
-          "Remaining supplied skills are retained conceptually for nested Risk contests; " +
-            "the higher-level Risk state machine is the next implementation step.",
-        );
-      }
-    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(message);
