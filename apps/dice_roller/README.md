@@ -22,6 +22,33 @@ A side's own Risk trigger places Risk on that same side. One-sided Edge may plac
 
 Ordinary totals from nested Risk contests do not replace the initial opposed totals. Risk flags accumulate through the stack, while a fumble in a nested contest propagates back and forces that side's final opposed total to 0. The greatest fumble severity is retained.
 
+## Deterministic engine cases
+
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting and propagated fumbles.
+
+Run the readable walkthrough with:
+
+```text
+cases.cmd
+```
+
+or:
+
+```text
+npm run cases
+```
+
+The same logging levels are available:
+
+```text
+cases.cmd --log trace
+cases.cmd --log verbose
+cases.cmd --log summary
+cases.cmd --log quiet
+```
+
+`test.cmd` also runs these deterministic cases in quiet assertion mode after the ordinary unit tests, so a regression in any defined scenario fails the normal test suite.
+
 ## Optional Edge policy
 
 A one-sided Edge is a player choice after the contest result is known. The command-line tester needs a repeatable policy for that choice:
