@@ -200,19 +200,26 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
 
   if (level === "summary") {
     console.log(
-      `Opposed result: A=${result.aFinalTotal} B=${result.bFinalTotal} ` +
+      `Opposed roll: frames=${result.frames.length} returns=${result.returns.length} ` +
         `Risk(A/B)=${result.riskA}/${result.riskB} ` +
-        `Fumble(A/B)=${result.aFumbleSeverity ?? "none"}/${result.bFumbleSeverity ?? "none"} ` +
-        `frames=${result.frames.length}`,
+        `Fumble(A/B)=${result.aFumbleSeverity ?? "none"}/${result.bFumbleSeverity ?? "none"}`,
     );
+    for (const returned of result.returns) {
+      console.log(
+        `  return depth ${returned.depth}: A=${returned.aTotal} B=${returned.bTotal} ` +
+          `Risk=${returned.riskA}/${returned.riskB} ` +
+          `Fumble=${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"}`,
+      );
+    }
     return;
   }
 
+  console.log("Roll order:");
   for (const frame of result.frames) {
     console.log(frame.depth === 0 ? "Initial contest" : `Risk contest ${frame.depth}`);
     if (frame.depth > 0) {
       console.log(
-        `  Entered with Risk: A=${frame.enteredWithRiskA ? "yes" : "no"}, ` +
+        `  Entered with cumulative Risk: A=${frame.enteredWithRiskA ? "yes" : "no"}, ` +
           `B=${frame.enteredWithRiskB ? "yes" : "no"}`,
       );
     }
@@ -243,14 +250,20 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
     console.log("");
   }
 
-  console.log("Final opposed state:");
-  console.log(`  A total: ${result.aFinalTotal}`);
-  console.log(`  B total: ${result.bFinalTotal}`);
-  console.log(`  A Risk: ${result.riskA ? "yes" : "no"}`);
-  console.log(`  B Risk: ${result.riskB ? "yes" : "no"}`);
-  console.log(`  A fumble: ${result.aFumbleSeverity ?? "none"}`);
-  console.log(`  B fumble: ${result.bFumbleSeverity ?? "none"}`);
-  console.log(`  Contest frames: ${result.frames.length}`);
+  console.log("Resolution return order (deepest first):");
+  result.returns.forEach((returned, index) => {
+    const label =
+      returned.depth === 0 ? "original contest" : `Risk contest ${returned.depth}`;
+    console.log(`  Return ${index + 1}: ${label}`);
+    console.log(`    A total: ${returned.aTotal}`);
+    console.log(`    B total: ${returned.bTotal}`);
+    console.log(
+      `    Risk A/B: ${returned.riskA ? "yes" : "no"}/${returned.riskB ? "yes" : "no"}`,
+    );
+    console.log(
+      `    Fumble A/B: ${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"}`,
+    );
+  });
 }
 
 function main(): void {
