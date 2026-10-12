@@ -83,9 +83,9 @@ export interface SimpleRollResult {
 export interface OpposedContestResult {
   a: SimpleRollResult;
   b: SimpleRollResult;
-  /** Risk currently pending on side A. */
+  /** Risk currently created on side A by this contest. */
   riskAgainstA: boolean;
-  /** Risk currently pending on side B. */
+  /** Risk currently created on side B by this contest. */
   riskAgainstB: boolean;
   bothHaveEdge: boolean;
   oneSidedEdgeDecision:
@@ -118,7 +118,10 @@ export interface OpposedRiskFrame {
   bSkill: number;
   aSkillFallback: boolean;
   bSkillFallback: boolean;
-  /** Risk state that caused this frame to exist. Always false at depth 0. */
+  /**
+   * Cumulative Risk state already active when this frame begins.
+   * Always false at depth 0.
+   */
   enteredWithRiskA: boolean;
   enteredWithRiskB: boolean;
   contest: OpposedContestResult;
@@ -130,18 +133,40 @@ export interface OpposedRiskFrame {
 }
 
 /**
- * Complete opposed roll including all nested Risk frames.
+ * One opposed contest returned for resolution while the Risk stack unwinds.
  *
- * Ordinary totals from nested frames do not replace the initial totals.
- * Risk flags accumulate by side. A fumble in any nested frame propagates back
- * through the stack and forces that side's final opposed total to zero.
+ * Returns are emitted deepest-first. A fumble in a deeper frame propagates to
+ * every enclosing frame, so the totals/severity here may differ from the raw
+ * contest totals stored in the source frame.
+ */
+export interface OpposedReturnResult {
+  /** Depth of the source contest frame. 0 is the original opposed roll. */
+  depth: number;
+  contest: OpposedContestResult;
+  aTotal: number;
+  bTotal: number;
+  /** Risk flags after all nested contests have propagated back. */
+  riskA: boolean;
+  riskB: boolean;
+  /** Fumbles from this frame or a deeper frame, propagated outward. */
+  aFumbleSeverity: number | null;
+  bFumbleSeverity: number | null;
+}
+
+/**
+ * Complete opposed roll including all nested Risk frames and every result that
+ * must subsequently be resolved.
+ *
+ * frames are stored in roll order: original first, deepest last.
+ * returns are stored in resolution order: deepest first, original last.
  */
 export interface OpposedRollResult {
   frames: OpposedRiskFrame[];
-  aFinalTotal: number;
-  bFinalTotal: number;
+  returns: OpposedReturnResult[];
+  /** Final cumulative Risk state after the whole stack has been rolled. */
   riskA: boolean;
   riskB: boolean;
+  /** Worst fumble that propagates all the way back to the original frame. */
   aFumbleSeverity: number | null;
   bFumbleSeverity: number | null;
 }
