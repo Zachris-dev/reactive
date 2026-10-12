@@ -20,11 +20,13 @@ For opposed rolls, each side's skill list is consumed one entry per contest fram
 
 A side's own Risk trigger places Risk on that same side. One-sided Edge may place Risk on the opponent; both sides having Edge in the same contest creates automatic double Risk.
 
-Ordinary totals from nested Risk contests do not replace the initial opposed totals. Risk flags accumulate through the stack, while a fumble in a nested contest propagates back and forces that side's final opposed total to 0. The greatest fumble severity is retained.
+Every opposed contest frame produces its own return value for later resolution. If Risk creates a nested contest, that Risk contest returns first; the engine then unwinds to the enclosing contest, eventually returning the original opposed roll last. A deep Risk chain can therefore produce many resolution results.
+
+Risk flags accumulate through the stack. A fumble in a nested contest propagates outward to each enclosing return value, forcing that side's total to 0 there and preserving the greatest fumble severity. A fumble in an enclosing contest does not rewrite a deeper result that was already rolled.
 
 ## Deterministic engine cases
 
-The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting and propagated fumbles.
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, and a five-frame Risk chain that verifies five separate return values in deepest-first resolution order.
 
 Run the readable walkthrough with:
 
