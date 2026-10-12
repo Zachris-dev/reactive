@@ -1,4 +1,5 @@
 export type LogLevel = "trace" | "verbose" | "summary" | "quiet";
+export type Side = "A" | "B";
 
 export type Die3 = readonly [number, number, number];
 
@@ -78,16 +79,69 @@ export interface SimpleRollResult {
   events: EngineEvent[];
 }
 
+/** Result of one opposed contest frame before any new Risk frame is started. */
 export interface OpposedContestResult {
   a: SimpleRollResult;
   b: SimpleRollResult;
+  /** Risk currently pending on side A. */
   riskAgainstA: boolean;
+  /** Risk currently pending on side B. */
   riskAgainstB: boolean;
   bothHaveEdge: boolean;
   oneSidedEdgeDecision:
     | null
     | {
-        sideWithEdge: "A" | "B";
-        target: "A" | "B";
+        sideWithEdge: Side;
+        target: Side;
       };
+}
+
+export interface EdgeDecisionContext {
+  depth: number;
+  sideWithEdge: Side;
+  target: Side;
+  contest: OpposedContestResult;
+}
+
+export type EdgeDecision = (context: EdgeDecisionContext) => boolean;
+
+export interface OpposedRollOptions {
+  /** Optional Edge is declined when no decision callback is supplied. */
+  edgeDecision?: EdgeDecision;
+  /** Safety limit for nested Risk contests; the initial contest is depth 0. */
+  maxRiskDepth?: number;
+}
+
+export interface OpposedRiskFrame {
+  depth: number;
+  aSkill: number;
+  bSkill: number;
+  aSkillFallback: boolean;
+  bSkillFallback: boolean;
+  /** Risk state that caused this frame to exist. Always false at depth 0. */
+  enteredWithRiskA: boolean;
+  enteredWithRiskB: boolean;
+  contest: OpposedContestResult;
+  /** Side that chose to spend a one-sided Edge in this frame, if any. */
+  edgeUsedBy: Side | null;
+  /** New Risk created by this frame after Edge interaction is resolved. */
+  riskStartedForA: boolean;
+  riskStartedForB: boolean;
+}
+
+/**
+ * Complete opposed roll including all nested Risk frames.
+ *
+ * Ordinary totals from nested frames do not replace the initial totals.
+ * Risk flags accumulate by side. A fumble in any nested frame propagates back
+ * through the stack and forces that side's final opposed total to zero.
+ */
+export interface OpposedRollResult {
+  frames: OpposedRiskFrame[];
+  aFinalTotal: number;
+  bFinalTotal: number;
+  riskA: boolean;
+  riskB: boolean;
+  aFumbleSeverity: number | null;
+  bFumbleSeverity: number | null;
 }
