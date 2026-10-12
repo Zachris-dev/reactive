@@ -1,6 +1,8 @@
 import {
   SequenceDiceSource,
   SkillSequence,
+  rollOpposed,
+  rollOpposedContest,
   rollSimple,
 } from "../../packages/rules_engine/src";
 
@@ -82,6 +84,140 @@ test("skill sequence falls back to Skill 0 after supplied values are exhausted",
   equal(sequence.next(), 11, "third skill");
   equal(sequence.next(), 0, "first fallback");
   equal(sequence.next(), 0, "second fallback");
+});
+
+test("a side's normal Risk belongs to that same side", () => {
+  const result = rollOpposedContest(
+    20,
+    40,
+    new SequenceDiceSource([4, 4, 4, 2, 3, 6]),
+    new SequenceDiceSource([2, 3, 6]),
+  );
+  equal(result.riskAgainstA, true, "Risk on A");
+  equal(result.riskAgainstB, false, "Risk on B");
+});
+
+test("normal Risk starts a nested contest and exhausted skill lists use Skill 0", () => {
+  const result = rollOpposed(
+    [20],
+    [40],
+    new SequenceDiceSource([4, 4, 4, 2, 3, 6, 2, 3, 6]),
+    new SequenceDiceSource([2, 3, 6, 2, 3, 6]),
+  );
+  equal(result.frames.length, 2, "frame count");
+  equal(result.riskA, true, "accumulated A Risk");
+  equal(result.riskB, false, "accumulated B Risk");
+  equal(result.frames[1].aSkill, 0, "nested A skill");
+  equal(result.frames[1].bSkill, 0, "nested B skill");
+  equal(result.frames[1].aSkillFallback, true, "nested A fallback marker");
+  equal(result.frames[1].bSkillFallback, true, "nested B fallback marker");
+});
+
+test("both sides can create Risk in one frame and open one double-Risk contest", () => {
+  const result = rollOpposed(
+    [20],
+    [20],
+    new SequenceDiceSource([4, 4, 4, 2, 3, 6, 2, 3, 6]),
+    new SequenceDiceSource([4, 4, 4, 2, 3, 6, 2, 3, 6]),
+  );
+  equal(result.frames.length, 2, "frame count");
+  equal(result.riskA, true, "A Risk");
+  equal(result.riskB, true, "B Risk");
+  equal(result.frames[1].enteredWithRiskA, true, "nested A incoming Risk");
+  equal(result.frames[1].enteredWithRiskB, true, "nested B incoming Risk");
+});
+
+test("Risk flags from deeper contests accumulate back through the stack", () => {
+  const result = rollOpposed(
+    [20, 0],
+    [40, 20],
+    new SequenceDiceSource([
+      4, 4, 4, 2, 3, 6,
+      2, 3, 6,
+      2, 3, 6,
+    ]),
+    new SequenceDiceSource([
+      2, 3, 6,
+      4, 4, 4, 2, 3, 6,
+      2, 3, 6,
+    ]),
+  );
+  equal(result.frames.length, 3, "frame count");
+  equal(result.riskA, true, "A Risk propagated");
+  equal(result.riskB, true, "B Risk propagated");
+  equal(result.frames[1].enteredWithRiskA, true, "first nested caused by A Risk");
+  equal(result.frames[2].enteredWithRiskB, true, "second nested caused by B Risk");
+});
+
+test("nested fumble propagates zero and severity without erasing already-started Risk", () => {
+  const result = rollOpposed(
+    [20, 20],
+    [40, 40],
+    new SequenceDiceSource([
+      4, 4, 4, 2, 3, 6,
+      4, 4, 4, 4, 4, 4, 2, 3, 6,
+    ]),
+    new SequenceDiceSource([
+      2, 3, 6,
+      2, 3, 6,
+    ]),
+  );
+  equal(result.frames.length, 2, "frame count");
+  equal(result.aFumbleSeverity, 1, "A propagated fumble");
+  equal(result.aFinalTotal, 0, "A propagated total");
+  equal(result.riskA, true, "already-started A Risk remains");
+});
+
+test("one-sided Edge may add Risk to the opponent", () => {
+  const result = rollOpposed(
+    [30],
+    [40],
+    new SequenceDiceSource([1, 1, 1, 2, 3, 6, 2, 3, 6]),
+    new SequenceDiceSource([2, 3, 6, 2, 3, 6]),
+    { edgeDecision: () => true },
+  );
+  equal(result.frames.length, 2, "frame count");
+  equal(result.frames[0].edgeUsedBy, "A", "Edge user");
+  equal(result.riskA, false, "A Risk");
+  equal(result.riskB, true, "B Risk from A Edge");
+});
+
+test("optional one-sided Edge is declined when no decision callback is supplied", () => {
+  const result = rollOpposed(
+    [30],
+    [40],
+    new SequenceDiceSource([1, 1, 1, 2, 3, 6]),
+    new SequenceDiceSource([2, 3, 6]),
+  );
+  equal(result.frames.length, 1, "frame count");
+  equal(result.frames[0].edgeUsedBy, null, "Edge not used");
+  equal(result.riskB, false, "no B Risk");
+});
+
+test("both sides Edge creates automatic double Risk without a callback", () => {
+  const result = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([1, 1, 1, 2, 3, 6, 2, 3, 6]),
+    new SequenceDiceSource([1, 1, 1, 2, 3, 6, 2, 3, 6]),
+  );
+  equal(result.frames.length, 2, "frame count");
+  equal(result.frames[0].contest.bothHaveEdge, true, "double Edge detected");
+  equal(result.riskA, true, "A Risk");
+  equal(result.riskB, true, "B Risk");
+});
+
+test("Edge cannot add pending Risk to a target that fumbled in that frame", () => {
+  const result = rollOpposedContest(
+    30,
+    20,
+    new SequenceDiceSource([1, 1, 1, 2, 3, 6]),
+    new SequenceDiceSource([4, 4, 4, 4, 4, 4, 2, 3, 6]),
+  );
+  equal(result.a.edgeAvailable, true, "A Edge");
+  equal(result.b.fumbleSeverity, 1, "B fumble");
+  equal(result.oneSidedEdgeDecision, null, "no Edge decision against fumbled B");
+  equal(result.riskAgainstB, false, "no pending B Risk");
 });
 
 console.log("All rules-engine tests passed.");
