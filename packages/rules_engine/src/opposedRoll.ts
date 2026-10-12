@@ -2,6 +2,7 @@ import {
   DiceSource,
   EdgeDecisionContext,
   OpposedContestResult,
+  OpposedReturnResult,
   OpposedRiskFrame,
   OpposedRollOptions,
   OpposedRollResult,
@@ -33,7 +34,7 @@ export function rollOpposedContest(
   let riskAgainstA = a.pendingRisk;
   let riskAgainstB = b.pendingRisk;
 
-  // A fumble cancels still-pending Risk on that same side.
+  // A fumble cancels still-pending Risk created by that same roll.
   if (a.fumbleSeverity !== null) {
     riskAgainstA = false;
   }
@@ -97,6 +98,46 @@ function useOptionalEdge(
   return decision(context) ? offered.sideWithEdge : null;
 }
 
+function buildReturns(
+  frames: readonly OpposedRiskFrame[],
+  riskA: boolean,
+  riskB: boolean,
+): OpposedReturnResult[] {
+  const returns: OpposedReturnResult[] = [];
+  let propagatedFumbleA: number | null = null;
+  let propagatedFumbleB: number | null = null;
+
+  for (let i = frames.length - 1; i >= 0; i -= 1) {
+    const frame = frames[i];
+
+    // Fumbles propagate only outward: a fumble in an enclosing contest must
+    // not rewrite a deeper contest that has already been rolled.
+    propagatedFumbleA = maxSeverity(
+      propagatedFumbleA,
+      frame.contest.a.fumbleSeverity,
+    );
+    propagatedFumbleB = maxSeverity(
+      propagatedFumbleB,
+      frame.contest.b.fumbleSeverity,
+    );
+
+    returns.push({
+      depth: frame.depth,
+      contest: frame.contest,
+      aTotal:
+        propagatedFumbleA === null ? frame.contest.a.finalTotal : 0,
+      bTotal:
+        propagatedFumbleB === null ? frame.contest.b.finalTotal : 0,
+      riskA,
+      riskB,
+      aFumbleSeverity: propagatedFumbleA,
+      bFumbleSeverity: propagatedFumbleB,
+    });
+  }
+
+  return returns;
+}
+
 /**
  * Roll a complete opposed roll, including nested Risk contests.
  *
@@ -105,10 +146,14 @@ function useOptionalEdge(
  * Doubling does not consume another skill because it remains part of the same
  * test.
  *
- * Risk flags accumulate through the nested stack. Ordinary totals from nested
- * Risk contests do not replace the initial opposed totals. A fumble in any
- * nested contest propagates back through the stack and forces that side's
- * final opposed total to zero; the greatest fumble severity is preserved.
+ * Contest frames are rolled from outermost to innermost. When rolling stops,
+ * every frame is returned for later resolution in the opposite order:
+ * deepest Risk first, then each enclosing Risk contest, and finally the
+ * original opposed roll.
+ *
+ * Risk flags accumulate through the stack. A fumble in a nested contest
+ * propagates outward to every enclosing result, but never backward into a
+ * deeper result that was already rolled.
  */
 export function rollOpposed(
   aSkills: readonly number[],
@@ -124,11 +169,9 @@ export function rollOpposed(
   const frames: OpposedRiskFrame[] = [];
   let riskA = false;
   let riskB = false;
-  let aFumbleSeverity: number | null = null;
-  let bFumbleSeverity: number | null = null;
 
-  let enteredWithRiskA = false;
-  let enteredWithRiskB = false;
+  let activeRiskA = false;
+  let activeRiskB = false;
   let depth = 0;
 
   while (true) {
@@ -163,47 +206,47 @@ export function rollOpposed(
       bSkill,
       aSkillFallback,
       bSkillFallback,
-      enteredWithRiskA,
-      enteredWithRiskB,
+      enteredWithRiskA: activeRiskA,
+      enteredWithRiskB: activeRiskB,
       contest,
       edgeUsedBy,
       riskStartedForA,
       riskStartedForB,
     });
 
-    aFumbleSeverity = maxSeverity(aFumbleSeverity, contest.a.fumbleSeverity);
-    bFumbleSeverity = maxSeverity(bFumbleSeverity, contest.b.fumbleSeverity);
-
     if (riskStartedForA) {
       riskA = true;
+      activeRiskA = true;
     }
     if (riskStartedForB) {
       riskB = true;
+      activeRiskB = true;
     }
 
     if (!riskStartedForA && !riskStartedForB) {
       break;
     }
 
-    // The Risk contest is now started. Later fumbles cannot erase this already
-    // existing frame; they only affect the side's propagated result/severity.
-    enteredWithRiskA = riskStartedForA;
-    enteredWithRiskB = riskStartedForB;
+    // The Risk contest is now started. Later fumbles cannot erase that frame.
     depth += 1;
   }
 
-  const initial = frames[0];
-  if (initial === undefined) {
+  if (frames.length === 0) {
     throw new Error("Opposed roll produced no contest frames.");
+  }
+
+  const returns = buildReturns(frames, riskA, riskB);
+  const originalReturn = returns[returns.length - 1];
+  if (originalReturn === undefined) {
+    throw new Error("Opposed roll produced no return values.");
   }
 
   return {
     frames,
-    aFinalTotal: aFumbleSeverity === null ? initial.contest.a.finalTotal : 0,
-    bFinalTotal: bFumbleSeverity === null ? initial.contest.b.finalTotal : 0,
+    returns,
     riskA,
     riskB,
-    aFumbleSeverity,
-    bFumbleSeverity,
+    aFumbleSeverity: originalReturn.aFumbleSeverity,
+    bFumbleSeverity: originalReturn.bFumbleSeverity,
   };
 }
