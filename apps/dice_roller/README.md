@@ -14,11 +14,24 @@ npm run roll -- roll 33 25
 npm run roll -- roll --a-skills "40,32,11" --b-skills "36,23"
 ```
 
-One skill/skill list performs a simple roll. Two sides perform one opposed contest frame.
+One skill performs a simple roll. Two sides perform a complete opposed roll, including any nested Risk contests.
 
-Skill lists reserve later entries for nested Risk contests. Once a list is exhausted, further Risk tests use Skill 0. Doubling never consumes another skill because it remains part of the same test.
+For opposed rolls, each side's skill list is consumed one entry per contest frame. Later entries are used for nested Risk contests. Once a list is exhausted, further Risk tests use Skill 0. Doubling never consumes another skill because it remains part of the same test.
 
-The current milestone implements the complete low-level simple-roll chain and the first opposed contest frame, including fractional rounding, Risk detection, Edge detection, doubling, fumbles, roll values, and the both-sides-Edge automatic double-Risk interaction. The higher-level nested Risk state machine is the next engine step.
+A side's own Risk trigger places Risk on that same side. One-sided Edge may place Risk on the opponent; both sides having Edge in the same contest creates automatic double Risk.
+
+Ordinary totals from nested Risk contests do not replace the initial opposed totals. Risk flags accumulate through the stack, while a fumble in a nested contest propagates back and forces that side's final opposed total to 0. The greatest fumble severity is retained.
+
+## Optional Edge policy
+
+A one-sided Edge is a player choice after the contest result is known. The command-line tester needs a repeatable policy for that choice:
+
+```text
+--edge never
+--edge always
+```
+
+The default is `never`. This setting does not affect the both-sides-Edge rule, which always produces automatic double Risk.
 
 ## Logging
 
