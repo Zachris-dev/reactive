@@ -105,6 +105,9 @@ test("normal Risk starts a nested contest and exhausted skill lists use Skill 0"
     new SequenceDiceSource([2, 3, 6, 2, 3, 6]),
   );
   equal(result.frames.length, 2, "frame count");
+  equal(result.returns.length, 2, "return count");
+  equal(result.returns[0].depth, 1, "first return is nested Risk");
+  equal(result.returns[1].depth, 0, "second return is original contest");
   equal(result.riskA, true, "accumulated A Risk");
   equal(result.riskB, false, "accumulated B Risk");
   equal(result.frames[1].aSkill, 0, "nested A skill");
@@ -121,13 +124,14 @@ test("both sides can create Risk in one frame and open one double-Risk contest",
     new SequenceDiceSource([4, 4, 4, 2, 3, 6, 2, 3, 6]),
   );
   equal(result.frames.length, 2, "frame count");
+  equal(result.returns.length, 2, "return count");
   equal(result.riskA, true, "A Risk");
   equal(result.riskB, true, "B Risk");
   equal(result.frames[1].enteredWithRiskA, true, "nested A incoming Risk");
   equal(result.frames[1].enteredWithRiskB, true, "nested B incoming Risk");
 });
 
-test("Risk flags from deeper contests accumulate back through the stack", () => {
+test("Risk flags remain cumulative in deeper contest frames and on return", () => {
   const result = rollOpposed(
     [20, 0],
     [40, 20],
@@ -143,13 +147,20 @@ test("Risk flags from deeper contests accumulate back through the stack", () => 
     ]),
   );
   equal(result.frames.length, 3, "frame count");
+  equal(result.returns.length, 3, "return count");
   equal(result.riskA, true, "A Risk propagated");
   equal(result.riskB, true, "B Risk propagated");
-  equal(result.frames[1].enteredWithRiskA, true, "first nested caused by A Risk");
-  equal(result.frames[2].enteredWithRiskB, true, "second nested caused by B Risk");
+  equal(result.frames[1].enteredWithRiskA, true, "first nested has A Risk");
+  equal(result.frames[1].enteredWithRiskB, false, "first nested lacks B Risk");
+  equal(result.frames[2].enteredWithRiskA, true, "deeper nested retains A Risk");
+  equal(result.frames[2].enteredWithRiskB, true, "deeper nested gains B Risk");
+  equal(result.returns[0].riskA, true, "deepest return A Risk");
+  equal(result.returns[0].riskB, true, "deepest return B Risk");
+  equal(result.returns[2].riskA, true, "original return A Risk");
+  equal(result.returns[2].riskB, true, "original return B Risk");
 });
 
-test("nested fumble propagates zero and severity without erasing already-started Risk", () => {
+test("nested fumble propagates outward through return values", () => {
   const result = rollOpposed(
     [20, 20],
     [40, 40],
@@ -163,8 +174,14 @@ test("nested fumble propagates zero and severity without erasing already-started
     ]),
   );
   equal(result.frames.length, 2, "frame count");
+  equal(result.returns.length, 2, "return count");
   equal(result.aFumbleSeverity, 1, "A propagated fumble");
-  equal(result.aFinalTotal, 0, "A propagated total");
+  equal(result.returns[0].depth, 1, "nested return depth");
+  equal(result.returns[0].aTotal, 0, "nested A total");
+  equal(result.returns[0].aFumbleSeverity, 1, "nested A fumble");
+  equal(result.returns[1].depth, 0, "original return depth");
+  equal(result.returns[1].aTotal, 0, "original A total after propagation");
+  equal(result.returns[1].aFumbleSeverity, 1, "original A propagated fumble");
   equal(result.riskA, true, "already-started A Risk remains");
 });
 
@@ -177,6 +194,7 @@ test("one-sided Edge may add Risk to the opponent", () => {
     { edgeDecision: () => true },
   );
   equal(result.frames.length, 2, "frame count");
+  equal(result.returns.length, 2, "return count");
   equal(result.frames[0].edgeUsedBy, "A", "Edge user");
   equal(result.riskA, false, "A Risk");
   equal(result.riskB, true, "B Risk from A Edge");
@@ -190,6 +208,7 @@ test("optional one-sided Edge is declined when no decision callback is supplied"
     new SequenceDiceSource([2, 3, 6]),
   );
   equal(result.frames.length, 1, "frame count");
+  equal(result.returns.length, 1, "return count");
   equal(result.frames[0].edgeUsedBy, null, "Edge not used");
   equal(result.riskB, false, "no B Risk");
 });
@@ -202,6 +221,7 @@ test("both sides Edge creates automatic double Risk without a callback", () => {
     new SequenceDiceSource([1, 1, 1, 2, 3, 6, 2, 3, 6]),
   );
   equal(result.frames.length, 2, "frame count");
+  equal(result.returns.length, 2, "return count");
   equal(result.frames[0].contest.bothHaveEdge, true, "double Edge detected");
   equal(result.riskA, true, "A Risk");
   equal(result.riskB, true, "B Risk");
@@ -218,6 +238,34 @@ test("Edge cannot add pending Risk to a target that fumbled in that frame", () =
   equal(result.b.fumbleSeverity, 1, "B fumble");
   equal(result.oneSidedEdgeDecision, null, "no Edge decision against fumbled B");
   equal(result.riskAgainstB, false, "no pending B Risk");
+});
+
+test("five contest frames produce five resolution returns in reverse order", () => {
+  const result = rollOpposed(
+    [20, 40, 20, 40, 40],
+    [40, 20, 40, 20, 40],
+    new SequenceDiceSource([
+      3, 4, 5,
+      2, 3, 4,
+      3, 4, 5,
+      2, 3, 4,
+      2, 3, 4,
+    ]),
+    new SequenceDiceSource([
+      2, 3, 4,
+      3, 4, 5,
+      2, 3, 4,
+      3, 4, 5,
+      2, 3, 4,
+    ]),
+  );
+  equal(result.frames.length, 5, "frame count");
+  equal(result.returns.length, 5, "return count");
+  equal(result.returns[0].depth, 4, "first return depth");
+  equal(result.returns[1].depth, 3, "second return depth");
+  equal(result.returns[2].depth, 2, "third return depth");
+  equal(result.returns[3].depth, 1, "fourth return depth");
+  equal(result.returns[4].depth, 0, "last return depth");
 });
 
 console.log("All rules-engine tests passed.");
