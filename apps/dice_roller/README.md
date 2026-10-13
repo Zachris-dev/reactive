@@ -24,9 +24,38 @@ Every opposed contest frame produces its own return value for later resolution. 
 
 Risk flags accumulate through the stack. A fumble in a nested contest propagates outward to each enclosing return value, forcing that side's total to 0 there and preserving the greatest fumble severity. A fumble in an enclosing contest does not rewrite a deeper result that was already rolled.
 
+
+## Resumable opposed-roll sessions
+
+Normal play does not have to finish an entire opposed roll in one call. The shared engine now exposes a serializable session with `startOpposedSession()` and `advanceOpposedSession()`. It advances automatically until it reaches something the outside application must supply:
+
+- a fractional-rounding d10;
+- a 3d6 result, including another 3d6 after a triple;
+- a one-sided Edge decision;
+- newly selected skills for a Risk contest; or
+- comparative scores ready for resolution.
+
+A Risk therefore pauses before the new contest. The player and GM can select the next relevant unused skills, those new skills are rounded independently if necessary, and then rolling continues. Once the deepest Risk contest is finished, score results are returned one at a time from deepest to original.
+
+Each skill presentation is preserved as data. An exact 4.0 skill is:
+
+```text
+{ supplied: 40, rounded: 4 }
+```
+
+A fractional 3.3 that rounded up on a d10 result of 2 is:
+
+```text
+{ supplied: 33, rounded: 4, fractionDie: 2 }
+```
+
+Doubling remains part of the same test and therefore reuses that stored rounded value. A newly selected Risk skill is a new presentation and receives its own fractional-rounding roll when needed. All previous dice steps and presented skills remain in the session state.
+
+The batch `rollOpposed()` helper used by the CLI and deterministic cases now drives this same resumable session automatically. This keeps automated tests on the same control-flow path intended for the eventual graphical application.
+
 ## Deterministic engine cases
 
-The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, and a five-frame Risk chain that verifies five separate return values in deepest-first resolution order.
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills.
 
 Run the readable walkthrough with:
 
