@@ -9,14 +9,32 @@ export interface DiceSource {
 }
 
 /**
+ * A skill supplied to the engine. Numeric input is still accepted for the
+ * standalone roller and tests. Structured input lets a character sheet pass
+ * the skill's display name along with its canonical integer-tenths value.
+ */
+export type SkillInput =
+  | number
+  | {
+      supplied: number;
+      name?: string;
+    };
+
+/** A normalized skill selection before fractional rounding is resolved. */
+export interface SkillSelection {
+  name: string;
+  supplied: number;
+}
+
+/**
  * A skill as actually used by one test.
  *
+ * name is preserved for later result display.
  * supplied is always the canonical integer-tenths value (40 = 4.0).
  * rounded is the whole-number value used by that test.
  * fractionDie exists only when the supplied skill required rounding.
  */
-export interface PresentedSkill {
-  supplied: number;
+export interface PresentedSkill extends SkillSelection {
   rounded: number;
   fractionDie?: number;
 }
@@ -36,6 +54,7 @@ export interface RollStep {
 export type EngineEvent =
   | {
       type: "skill-rounded";
+      name: string;
       supplied: number;
       rounded: number;
       fractionDie?: number;
