@@ -332,24 +332,37 @@ test("resumable session presents exact skills without inventing a fraction die",
 });
 
 test("resumable session rounds each newly presented fractional skill once", () => {
-  let session = startOpposedSession(33, 27);
+  let session = startOpposedSession(
+    { name: "Athletics", supplied: 33 },
+    { name: "Footwork", supplied: 27 },
+  );
   equal(session.request.type, "fraction-die", "A fraction request");
+  if (session.request.type === "fraction-die") {
+    equal(session.request.skill.name, "Athletics", "A requested skill name");
+    equal(session.request.skill.supplied, 33, "A requested supplied skill");
+  }
 
   session = advanceOpposedSession(session, {
     type: "fraction-die",
     side: "A",
     value: 2,
   });
+  equal(session.activeFrame?.a.skill?.name, "Athletics", "A skill name");
   equal(session.activeFrame?.a.skill?.supplied, 33, "A supplied");
   equal(session.activeFrame?.a.skill?.rounded, 4, "A rounded");
   equal(session.activeFrame?.a.skill?.fractionDie, 2, "A fraction die");
   equal(session.request.type, "fraction-die", "B fraction request");
+  if (session.request.type === "fraction-die") {
+    equal(session.request.skill.name, "Footwork", "B requested skill name");
+    equal(session.request.skill.supplied, 27, "B requested supplied skill");
+  }
 
   session = advanceOpposedSession(session, {
     type: "fraction-die",
     side: "B",
     value: 8,
   });
+  equal(session.activeFrame?.b.skill?.name, "Footwork", "B skill name");
   equal(session.activeFrame?.b.skill?.supplied, 27, "B supplied");
   equal(session.activeFrame?.b.skill?.rounded, 2, "B rounded");
   equal(session.activeFrame?.b.skill?.fractionDie, 8, "B fraction die");
@@ -403,8 +416,8 @@ test("resumable session pauses for Risk skills and preserves the original frame"
 
   session = advanceOpposedSession(session, {
     type: "risk-skills",
-    aSkill: 33,
-    bSkill: 40,
+    aSkill: { name: "Athletics", supplied: 33 },
+    bSkill: { name: "Shield", supplied: 40 },
   });
   equal(session.request.type, "fraction-die", "new Risk skill rounding request");
 
@@ -414,6 +427,7 @@ test("resumable session pauses for Risk skills and preserves the original frame"
     value: 2,
   });
   equal(session.activeFrame?.depth, 1, "Risk frame depth");
+  equal(session.activeFrame?.a.skill?.name, "Athletics", "Risk skill name");
   equal(session.activeFrame?.a.skill?.supplied, 33, "Risk supplied skill");
   equal(session.activeFrame?.a.skill?.rounded, 4, "Risk rounded skill");
   equal(session.frames[0].aSkill.rounded, 2, "original rounded skill unchanged");
