@@ -29,8 +29,8 @@ function equal<T>(actual: T, expected: T, label: string): void {
 function simpleDetails(result: SimpleRollResult): string[] {
   const lines: string[] = [];
   lines.push(
-    "skill=" + result.skill.storedSkill +
-      " rounded=" + result.skill.roundedSkill +
+    "skill=" + result.skill.supplied +
+      " rounded=" + result.skill.rounded +
       " final=" + result.finalTotal,
   );
   for (const step of result.steps) {
@@ -65,7 +65,9 @@ function opposedDetails(result: OpposedRollResult): string[] {
     const label = frame.depth === 0 ? "initial" : "risk-" + frame.depth;
     lines.push(
       label +
-        ": skills A/B=" + frame.aSkill + "/" + frame.bSkill +
+        ": skills A/B=" +
+        frame.aSkill.supplied + "->" + frame.aSkill.rounded + "/" +
+        frame.bSkill.supplied + "->" + frame.bSkill.rounded +
         " enteredRisk A/B=" + frame.enteredWithRiskA + "/" + frame.enteredWithRiskB,
     );
     lines.push(
@@ -144,7 +146,7 @@ const CASES: DeterministicCase[] = [
   }),
 
   simpleCase("02", "fractional simple roll", 33, [2, 3, 4], [2], (result) => {
-    equal(result.skill.roundedSkill, 4, "rounded skill");
+    equal(result.skill.rounded, 4, "rounded skill");
     equal(result.finalTotal, 5, "final total");
   }),
 
