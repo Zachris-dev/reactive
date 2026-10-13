@@ -229,7 +229,7 @@ function resultView(entry: Entry, editable: boolean): string {
   const highest = r.finalRollValue;
   const displayedSteps = r.steps.map((step, i) => {
     const candidate = Math.abs(step.sum - 10) * step.multiplier;
-    const selected = doubling && candidate === highest;
+    const selected = doubling && r.fumbleSeverity === null && candidate === highest;
     const calculation = doubling
       ? '<p class="step-calculation">|' + step.sum + ' − 10| × ' +
         step.multiplier + ' = <strong>' + candidate + '</strong>' +
@@ -241,7 +241,9 @@ function resultView(entry: Entry, editable: boolean): string {
       diceBoxes(step.dice) + calculation + '</div>';
   }).join('');
   const total = r.steps[0].sum;
-  const resultCalculation = doubling
+  const resultCalculation = r.fumbleSeverity !== null
+    ? '<p class="calculation">Fumble, no result, no skill added.</p>'
+    : doubling
     ? '<p class="calculation">Highest roll value: <strong>' + highest +
       '</strong> + skill ' + r.skill.rounded + ' =</p>'
     : '<p class="calculation">Total: ' + total + ' → |' + total +
@@ -250,16 +252,11 @@ function resultView(entry: Entry, editable: boolean): string {
   let html = '<div class="result-skill"><span>Skill for test:</span>' +
     '<strong>' + r.skill.rounded + '</strong>' + fractionExplanation + '</div>' +
     '<p class="result-label">Dice</p>' + displayedSteps +
-    (doubling ? '<p class="selected-value">Selected highest roll value: <strong>' +
+    (doubling && r.fumbleSeverity === null ? '<p class="selected-value">Selected highest roll value: <strong>' +
       highest + '</strong></p>' : '') +
     resultCalculation +
     '<div class="final-total" aria-label="Preliminary total ' + r.finalTotal + '">' +
     '<strong>' + r.finalTotal + '</strong></div>';
-  // A fumble overrides the usual total. Do not imply that the arithmetic
-  // calculated the forced zero.
-  if (r.fumbleSeverity !== null) {
-    html += '<p class="hint">Fumble overrides the calculated total to 0.</p>';
-  }
   html += '<div class="result-flags">' +
     (r.pendingRisk ? '<div class="event-box risk-box">RISK!</div>' : '') +
     (r.edgeAvailable
