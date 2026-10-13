@@ -43,3 +43,11 @@ button:focus-visible { outline: 3px solid #94baf9; outline-offset: 2px; }
   .keypad { gap: 7px; }
   .die-box { min-width: 65px; }
 }
+
+.three-keypads { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin: 14px 0; }
+.die-keypad { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.die-keypad > span { grid-column:1 / -1; color:#c3d0e4; text-align:center; font-size:.82rem; }
+.die-keypad button { min-width:0; padding:8px 3px; }
+.step-history { border-bottom:1px solid #445268; padding-bottom:12px; margin-bottom:16px; }
+.step-history h3 { color:#b4c4d7; font-size:.92rem; margin:4px 0 10px; }
+.step-history .digit-display { pointer-events:none; }
