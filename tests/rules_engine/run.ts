@@ -287,13 +287,11 @@ test("resumable session presents exact skills without inventing a fraction die",
   equal(session.activeFrame?.a.skill?.rounded, 4, "A rounded skill");
   equal(session.activeFrame?.b.skill?.supplied, 50, "B supplied skill");
   equal(session.activeFrame?.b.skill?.rounded, 5, "B rounded skill");
-  equal(
-    session.activeFrame?.a.skill === null
-      ? true
-      : "fractionDie" in session.activeFrame.a.skill,
-    false,
-    "A fraction die absent",
-  );
+  const exactASkill = session.activeFrame?.a.skill;
+  if (exactASkill === null || exactASkill === undefined) {
+    throw new Error("A exact skill was not presented.");
+  }
+  equal("fractionDie" in exactASkill, false, "A fraction die absent");
 });
 
 test("resumable session rounds each newly presented fractional skill once", () => {
