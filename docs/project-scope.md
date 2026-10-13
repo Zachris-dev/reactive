@@ -26,7 +26,7 @@ The rules engine is responsible for Reactive's mechanical state and calculations
 - opposed rolls;
 - result calculation and success levels;
 - retaining complete roll history and flags needed by later resolution and narration;
-- preserving each presented skill as its canonical supplied value plus the whole-number value actually used by that test, with the fractional d10 retained only when rounding was required;
+- preserving each presented skill with its display name, canonical supplied value, and whole-number value actually used by that test, with the fractional d10 retained only when rounding was required; numeric-only callers receive a generated name such as `Skill 4.4`, while character sheets can supply names such as `Longsword`;
 - resumable opposed-roll sessions that pause for externally supplied dice, optional Edge decisions, newly selected Risk skills, and score resolution rather than assuming the entire Risk chain completes in one call.
 
 Random number generation must be replaceable with supplied dice values so the mechanics can be tested exhaustively and unusual roll chains can be reproduced exactly.
