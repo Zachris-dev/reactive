@@ -32,6 +32,32 @@ test("fractional skill rounds down when d10 > fraction", () => {
   equal(result.skill.fractionDie, 4, "fraction die");
 });
 
+test("numeric skill input receives a generated display name from its unrounded value", () => {
+  const result = rollSimple(44, new SequenceDiceSource([2, 3, 6], [9]));
+  equal(result.skill.name, "Skill 4.4", "generated skill name");
+  equal(result.skill.supplied, 44, "supplied skill");
+  equal(result.skill.rounded, 4, "rounded skill");
+});
+
+test("supplied skill name is preserved through fractional rounding", () => {
+  const result = rollSimple(
+    { name: "Longsword", supplied: 44 },
+    new SequenceDiceSource([2, 3, 6], [2]),
+  );
+  equal(result.skill.name, "Longsword", "skill name");
+  equal(result.skill.supplied, 44, "supplied skill");
+  equal(result.skill.rounded, 5, "rounded skill");
+  equal(result.skill.fractionDie, 2, "fraction die");
+});
+
+test("structured skill without a name receives the same generated display name", () => {
+  const result = rollSimple(
+    { supplied: 44 },
+    new SequenceDiceSource([2, 3, 6], [9]),
+  );
+  equal(result.skill.name, "Skill 4.4", "generated skill name");
+});
+
 test("exact skill presentation has supplied and rounded values without a fraction die", () => {
   const result = rollSimple(40, new SequenceDiceSource([2, 3, 6]));
   equal(result.skill.supplied, 40, "supplied skill");
@@ -96,6 +122,17 @@ test("skill sequence falls back to Skill 0 after supplied values are exhausted",
   equal(sequence.next(), 11, "third skill");
   equal(sequence.next(), 0, "first fallback");
   equal(sequence.next(), 0, "second fallback");
+});
+
+test("opposed roll preserves character-sheet skill names on both sides", () => {
+  const result = rollOpposed(
+    [{ name: "Longsword", supplied: 40 }],
+    [{ name: "Spear", supplied: 30 }],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  equal(result.frames[0].aSkill.name, "Longsword", "A skill name");
+  equal(result.frames[0].bSkill.name, "Spear", "B skill name");
 });
 
 test("a side's normal Risk belongs to that same side", () => {
