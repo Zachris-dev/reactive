@@ -252,10 +252,7 @@ root.addEventListener("click", event => {
   const entry = current();
   if (action === "mode:auto") return setMode("automatic");
   if (action === "mode:manual") return setMode("manual");
-  if (action === "new") return if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => undefined));
-}
-newRoll();
+  if (action === "new") return newRoll();
   if (!entry || finished || entry.committed) return;
   if (action.startsWith("digit:")) return digit(Number(action.slice(6)));
   if (action.startsWith("slot:") && entry.stage === "skill") { entry.slot = Number(action.slice(5)) as 0|1; return render(); }
@@ -290,4 +287,7 @@ document.addEventListener("keydown", event => {
     continueStep();
   }
 });
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => undefined));
+}
 newRoll();
