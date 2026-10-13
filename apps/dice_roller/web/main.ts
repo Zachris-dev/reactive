@@ -185,6 +185,13 @@ function diceView(entry: Entry, editable: boolean): string {
   let html = heading;
   if (hasD10) {
     html += '<div class="dice-row">' + dieBox(entry, 0, "d10", editable) + '</div>';
+    if (entry.dice[0] !== null) {
+      const die = entry.dice[0]!;
+      const fraction = value % 10;
+      html += '<p class="rounding-note">' + die +
+        (die <= fraction ? ' ≤ ' : ' > ') + fraction +
+        ', round ' + (die <= fraction ? 'up' : 'down') + '</p>';
+    }
     if (editable && entry.diceMode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
   }
   const offset = hasD10 ? 1 : 0;
