@@ -7,29 +7,19 @@ import {
   OpposedRollOptions,
   OpposedRollResult,
   Side,
+  SimpleRollResult,
 } from "./types";
 import { rollSimple } from "./simpleRoll";
 import { SkillSequence } from "./skills";
 
 /**
- * Roll one opposed contest frame.
- *
- * A side's own Risk trigger places Risk on that same side. Edge is different:
- * a one-sided Edge may place Risk on the opponent, while Edge on both sides is
- * automatic double Risk.
- *
- * This function stops before resolving an optional one-sided Edge or starting
- * a nested Risk contest. rollOpposed() performs those higher-level steps.
+ * Apply the opposed interaction rules to two already-completed simple rolls.
+ * No dice are rolled here.
  */
-export function rollOpposedContest(
-  aSkill: number,
-  bSkill: number,
-  aDice: DiceSource,
-  bDice: DiceSource,
+export function createOpposedContestResult(
+  a: SimpleRollResult,
+  b: SimpleRollResult,
 ): OpposedContestResult {
-  const a = rollSimple(aSkill, aDice);
-  const b = rollSimple(bSkill, bDice);
-
   // Normal Risk belongs to the side that rolled it.
   let riskAgainstA = a.pendingRisk;
   let riskAgainstB = b.pendingRisk;
@@ -68,6 +58,24 @@ export function rollOpposedContest(
   };
 }
 
+/**
+ * Roll one opposed contest frame.
+ *
+ * This immediate helper is useful for tests and batch tools. Normal play can
+ * use the resumable opposed-session API instead.
+ */
+export function rollOpposedContest(
+  aSkill: number,
+  bSkill: number,
+  aDice: DiceSource,
+  bDice: DiceSource,
+): OpposedContestResult {
+  return createOpposedContestResult(
+    rollSimple(aSkill, aDice),
+    rollSimple(bSkill, bDice),
+  );
+}
+
 function maxSeverity(current: number | null, candidate: number | null): number | null {
   if (candidate === null) {
     return current;
@@ -98,7 +106,7 @@ function useOptionalEdge(
   return decision(context) ? offered.sideWithEdge : null;
 }
 
-function buildReturns(
+export function buildOpposedReturns(
   frames: readonly OpposedRiskFrame[],
   riskA: boolean,
   riskB: boolean,
@@ -139,21 +147,10 @@ function buildReturns(
 }
 
 /**
- * Roll a complete opposed roll, including nested Risk contests.
+ * Batch helper: roll a complete opposed roll, including nested Risk contests.
  *
- * Each new Risk contest consumes the next supplied skill for both sides. When
- * a side's supplied sequence is exhausted, further Risk contests use Skill 0.
- * Doubling does not consume another skill because it remains part of the same
- * test.
- *
- * Contest frames are rolled from outermost to innermost. When rolling stops,
- * every frame is returned for later resolution in the opposite order:
- * deepest Risk first, then each enclosing Risk contest, and finally the
- * original opposed roll.
- *
- * Risk flags accumulate through the stack. A fumble in a nested contest
- * propagates outward to every enclosing result, but never backward into a
- * deeper result that was already rolled.
+ * Normal interactive play should use the resumable opposed-session API. This
+ * helper remains useful for the CLI tester and deterministic automated cases.
  */
 export function rollOpposed(
   aSkills: readonly number[],
@@ -202,8 +199,8 @@ export function rollOpposed(
 
     frames.push({
       depth,
-      aSkill,
-      bSkill,
+      aSkill: contest.a.skill,
+      bSkill: contest.b.skill,
       aSkillFallback,
       bSkillFallback,
       enteredWithRiskA: activeRiskA,
@@ -235,7 +232,7 @@ export function rollOpposed(
     throw new Error("Opposed roll produced no contest frames.");
   }
 
-  const returns = buildReturns(frames, riskA, riskB);
+  const returns = buildOpposedReturns(frames, riskA, riskB);
   const originalReturn = returns[returns.length - 1];
   if (originalReturn === undefined) {
     throw new Error("Opposed roll produced no return values.");
