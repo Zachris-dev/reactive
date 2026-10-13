@@ -270,8 +270,10 @@ function finalizeEffect(effect: EffectAccumulator): ResolutionEffect {
  * 3. compare modified totals;
  * 4. difference 0 => Equal, 1 => Carryover, 2+ => ordinary Success;
  * 5. for Success, apply signed Effect modifiers and divide by 2, floored;
- * 6. Risk on the winner reduces the Success Level by 1;
- * 7. each fumble imposes a minimum effect level equal to its severity.
+ * 6. Risk on the winner reduces only the ordinary Success Level by 1;
+ * 7. each fumble then imposes a minimum effect level equal to its severity.
+ *    A Success Level supplied by the opponent's fumble is therefore never
+ *    reduced by the winner's Risk.
  */
 export function resolveOpposedReturn(
   input: OpposedResolutionInput,
