@@ -1,3 +1,21 @@
+declare const process: {
+  argv: string[];
+};
+
+type TestSuite = "all" | "roll" | "result";
+
+function parseTestSuite(args: string[]): TestSuite {
+  if (args.length === 0) {
+    return "all";
+  }
+  if (args.length === 1 && (args[0] === "roll" || args[0] === "result")) {
+    return args[0];
+  }
+  throw new Error("Test suite must be 'roll' or 'result'.");
+}
+
+const requestedSuite = parseTestSuite(process.argv.slice(2));
+
 import {
   SequenceDiceSource,
   SkillSequence,
@@ -15,32 +33,39 @@ function equal<T>(actual: T, expected: T, label: string): void {
   }
 }
 
-function test(name: string, fn: () => void): void {
+function test(
+  suite: Exclude<TestSuite, "all">,
+  name: string,
+  fn: () => void,
+): void {
+  if (requestedSuite !== "all" && requestedSuite !== suite) {
+    return;
+  }
   fn();
   console.log(`PASS ${name}`);
 }
 
-test("fractional skill rounds up when d10 <= fraction", () => {
+test("roll", "fractional skill rounds up when d10 <= fraction", () => {
   const result = rollSimple(33, new SequenceDiceSource([2, 3, 6], [3]));
   equal(result.skill.supplied, 33, "supplied skill");
   equal(result.skill.rounded, 4, "rounded skill");
   equal(result.skill.fractionDie, 3, "fraction die");
 });
 
-test("fractional skill rounds down when d10 > fraction", () => {
+test("roll", "fractional skill rounds down when d10 > fraction", () => {
   const result = rollSimple(33, new SequenceDiceSource([2, 3, 6], [4]));
   equal(result.skill.rounded, 3, "rounded skill");
   equal(result.skill.fractionDie, 4, "fraction die");
 });
 
-test("numeric skill input receives a generated display name from its unrounded value", () => {
+test("roll", "numeric skill input receives a generated display name from its unrounded value", () => {
   const result = rollSimple(44, new SequenceDiceSource([2, 3, 6], [9]));
   equal(result.skill.name, "Skill 4.4", "generated skill name");
   equal(result.skill.supplied, 44, "supplied skill");
   equal(result.skill.rounded, 4, "rounded skill");
 });
 
-test("supplied skill name is preserved through fractional rounding", () => {
+test("roll", "supplied skill name is preserved through fractional rounding", () => {
   const result = rollSimple(
     { name: "Longsword", supplied: 44 },
     new SequenceDiceSource([2, 3, 6], [2]),
@@ -51,7 +76,7 @@ test("supplied skill name is preserved through fractional rounding", () => {
   equal(result.skill.fractionDie, 2, "fraction die");
 });
 
-test("structured skill without a name receives the same generated display name", () => {
+test("roll", "structured skill without a name receives the same generated display name", () => {
   const result = rollSimple(
     { supplied: 44 },
     new SequenceDiceSource([2, 3, 6], [9]),
@@ -59,32 +84,32 @@ test("structured skill without a name receives the same generated display name",
   equal(result.skill.name, "Skill 4.4", "generated skill name");
 });
 
-test("exact skill presentation has supplied and rounded values without a fraction die", () => {
+test("roll", "exact skill presentation has supplied and rounded values without a fraction die", () => {
   const result = rollSimple(40, new SequenceDiceSource([2, 3, 6]));
   equal(result.skill.supplied, 40, "supplied skill");
   equal(result.skill.rounded, 4, "rounded skill");
   equal("fractionDie" in result.skill, false, "fraction die absent");
 });
 
-test("Risk check uses signed sum-10, not absolute value", () => {
+test("roll", "Risk check uses signed sum-10, not absolute value", () => {
   const result = rollSimple(70, new SequenceDiceSource([1, 1, 1, 2, 3, 6]));
   equal(result.steps[0].signedDifference, -7, "signed difference");
   equal(result.steps[0].riskMatch, false, "Risk match");
 });
 
-test("Edge uses raw sum and survives a doubling chain", () => {
+test("roll", "Edge uses raw sum and survives a doubling chain", () => {
   const result = rollSimple(30, new SequenceDiceSource([1, 1, 1, 2, 3, 4]));
   equal(result.steps[0].edgeMatch, true, "first-step Edge");
   equal(result.edgeAvailable, true, "final Edge availability");
 });
 
-test("Risk can be pending before doubling and survives if no fumble occurs", () => {
+test("roll", "Risk can be pending before doubling and survives if no fumble occurs", () => {
   const result = rollSimple(20, new SequenceDiceSource([4, 4, 4, 2, 3, 6]));
   equal(result.pendingRisk, true, "pending Risk");
   equal(result.fumbleSeverity, null, "fumble severity");
 });
 
-test("Risk match after one doubling records Fumble 1 and forces total zero", () => {
+test("roll", "Risk match after one doubling records Fumble 1 and forces total zero", () => {
   const result = rollSimple(
     20,
     new SequenceDiceSource([4, 4, 4, 4, 4, 4, 2, 3, 6]),
@@ -95,7 +120,7 @@ test("Risk match after one doubling records Fumble 1 and forces total zero", () 
   equal(result.edgeAvailable, false, "Edge lost");
 });
 
-test("later fumble severity replaces earlier lower severity", () => {
+test("roll", "later fumble severity replaces earlier lower severity", () => {
   const result = rollSimple(
     20,
     new SequenceDiceSource([
@@ -108,7 +133,7 @@ test("later fumble severity replaces earlier lower severity", () => {
   equal(result.fumbleSeverity, 2, "fumble severity");
 });
 
-test("roll values are calculated after checks with the correct multiplier", () => {
+test("roll", "roll values are calculated after checks with the correct multiplier", () => {
   const result = rollSimple(20, new SequenceDiceSource([1, 1, 1, 2, 3, 6]));
   equal(result.steps[0].rollValue, 7, "initial roll value");
   equal(result.steps[1].rollValue, 2, "doubled roll value");
@@ -116,7 +141,7 @@ test("roll values are calculated after checks with the correct multiplier", () =
   equal(result.finalTotal, 9, "final total");
 });
 
-test("skill sequence falls back to Skill 0 after supplied values are exhausted", () => {
+test("roll", "skill sequence falls back to Skill 0 after supplied values are exhausted", () => {
   const sequence = new SkillSequence([40, 32, 11]);
   equal(sequence.next(), 40, "first skill");
   equal(sequence.next(), 32, "second skill");
@@ -125,7 +150,7 @@ test("skill sequence falls back to Skill 0 after supplied values are exhausted",
   equal(sequence.next(), 0, "second fallback");
 });
 
-test("opposed roll preserves character-sheet skill names on both sides", () => {
+test("roll", "opposed roll preserves character-sheet skill names on both sides", () => {
   const result = rollOpposed(
     [{ name: "Longsword", supplied: 40 }],
     [{ name: "Spear", supplied: 30 }],
@@ -136,7 +161,7 @@ test("opposed roll preserves character-sheet skill names on both sides", () => {
   equal(result.frames[0].bSkill.name, "Spear", "B skill name");
 });
 
-test("a side's normal Risk belongs to that same side", () => {
+test("roll", "a side's normal Risk belongs to that same side", () => {
   const result = rollOpposedContest(
     20,
     40,
@@ -147,7 +172,7 @@ test("a side's normal Risk belongs to that same side", () => {
   equal(result.riskAgainstB, false, "Risk on B");
 });
 
-test("normal Risk starts a nested contest and exhausted skill lists use Skill 0", () => {
+test("roll", "normal Risk starts a nested contest and exhausted skill lists use Skill 0", () => {
   const result = rollOpposed(
     [20],
     [40],
@@ -166,7 +191,7 @@ test("normal Risk starts a nested contest and exhausted skill lists use Skill 0"
   equal(result.frames[1].bSkillFallback, true, "nested B fallback marker");
 });
 
-test("both sides can create Risk in one frame and open one double-Risk contest", () => {
+test("roll", "both sides can create Risk in one frame and open one double-Risk contest", () => {
   const result = rollOpposed(
     [20],
     [20],
@@ -181,7 +206,7 @@ test("both sides can create Risk in one frame and open one double-Risk contest",
   equal(result.frames[1].enteredWithRiskB, true, "nested B incoming Risk");
 });
 
-test("Risk flags remain cumulative in deeper contest frames and on return", () => {
+test("roll", "Risk flags remain cumulative in deeper contest frames and on return", () => {
   const result = rollOpposed(
     [20, 0],
     [40, 20],
@@ -210,7 +235,7 @@ test("Risk flags remain cumulative in deeper contest frames and on return", () =
   equal(result.returns[2].riskB, true, "original return B Risk");
 });
 
-test("nested fumble propagates outward through return values", () => {
+test("roll", "nested fumble propagates outward through return values", () => {
   const result = rollOpposed(
     [20, 20],
     [40, 40],
@@ -235,7 +260,7 @@ test("nested fumble propagates outward through return values", () => {
   equal(result.riskA, true, "already-started A Risk remains");
 });
 
-test("one-sided Edge may add Risk to the opponent", () => {
+test("roll", "one-sided Edge may add Risk to the opponent", () => {
   const result = rollOpposed(
     [30],
     [40],
@@ -250,7 +275,7 @@ test("one-sided Edge may add Risk to the opponent", () => {
   equal(result.riskB, true, "B Risk from A Edge");
 });
 
-test("optional one-sided Edge is declined when no decision callback is supplied", () => {
+test("roll", "optional one-sided Edge is declined when no decision callback is supplied", () => {
   const result = rollOpposed(
     [30],
     [40],
@@ -263,7 +288,7 @@ test("optional one-sided Edge is declined when no decision callback is supplied"
   equal(result.riskB, false, "no B Risk");
 });
 
-test("both sides Edge creates automatic double Risk without a callback", () => {
+test("roll", "both sides Edge creates automatic double Risk without a callback", () => {
   const result = rollOpposed(
     [30],
     [30],
@@ -277,7 +302,7 @@ test("both sides Edge creates automatic double Risk without a callback", () => {
   equal(result.riskB, true, "B Risk");
 });
 
-test("Edge cannot add pending Risk to a target that fumbled in that frame", () => {
+test("roll", "Edge cannot add pending Risk to a target that fumbled in that frame", () => {
   const result = rollOpposedContest(
     30,
     20,
@@ -290,7 +315,7 @@ test("Edge cannot add pending Risk to a target that fumbled in that frame", () =
   equal(result.riskAgainstB, false, "no pending B Risk");
 });
 
-test("five contest frames produce five resolution returns in reverse order", () => {
+test("roll", "five contest frames produce five resolution returns in reverse order", () => {
   const result = rollOpposed(
     [20, 40, 20, 40, 40],
     [40, 20, 40, 20, 40],
@@ -318,7 +343,7 @@ test("five contest frames produce five resolution returns in reverse order", () 
   equal(result.returns[4].depth, 0, "last return depth");
 });
 
-test("resumable session presents exact skills without inventing a fraction die", () => {
+test("roll", "resumable session presents exact skills without inventing a fraction die", () => {
   const session = startOpposedSession(40, 50);
   equal(session.request.type, "roll-dice", "first request");
   equal(session.activeFrame?.a.skill?.supplied, 40, "A supplied skill");
@@ -332,7 +357,7 @@ test("resumable session presents exact skills without inventing a fraction die",
   equal("fractionDie" in exactASkill, false, "A fraction die absent");
 });
 
-test("resumable session rounds each newly presented fractional skill once", () => {
+test("roll", "resumable session rounds each newly presented fractional skill once", () => {
   let session = startOpposedSession(
     { name: "Athletics", supplied: 33 },
     { name: "Footwork", supplied: 27 },
@@ -370,7 +395,7 @@ test("resumable session rounds each newly presented fractional skill once", () =
   equal(session.request.type, "roll-dice", "3d6 request after rounding");
 });
 
-test("resumable session preserves the rounded skill and prior dice through doubling", () => {
+test("roll", "resumable session preserves the rounded skill and prior dice through doubling", () => {
   let session = startOpposedSession(40, 40);
 
   session = advanceOpposedSession(session, {
@@ -396,7 +421,7 @@ test("resumable session preserves the rounded skill and prior dice through doubl
   equal(session.request.type, "roll-dice", "B roll request");
 });
 
-test("resumable session pauses for Risk skills and preserves the original frame", () => {
+test("roll", "resumable session pauses for Risk skills and preserves the original frame", () => {
   let session = startOpposedSession(20, 40);
 
   session = advanceOpposedSession(session, {
@@ -434,7 +459,7 @@ test("resumable session pauses for Risk skills and preserves the original frame"
   equal(session.frames[0].aSkill.rounded, 2, "original rounded skill unchanged");
 });
 
-test("resumable session pauses for one-sided Edge before deciding whether Risk starts", () => {
+test("roll", "resumable session pauses for one-sided Edge before deciding whether Risk starts", () => {
   let passSession = startOpposedSession(40, 40);
   passSession = advanceOpposedSession(passSession, {
     type: "roll-dice",
@@ -475,7 +500,7 @@ test("resumable session pauses for one-sided Edge before deciding whether Risk s
   equal(useSession.frames[0].riskStartedForB, true, "Risk started for B");
 });
 
-test("resumable session returns nested scores first and original scores afterward", () => {
+test("roll", "resumable session returns nested scores first and original scores afterward", () => {
   let session = startOpposedSession(20, 40);
 
   session = advanceOpposedSession(session, {
@@ -524,7 +549,7 @@ test("resumable session returns nested scores first and original scores afterwar
 });
 
 
-test("resolution reports Equal after selected roll modifiers", () => {
+test("result", "resolution reports Equal after selected roll modifiers", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -544,7 +569,7 @@ test("resolution reports Equal after selected roll modifiers", () => {
   equal(resolved.effects.length, 0, "equal has no ordinary effect");
 });
 
-test("resolution reports Carryover at difference one and does not apply Effect modifiers", () => {
+test("result", "resolution reports Carryover at difference one and does not apply Effect modifiers", () => {
   const rolled = rollOpposed(
     [40],
     [30],
@@ -566,7 +591,7 @@ test("resolution reports Carryover at difference one and does not apply Effect m
   equal(resolved.effects.length, 0, "carryover has no ordinary effect");
 });
 
-test("resolution calculates Success Level from difference, Effect modifiers, and Risk", () => {
+test("result", "resolution calculates Success Level from difference, Effect modifiers, and Risk", () => {
   const rolled = rollOpposed(
     [50],
     [20],
@@ -600,7 +625,7 @@ test("resolution calculates Success Level from difference, Effect modifiers, and
   equal(resolved.effects[0].level, 1, "effect level");
 });
 
-test("Risk does not reduce Success Level supplied by opponent fumble", () => {
+test("result", "Risk does not reduce Success Level supplied by opponent fumble", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -630,7 +655,7 @@ test("Risk does not reduce Success Level supplied by opponent fumble", () => {
   equal(resolved.effects[0].level, 2, "fumble-caused Success Level is not reduced");
 });
 
-test("modified total zero creates Fumble 1 and combines with ordinary effect", () => {
+test("result", "modified total zero creates Fumble 1 and combines with ordinary effect", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -657,7 +682,7 @@ test("modified total zero creates Fumble 1 and combines with ordinary effect", (
   equal(resolved.effects[0].level, 2, "ordinary level remains above fumble floor");
 });
 
-test("total modifiers can worsen an existing fumble", () => {
+test("result", "total modifiers can worsen an existing fumble", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -687,7 +712,7 @@ test("total modifiers can worsen an existing fumble", () => {
   equal(resolved.effects[0].level, 3, "Fumble 3 floor");
 });
 
-test("an existing doubled-Risk fumble is not relabelled as circumstances", () => {
+test("result", "an existing doubled-Risk fumble is not relabelled as circumstances", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -708,7 +733,7 @@ test("an existing doubled-Risk fumble is not relabelled as circumstances", () =>
   equal(resolved.effects[0].fumbleCause, "doubled-risk", "effect Fumble cause");
 });
 
-test("double fumble can produce effects on both sides", () => {
+test("result", "double fumble can produce effects on both sides", () => {
   const rolled = rollOpposed(
     [30],
     [30],
@@ -734,7 +759,7 @@ test("double fumble can produce effects on both sides", () => {
   equal(resolved.effects[1].fumbleCause, "doubled-risk", "B Fumble cause");
 });
 
-test("resolution preserves the exact modifier entries submitted by the UI", () => {
+test("result", "resolution preserves the exact modifier entries submitted by the UI", () => {
   const rolled = rollOpposed(
     [40],
     [30],
@@ -755,4 +780,8 @@ test("resolution preserves the exact modifier entries submitted by the UI", () =
   equal(resolved.a.modifierTotal, -1, "selected adjustment");
 });
 
-console.log("All rules-engine tests passed.");
+console.log(
+  requestedSuite === "all"
+    ? "All rules-engine tests passed."
+    : `All rules-engine ${requestedSuite} tests passed.`,
+);
