@@ -62,17 +62,10 @@ function setMode(value: Mode): void {
   localStorage.setItem(storageKey, value);
   const entry = current();
   if (entry?.stage === "dice" && !entry.committed) {
-    entry.dice = makeDice(entry.skill!, entry.steps.length > 0);
+    entry.dice = entry.dice.map((_, i) => mode === "automatic" ? randomDie(entry.dice.length === 4 && i === 0 ? 10 : 6) : null);
     entry.cursor = 0;
   }
   render();
-}
-function makeDice(skill: PresentedSkill, doubling: boolean): Die[] {
-  const count = !doubling && skill.fractionDie === undefined && skill.supplied % 10 !== 0 ? 4 : 3;
-  // A new Risk skill requiring a d10 has not been presented yet.
-  return Array.from({ length: count }, (_, i) =>
-    mode === "automatic" ? randomDie(count === 4 && i === 0 ? 10 : 6) : null
-  );
 }
 function prepareDice(entry: Entry): void {
   const value = entry.whole! * 10 + (entry.fraction ?? 0);
@@ -228,8 +221,15 @@ function render(): void {
     const active = i === entries.length - 1 && !finished && !entry.committed;
     let body = "";
     if (entry.stage === "skill") body = skillView(entry, active);
-    if (entry.stage === "dice") body = diceView(entry, active);
-    if (entry.stage === "result") body = resultView(entry, active);
+    if (entry.stage === "dice") body =
+      '<div class="step-history"><h3>Confirmed skill</h3>' + skillView(entry, false) + '</div>' +
+      diceView(entry, active);
+    if (entry.stage === "result") body =
+      '<div class="step-history"><h3>Confirmed skill</h3>' + skillView(entry, false) + '</div>' +
+      '<div class="step-history"><h3>Confirmed dice</h3>' +
+      '<p>' + entry.steps.map((step, i) => '3d6 #' + (i+1) + ': ' + step.dice.join(", ")).join(" · ") +
+      (entry.skill?.fractionDie !== undefined ? ' · d10: ' + entry.skill.fractionDie : '') +
+      '</p></div>' + resultView(entry, active);
     return '<section class="pane ' + (active ? "current" : "past") + '"><div class="pane-heading">' +
       '<span>Contest ' + (i + 1) + '</span><span>' + (entry.stage === "skill" ? "Skill" : entry.stage === "dice" ? "Dice" : "Preliminary result") +
       '</span></div>' + body + '</section>';
