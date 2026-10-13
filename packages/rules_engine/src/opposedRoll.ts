@@ -5,6 +5,7 @@ import {
   OpposedContestResult,
   OpposedRollOptions,
   OpposedRollResult,
+  SkillInput,
 } from "./types";
 import { rollSimple } from "./simpleRoll";
 import { SkillSequence } from "./skills";
@@ -29,8 +30,8 @@ export {
  * startOpposedSession() / advanceOpposedSession().
  */
 export function rollOpposedContest(
-  aSkill: number,
-  bSkill: number,
+  aSkill: SkillInput,
+  bSkill: SkillInput,
   aDice: DiceSource,
   bDice: DiceSource,
 ): OpposedContestResult {
@@ -53,8 +54,8 @@ function roll3d6(dice: DiceSource): Die3 {
  * eventual interactive play.
  */
 export function rollOpposed(
-  aSkills: readonly number[],
-  bSkills: readonly number[],
+  aSkills: readonly SkillInput[],
+  bSkills: readonly SkillInput[],
   aDice: DiceSource,
   bDice: DiceSource,
   options: OpposedRollOptions = {},
