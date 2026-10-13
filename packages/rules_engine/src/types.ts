@@ -8,12 +8,17 @@ export interface DiceSource {
   d10(): number;
 }
 
-export interface SkillRoundResult {
-  storedSkill: number;
-  whole: number;
-  fraction: number;
-  fractionDie: number | null;
-  roundedSkill: number;
+/**
+ * A skill as actually used by one test.
+ *
+ * supplied is always the canonical integer-tenths value (40 = 4.0).
+ * rounded is the whole-number value used by that test.
+ * fractionDie exists only when the supplied skill required rounding.
+ */
+export interface PresentedSkill {
+  supplied: number;
+  rounded: number;
+  fractionDie?: number;
 }
 
 export interface RollStep {
@@ -31,10 +36,9 @@ export interface RollStep {
 export type EngineEvent =
   | {
       type: "skill-rounded";
-      storedSkill: number;
-      fraction: number;
-      fractionDie: number | null;
-      roundedSkill: number;
+      supplied: number;
+      rounded: number;
+      fractionDie?: number;
     }
   | {
       type: "dice-rolled";
@@ -69,7 +73,7 @@ export type EngineEvent =
     };
 
 export interface SimpleRollResult {
-  skill: SkillRoundResult;
+  skill: PresentedSkill;
   steps: RollStep[];
   pendingRisk: boolean;
   edgeAvailable: boolean;
@@ -114,8 +118,8 @@ export interface OpposedRollOptions {
 
 export interface OpposedRiskFrame {
   depth: number;
-  aSkill: number;
-  bSkill: number;
+  aSkill: PresentedSkill;
+  bSkill: PresentedSkill;
   aSkillFallback: boolean;
   bSkillFallback: boolean;
   /**
