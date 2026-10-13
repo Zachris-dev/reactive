@@ -63,7 +63,7 @@ The batch `rollOpposed()` helper used by the CLI and deterministic cases now dri
 
 ## Deterministic engine cases
 
-The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills. The later cases exercise result resolution: Equal versus Carryover, Effect modifiers and Risk, modifier-created/worsened fumbles, double-fumble results on both sides, and preservation of doubled-Risk versus circumstances fumble provenance for GM narration.
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills. The later cases exercise result resolution: Equal versus Carryover, Effect modifiers and Risk, modifier-created/worsened fumbles, double-fumble results on both sides, preservation of doubled-Risk versus circumstances fumble provenance for GM narration, and the rule that Risk reduces ordinary success but never the Success Level supplied by an opponent fumble.
 
 Run the readable walkthrough with:
 
@@ -126,7 +126,7 @@ Resolution order is:
 3. compare the modified totals;
 4. difference 0 is Equal, difference 1 is Carryover to the higher side, and difference 2+ is Success for the higher side;
 5. only Success applies the signed Effect modifiers selected for that winning side, then divides the adjusted margin by 2 and floors it;
-6. Risk on the winner reduces that Success Level by 1;
-7. a fumble imposes a minimum effect level equal to its severity, which can create an effect on an otherwise Equal/Carryover contest and can produce effects on both sides after a double fumble.
+6. Risk on the winner reduces only the ordinary Success Level by 1;
+7. a fumble imposes a minimum effect level equal to its severity after that Risk adjustment. A level supplied by the opponent's fumble is not reduced by the winner's Risk; fumbles can also create an effect on an otherwise Equal/Carryover contest and can produce effects on both sides after a double fumble.
 
 Scene/character modifier storage, mitigation, duration, and whether a stored modifier applies to a particular roll remain outside the resolution calculation.
