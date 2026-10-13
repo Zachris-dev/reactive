@@ -31,6 +31,25 @@ See [`docs/project-scope.md`](docs/project-scope.md) for the current architectur
 
 Some of these directories are planned and will be added as implementation begins.
 
+## Testing
+
+On Windows, `test.cmd` runs the complete test suite by default:
+
+```text
+test.cmd
+```
+
+When working on one rules-engine module, a partial suite can be selected to keep the output focused:
+
+```text
+test.cmd roll
+test.cmd result
+```
+
+`roll` runs the dice, Risk, Edge, doubling, opposed-roll, and resumable-session tests plus their deterministic cases. `result` runs result-resolution tests and deterministic resolution cases. Each partial command still performs a TypeScript build first.
+
+The deterministic case runner can also be filtered directly with `--suite roll` or `--suite result`.
+
 ## Licensing
 
 Reactive uses permissive licenses so that people may use, modify, build on, and commercially use the system and its software.
