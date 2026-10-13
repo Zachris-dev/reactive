@@ -18,6 +18,7 @@ interface Entry {
   slot: 0 | 1;
   skill?: PresentedSkill;
   dice: Die[];
+  diceMode: Mode;
   cursor: number;
   steps: RollStep[];
   result?: SimpleRollResult;
@@ -38,7 +39,7 @@ let notice = "";
 function newEntry(): Entry {
   return {
     id: nextId++, stage: "skill", whole: null, fraction: null, slot: 0,
-    dice: [], cursor: 0, steps: [], opponentRisk: false,
+    dice: [], diceMode: mode, cursor: 0, steps: [], opponentRisk: false,
     useEdge: false, committed: false
   };
 }
@@ -60,11 +61,6 @@ function current(): Entry | undefined {
 function setMode(value: Mode): void {
   mode = value;
   localStorage.setItem(storageKey, value);
-  const entry = current();
-  if (entry?.stage === "dice" && !entry.committed) {
-    entry.dice = entry.dice.map((_, i) => mode === "automatic" ? randomDie(entry.dice.length === 4 && i === 0 ? 10 : 6) : null);
-    entry.cursor = 0;
-  }
   render();
 }
 function prepareDice(entry: Entry): void {
@@ -75,6 +71,7 @@ function prepareDice(entry: Entry): void {
   entry.dice = Array.from({length: value % 10 === 0 ? 3 : 4},
     (_, i) => mode === "automatic" ? randomDie(i === 0 && value % 10 !== 0 ? 10 : 6) : null);
   entry.cursor = 0;
+  entry.diceMode = mode;
   entry.stage = "dice";
 }
 function digit(n: number): void {
@@ -84,7 +81,7 @@ function digit(n: number): void {
     if (entry.slot === 0) entry.whole = n;
     else entry.fraction = n;
     entry.slot = entry.slot === 0 ? 1 : 0;
-  } else if (entry.stage === "dice" && mode === "manual") {
+  } else if (entry.stage === "dice" && entry.diceMode === "manual") {
     const hasD10 = (entry.whole! * 10 + (entry.fraction ?? 0)) % 10 !== 0 && entry.steps.length === 0;
     if (hasD10 && entry.cursor === 0) {
       entry.dice[0] = n === 0 ? 10 : n;
@@ -116,6 +113,7 @@ function continueStep(): void {
       const step = evaluateRollStep(entry.skill, triple, entry.steps.length);
       entry.steps.push(step);
       if (step.isTriple) {
+        entry.diceMode = mode;
         entry.dice = Array.from({length: 3}, () => mode === "automatic" ? randomDie(6) : null);
         entry.cursor = 0;
       } else {
@@ -140,8 +138,7 @@ function finish(): void {
   const entry = current();
   if (!entry || entry.stage !== "result") return;
   entry.committed = true;
-  finished = true;
-  render();
+  newRoll();
 }
 function newRoll(): void {
   entries = [newEntry()];
@@ -175,12 +172,12 @@ function diceView(entry: Entry, editable: boolean): string {
   let html = heading;
   if (hasD10) {
     html += '<div class="dice-row">' + dieBox(entry, 0, "d10", editable) + '</div>';
-    if (editable && mode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
+    if (editable && entry.diceMode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
   }
   const offset = hasD10 ? 1 : 0;
   html += '<p class="hint">3d6' + (entry.steps.length ? " — doubling ×" + (2 ** entry.steps.length) : "") + '</p>';
   html += '<div class="dice-row">' + [0,1,2].map(i => dieBox(entry, i + offset, "Die " + (i+1), editable)).join("") + '</div>';
-  if (editable && mode === "manual") html += '<div class="three-keypads">' +
+  if (editable && entry.diceMode === "manual") html += '<div class="three-keypads">' +
     [0,1,2].map(i => '<div class="die-keypad"><span>Die ' + (i + 1) + '</span>' +
       [1,2,3,4,5,6].map(n => button(String(n), "choose:" + (i + offset) + ":" + n, false, "key")).join("") +
       '</div>').join("") + '</div>';
@@ -191,8 +188,8 @@ function diceView(entry: Entry, editable: boolean): string {
 function dieBox(entry: Entry, i: number, label: string, editable: boolean): string {
   const value = entry.dice[i];
   return '<button type="button" data-action="die:' + i + '" class="die-box ' +
-    (editable && mode === "manual" && entry.cursor === i ? "active" : "") + '"' +
-    (!editable || mode !== "manual" ? ' disabled' : '') + '><span class="die-value">' +
+    (editable && entry.diceMode === "manual" && entry.cursor === i ? "active" : "") + '"' +
+    (!editable || entry.diceMode !== "manual" ? ' disabled' : '') + '><span class="die-value">' +
     (value ?? "–") + '</span><small>' + label + '</small></button>';
 }
 function resultView(entry: Entry, editable: boolean): string {
@@ -241,7 +238,6 @@ function render(): void {
     button("Automatic", "mode:auto", false, mode === "automatic" ? "selected" : "") +
     button("Manual", "mode:manual", false, mode === "manual" ? "selected" : "") +
     '</div></header><main>' + cards +
-    (finished ? '<section class="pane"><h2>Roll completed</h2>' + button("New roll", "new", false, "primary") + '</section>' : "") +
     (notice ? '<p role="alert" class="error">' + escapeHtml(notice) + '</p>' : "") +
     '</main>';
 }
