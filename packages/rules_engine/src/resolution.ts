@@ -8,8 +8,9 @@ import {
  *
  * Resolution does not decide whether a scene, wound, spell, or other stored
  * modifier applies. The UI/game-state layer makes that choice and submits only
- * the entries that apply here. Values are signed: penalties are negative and
- * bonuses are positive.
+ * the effective entries that apply here. Mitigation is resolved before this
+ * call, including its no-bonus cap. Values are signed: penalties are negative
+ * and explicit bonuses are positive.
  */
 export interface ResolutionModifier {
   id?: string;
