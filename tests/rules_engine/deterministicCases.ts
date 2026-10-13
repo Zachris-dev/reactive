@@ -15,8 +15,11 @@ interface CaseResult {
   trace: string[];
 }
 
+export type DeterministicSuite = "all" | "roll" | "result";
+
 interface DeterministicCase {
   id: string;
+  suite: Exclude<DeterministicSuite, "all">;
   name: string;
   run: () => CaseResult;
 }
@@ -129,6 +132,7 @@ function simpleCase(
 ): DeterministicCase {
   return {
     id,
+    suite: "roll",
     name,
     run: () => {
       const result = rollSimple(skill, new SequenceDiceSource(d6, d10));
@@ -179,6 +183,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "07",
+    suite: "roll",
     name: "ordinary opposed roll",
     run: () => {
       const result = rollOpposed(
@@ -197,6 +202,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "08",
+    suite: "roll",
     name: "single Risk, one nested contest, then return to initial totals",
     run: () => {
       const result = rollOpposed(
@@ -220,6 +226,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "09",
+    suite: "roll",
     name: "one-sided Edge creates Risk on the opponent",
     run: () => {
       const result = rollOpposed(
@@ -239,6 +246,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "10",
+    suite: "roll",
     name: "both sides Risk in the same initial contest",
     run: () => {
       const result = rollOpposed(
@@ -258,6 +266,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "11",
+    suite: "roll",
     name: "both sides Edge causes automatic double Risk",
     run: () => {
       const result = rollOpposed(
@@ -276,6 +285,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "12",
+    suite: "roll",
     name: "Risk inside a Risk contest creates a deeper nested contest",
     run: () => {
       const result = rollOpposed(
@@ -299,6 +309,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "13",
+    suite: "roll",
     name: "doubling inside a nested Risk contest",
     run: () => {
       const result = rollOpposed(
@@ -317,6 +328,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "14",
+    suite: "roll",
     name: "two doublings then Fumble 2 inside nested Risk",
     run: () => {
       const result = rollOpposed(
@@ -338,6 +350,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "15",
+    suite: "roll",
     name: "double Risk followed by both sides fumbling in the nested contest",
     run: () => {
       const result = rollOpposed(
@@ -362,6 +375,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "16",
+    suite: "roll",
     name: "four nested Risks produce five return values",
     run: () => {
       const result = rollOpposed(
@@ -395,6 +409,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "17",
+    suite: "roll",
     name: "new fractional skills are rounded separately in a Risk contest",
     run: () => {
       const result = rollOpposed(
@@ -439,6 +454,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "18",
+    suite: "result",
     name: "resolution distinguishes Equal and Carryover before Effect",
     run: () => {
       const equalRoll = rollOpposed(
@@ -488,6 +504,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "19",
+    suite: "result",
     name: "Success Level uses Effect modifiers and Risk",
     run: () => {
       const rolled = rollOpposed(
@@ -534,6 +551,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "20",
+    suite: "result",
     name: "roll modifiers can create or worsen a fumble",
     run: () => {
       const rolled = rollOpposed(
@@ -581,6 +599,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "21",
+    suite: "result",
     name: "double fumble can produce results for both sides",
     run: () => {
       const rolled = rollOpposed(
@@ -622,6 +641,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "22",
+    suite: "result",
     name: "fumble provenance distinguishes doubled Risk from circumstances",
     run: () => {
       const rolled = rollOpposed(
@@ -676,6 +696,7 @@ const CASES: DeterministicCase[] = [
 
   {
     id: "23",
+    suite: "result",
     name: "Risk reduces ordinary success but not opponent-fumble Success Level",
     run: () => {
       const rolled = rollOpposed(
@@ -718,8 +739,15 @@ const CASES: DeterministicCase[] = [
   },
 ];
 
-export function runDeterministicCases(level: LogLevel = "verbose"): void {
-  for (const scenario of CASES) {
+export function runDeterministicCases(
+  level: LogLevel = "verbose",
+  suite: DeterministicSuite = "all",
+): void {
+  const selected = CASES.filter(
+    (scenario) => suite === "all" || scenario.suite === suite,
+  );
+
+  for (const scenario of selected) {
     const result = scenario.run();
 
     if (level === "quiet") {
@@ -748,5 +776,9 @@ export function runDeterministicCases(level: LogLevel = "verbose"): void {
   }
 
   console.log("");
-  console.log("All " + CASES.length + " deterministic engine cases passed.");
+  console.log(
+    "All " + selected.length +
+      (suite === "all" ? "" : " " + suite) +
+      " deterministic engine cases passed.",
+  );
 }
