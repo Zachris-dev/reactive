@@ -5,6 +5,7 @@ import {
   rollOpposed,
   rollOpposedContest,
   rollSimple,
+  resolveOpposedReturn,
   startOpposedSession,
 } from "../../packages/rules_engine/src";
 
@@ -507,6 +508,9 @@ test("resumable session returns nested scores first and original scores afterwar
   if (session.request.type === "scores") {
     equal(session.request.result.depth, 1, "nested scores first");
     equal(session.request.total, 2, "two score results");
+    equal(session.request.results.length, 2, "all score results exposed together");
+    equal(session.request.results[0].depth, 1, "display stack begins deepest");
+    equal(session.request.results[1].depth, 0, "display stack includes original");
   }
 
   session = advanceOpposedSession(session, { type: "scores-resolved" });
@@ -517,6 +521,178 @@ test("resumable session returns nested scores first and original scores afterwar
 
   session = advanceOpposedSession(session, { type: "scores-resolved" });
   equal(session.request.type, "complete", "session complete");
+});
+
+
+test("resolution reports Equal after selected roll modifiers", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const resolved = resolveOpposedReturn({
+    source: rolled.returns[0],
+    aRollModifiers: [{ name: "Rain", value: -1 }],
+    bRollModifiers: [{ name: "Rain", value: -1 }],
+  });
+
+  equal(resolved.a.rawTotal, 4, "A raw total");
+  equal(resolved.a.modifiedTotal, 3, "A modified total");
+  equal(resolved.b.modifiedTotal, 3, "B modified total");
+  equal(resolved.ordinary.type, "equal", "ordinary result");
+  equal(resolved.effects.length, 0, "equal has no ordinary effect");
+});
+
+test("resolution reports Carryover at difference one and does not apply Effect modifiers", () => {
+  const rolled = rollOpposed(
+    [40],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const resolved = resolveOpposedReturn({
+    source: rolled.returns[0],
+    effectModifiers: {
+      aWins: [{ name: "Halberd", value: 3 }],
+    },
+  });
+
+  equal(resolved.difference, 1, "difference");
+  equal(resolved.ordinary.type, "carryover", "ordinary result");
+  if (resolved.ordinary.type === "carryover") {
+    equal(resolved.ordinary.side, "A", "carryover side");
+  }
+  equal(resolved.effects.length, 0, "carryover has no ordinary effect");
+});
+
+test("resolution calculates Success Level from difference, Effect modifiers, and Risk", () => {
+  const rolled = rollOpposed(
+    [50],
+    [20],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const source = { ...rolled.returns[0], riskA: true };
+  const resolved = resolveOpposedReturn({
+    source,
+    effectModifiers: {
+      aWins: [
+        { name: "Sword", value: 1 },
+        { name: "Medium armour", value: -2 },
+        { name: "Good leverage", value: 2 },
+      ],
+    },
+  });
+
+  equal(resolved.difference, 3, "difference");
+  equal(resolved.ordinary.type, "success", "ordinary result");
+  if (resolved.ordinary.type === "success") {
+    equal(resolved.ordinary.side, "A", "winner");
+    equal(resolved.ordinary.effectModifierTotal, 1, "Effect modifier total");
+    equal(resolved.ordinary.effectMargin, 4, "Effect margin");
+    equal(resolved.ordinary.provisionalLevel, 2, "provisional level");
+    equal(resolved.ordinary.riskPenalty, 1, "Risk penalty");
+    equal(resolved.ordinary.level, 1, "final Success Level");
+  }
+  equal(resolved.effects.length, 1, "one ordinary effect");
+  equal(resolved.effects[0].sufferedBy, "B", "effect target");
+  equal(resolved.effects[0].level, 1, "effect level");
+});
+
+test("modified total zero creates Fumble 1 and combines with ordinary effect", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const resolved = resolveOpposedReturn({
+    source: rolled.returns[0],
+    aRollModifiers: [{ name: "Wounded", value: -4 }],
+  });
+
+  equal(resolved.a.modifiedTotal, 0, "A modified total");
+  equal(resolved.a.fumbleSeverity, 1, "A Fumble severity");
+  equal(resolved.ordinary.type, "success", "B ordinary success");
+  if (resolved.ordinary.type === "success") {
+    equal(resolved.ordinary.side, "B", "winner");
+    equal(resolved.ordinary.level, 2, "ordinary level");
+  }
+  equal(resolved.effects.length, 1, "one effect on A");
+  equal(resolved.effects[0].sufferedBy, "A", "effect target");
+  equal(resolved.effects[0].cause, "ordinary-and-fumble", "combined cause");
+  equal(resolved.effects[0].level, 2, "ordinary level remains above fumble floor");
+});
+
+test("total modifiers can worsen an existing fumble", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const source = {
+    ...rolled.returns[0],
+    aTotal: 0,
+    aFumbleSeverity: 1,
+  };
+  const resolved = resolveOpposedReturn({
+    source,
+    aRollModifiers: [{ name: "Crushed", value: -2 }],
+  });
+
+  equal(resolved.a.modifiedTotal, -2, "A modified total");
+  equal(resolved.a.rolledFumbleSeverity, 1, "rolled fumble");
+  equal(resolved.a.fumbleSeverity, 3, "worsened fumble");
+  equal(resolved.effects[0].sufferedBy, "A", "A suffers effect");
+  equal(resolved.effects[0].level, 3, "Fumble 3 floor");
+});
+
+test("double fumble can produce effects on both sides", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const source = {
+    ...rolled.returns[0],
+    aTotal: 0,
+    bTotal: 0,
+    aFumbleSeverity: 1,
+    bFumbleSeverity: 2,
+  };
+  const resolved = resolveOpposedReturn({ source });
+
+  equal(resolved.ordinary.type, "equal", "ordinary result");
+  equal(resolved.effects.length, 2, "two fumble effects");
+  equal(resolved.effects[0].sufferedBy, "A", "first target");
+  equal(resolved.effects[0].level, 1, "A fumble floor");
+  equal(resolved.effects[1].sufferedBy, "B", "second target");
+  equal(resolved.effects[1].level, 2, "B fumble floor");
+});
+
+test("resolution preserves the exact modifier entries submitted by the UI", () => {
+  const rolled = rollOpposed(
+    [40],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const resolved = resolveOpposedReturn({
+    source: rolled.returns[0],
+    aRollModifiers: [
+      { id: "scene-shrub", name: "Heavy shrub", value: -3 },
+      { id: "mitigation-obstructed", name: "Obstructed Fighting mitigation", value: 2 },
+    ],
+  });
+
+  equal(resolved.a.modifiers.length, 2, "modifier count");
+  equal(resolved.a.modifiers[0].id, "scene-shrub", "modifier id");
+  equal(resolved.a.modifiers[0].name, "Heavy shrub", "modifier name");
+  equal(resolved.a.modifiers[1].value, 2, "mitigation value");
+  equal(resolved.a.modifierTotal, -1, "net selected adjustment");
 });
 
 console.log("All rules-engine tests passed.");
