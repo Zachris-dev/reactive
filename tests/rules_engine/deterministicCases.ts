@@ -552,6 +552,13 @@ const CASES: DeterministicCase[] = [
       });
 
       equal(resolved.a.modifiedTotal, -2, "modified A total");
+      equal(resolved.a.doubledRiskFumbleSeverity, 1, "doubled-Risk severity");
+      equal(resolved.a.circumstancesFumbleSeverity, 3, "circumstances severity");
+      equal(
+        resolved.a.fumbleCause,
+        "doubled-risk-and-circumstances",
+        "Fumble cause",
+      );
       equal(resolved.a.fumbleSeverity, 3, "worsened Fumble severity");
       equal(resolved.effects[0].level, 3, "Fumble floor");
 
@@ -559,8 +566,11 @@ const CASES: DeterministicCase[] = [
         id: "20",
         name: "roll modifiers can create or worsen a fumble",
         details: [
-          "A total 0, Crushed -2 -> modified -2 -> Fumble " +
+          "A total 0 from doubled Risk, Crushed -2 -> modified -2 -> Fumble " +
             resolved.a.fumbleSeverity,
+          "fumble source=" + resolved.a.fumbleCause +
+            " (doubled Risk " + resolved.a.doubledRiskFumbleSeverity +
+            ", circumstances " + resolved.a.circumstancesFumbleSeverity + ")",
           "effect on A level=" + resolved.effects[0].level +
             " cause=" + resolved.effects[0].cause,
         ],
@@ -603,6 +613,60 @@ const CASES: DeterministicCase[] = [
           "ordinary=" + resolved.ordinary.type,
           "A suffers SL " + resolved.effects[0].level +
             "; B suffers SL " + resolved.effects[1].level,
+        ],
+        trace: [],
+      };
+    },
+  },
+
+
+  {
+    id: "22",
+    name: "fumble provenance distinguishes doubled Risk from circumstances",
+    run: () => {
+      const rolled = rollOpposed(
+        [30],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+
+      const doubledRisk = resolveOpposedReturn({
+        source: {
+          ...rolled.returns[0],
+          aTotal: 0,
+          aFumbleSeverity: 2,
+        },
+      });
+      equal(doubledRisk.a.fumbleCause, "doubled-risk", "doubled-Risk cause");
+      equal(
+        doubledRisk.a.circumstancesFumbleSeverity,
+        null,
+        "no false circumstances Fumble",
+      );
+
+      const circumstances = resolveOpposedReturn({
+        source: rolled.returns[0],
+        aRollModifiers: [{ name: "Wounded", value: -4 }],
+      });
+      equal(
+        circumstances.a.fumbleCause,
+        "circumstances",
+        "circumstances cause",
+      );
+      equal(
+        circumstances.a.doubledRiskFumbleSeverity,
+        null,
+        "no doubled-Risk Fumble",
+      );
+
+      return {
+        id: "22",
+        name: "fumble provenance distinguishes doubled Risk from circumstances",
+        details: [
+          "rolled Fumble 2 -> " + doubledRisk.a.fumbleCause,
+          "modifier-created Fumble " + circumstances.a.fumbleSeverity +
+            " -> " + circumstances.a.fumbleCause,
         ],
         trace: [],
       };
