@@ -35,7 +35,7 @@ Normal play does not have to finish an entire opposed roll in one call. The shar
 - newly selected skills for a Risk contest; or
 - comparative scores ready for resolution.
 
-A Risk therefore pauses before the new contest. The player and GM can select the next relevant unused skills, those new skills are rounded independently if necessary, and then rolling continues. Once the deepest Risk contest is finished, score results are returned one at a time from deepest to original.
+A Risk therefore pauses before the new contest. The player and GM can select the next relevant unused skills, those new skills are rounded independently if necessary, and then rolling continues. Once the deepest Risk contest is finished, score resolution proceeds deepest to original. The score request also exposes the complete returned-contest array, so a GM interface can display the entire tangled contest stack at once while highlighting the result currently being resolved.
 
 Each skill presentation is preserved as data, including its display name. When a caller supplies only a numeric value, the engine generates a name from the unrounded value. An exact 4.0 skill from the standalone roller is:
 
@@ -111,3 +111,22 @@ The default is `never`. This setting does not affect the both-sides-Edge rule, w
 ```
 
 The rules engine itself does not print. It returns structured roll state and events; this tester decides how much to display.
+
+
+## Result resolution
+
+Opposed roll generation and result resolution are separate stages. The shared engine exposes `resolveOpposedReturn()` for resolving one returned contest.
+
+The UI/game-state layer decides which stored scene and character modifiers apply to this particular result. Resolution receives only the selected signed entries. Penalties are negative and bonuses are positive; the engine preserves the submitted names and values in the resolution history.
+
+Resolution order is:
+
+1. apply the selected roll-total modifiers to each returned total;
+2. a modified total of 0 creates Fumble 1, -1 creates Fumble 2, and so on, preserving any worse fumble already produced by rolling;
+3. compare the modified totals;
+4. difference 0 is Equal, difference 1 is Carryover to the higher side, and difference 2+ is Success for the higher side;
+5. only Success applies the signed Effect modifiers selected for that winning side, then divides the adjusted margin by 2 and floors it;
+6. Risk on the winner reduces that Success Level by 1;
+7. a fumble imposes a minimum effect level equal to its severity, which can create an effect on an otherwise Equal/Carryover contest and can produce effects on both sides after a double fumble.
+
+Scene/character modifier storage, mitigation, duration, and whether a stored modifier applies to a particular roll remain outside the resolution calculation.
