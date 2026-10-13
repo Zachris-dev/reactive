@@ -36,18 +36,32 @@ export interface OpposedResolutionInput {
   effectModifiers?: SideEffectModifiers;
 }
 
+export type FumbleCause =
+  | "doubled-risk"
+  | "circumstances"
+  | "doubled-risk-and-circumstances";
+
 export interface ResolvedSideTotal {
   rawTotal: number;
   modifiers: ResolutionModifier[];
   modifierTotal: number;
   modifiedTotal: number;
-  /** Fumble already present in the rolled/nested contest before modifiers. */
-  rolledFumbleSeverity: number | null;
   /**
-   * Worst fumble after applying total modifiers. A modified total of 0 is
-   * Fumble 1, -1 is Fumble 2, and so on.
+   * Fumble produced during the roll itself by matching Risk after doubling.
+   * This may have propagated outward from a deeper Risk contest.
+   */
+  doubledRiskFumbleSeverity: number | null;
+  /**
+   * Fumble produced during resolution because circumstances reduce the
+   * modified total to 0 or below.
+   */
+  circumstancesFumbleSeverity: number | null;
+  /**
+   * Worst fumble after combining both possible sources.
    */
   fumbleSeverity: number | null;
+  /** Narrative provenance retained for the GM. */
+  fumbleCause: FumbleCause | null;
 }
 
 export type OrdinaryOpposedResult =
@@ -85,6 +99,8 @@ export interface ResolutionEffect {
   ordinaryLevel: number | null;
   /** Fumble severity acting as a minimum effect level, when present. */
   fumbleFloor: number | null;
+  /** Why the fumble existed, retained for narration. */
+  fumbleCause: FumbleCause | null;
 }
 
 export interface OpposedResolutionResult {
@@ -144,22 +160,55 @@ function worseFumble(
 
 function resolveSideTotal(
   rawTotal: number,
-  rolledFumbleSeverity: number | null,
+  doubledRiskFumbleSeverity: number | null,
   suppliedModifiers: readonly ResolutionModifier[] | undefined,
 ): ResolvedSideTotal {
   const modifiers = copyModifiers(suppliedModifiers);
   const modifierTotal = sumModifiers(modifiers);
   const modifiedTotal = rawTotal + modifierTotal;
-  const generatedFumble =
-    modifiedTotal <= 0 ? 1 - modifiedTotal : null;
+
+  /*
+   * A doubled-Risk fumble has already forced the returned total to 0. Merely
+   * seeing that 0 again during resolution must not relabel it as a
+   * circumstances fumble. Circumstances become an additional fumble source
+   * only when they actually push that already-fumbled total downward.
+   *
+   * Without a pre-existing doubled-Risk fumble, any final total of 0 or below
+   * is a circumstances fumble, even if no explicit modifier was required to
+   * reach it.
+   */
+  const circumstancesFumbleSeverity =
+    modifiedTotal <= 0 &&
+    (doubledRiskFumbleSeverity === null || modifierTotal < 0)
+      ? 1 - modifiedTotal
+      : null;
+
+  const fumbleSeverity = worseFumble(
+    doubledRiskFumbleSeverity,
+    circumstancesFumbleSeverity,
+  );
+
+  let fumbleCause: FumbleCause | null = null;
+  if (
+    doubledRiskFumbleSeverity !== null &&
+    circumstancesFumbleSeverity !== null
+  ) {
+    fumbleCause = "doubled-risk-and-circumstances";
+  } else if (doubledRiskFumbleSeverity !== null) {
+    fumbleCause = "doubled-risk";
+  } else if (circumstancesFumbleSeverity !== null) {
+    fumbleCause = "circumstances";
+  }
 
   return {
     rawTotal,
     modifiers,
     modifierTotal,
     modifiedTotal,
-    rolledFumbleSeverity,
-    fumbleSeverity: worseFumble(rolledFumbleSeverity, generatedFumble),
+    doubledRiskFumbleSeverity,
+    circumstancesFumbleSeverity,
+    fumbleSeverity,
+    fumbleCause,
   };
 }
 
@@ -181,6 +230,7 @@ interface EffectAccumulator {
   sufferedBy: Side;
   ordinaryLevel: number | null;
   fumbleFloor: number | null;
+  fumbleCause: FumbleCause | null;
 }
 
 function finalizeEffect(effect: EffectAccumulator): ResolutionEffect {
@@ -206,6 +256,7 @@ function finalizeEffect(effect: EffectAccumulator): ResolutionEffect {
     cause,
     ordinaryLevel: effect.ordinaryLevel,
     fumbleFloor: effect.fumbleFloor,
+    fumbleCause: effect.fumbleCause,
   };
 }
 
@@ -214,7 +265,8 @@ function finalizeEffect(effect: EffectAccumulator): ResolutionEffect {
  *
  * Order:
  * 1. apply selected roll-total modifiers;
- * 2. create/worsen fumbles from totals of 0 or below;
+ * 2. create/worsen circumstances fumbles from totals of 0 or below while
+ *    preserving whether any fumble already came from doubled Risk;
  * 3. compare modified totals;
  * 4. difference 0 => Equal, 1 => Carryover, 2+ => ordinary Success;
  * 5. for Success, apply signed Effect modifiers and divide by 2, floored;
@@ -283,6 +335,7 @@ export function resolveOpposedReturn(
         sufferedBy: winner === "A" ? "B" : "A",
         ordinaryLevel: level,
         fumbleFloor: null,
+        fumbleCause: null,
       };
     }
   }
@@ -299,6 +352,7 @@ export function resolveOpposedReturn(
       sufferedBy: "A",
       ordinaryLevel: existing?.ordinaryLevel ?? null,
       fumbleFloor: a.fumbleSeverity,
+      fumbleCause: a.fumbleCause,
     };
   }
 
@@ -308,6 +362,7 @@ export function resolveOpposedReturn(
       sufferedBy: "B",
       ordinaryLevel: existing?.ordinaryLevel ?? null,
       fumbleFloor: b.fumbleSeverity,
+      fumbleCause: b.fumbleCause,
     };
   }
 
