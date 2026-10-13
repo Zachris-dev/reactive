@@ -266,7 +266,7 @@ root.addEventListener("click", event => {
   if (action.startsWith("digit:")) return digit(Number(action.slice(6)));
   if (action.startsWith("slot:") && entry.stage === "skill") { entry.slot = Number(action.slice(5)) as 0|1; return render(); }
   if (action.startsWith("die:") && entry.stage === "dice") { entry.cursor = Number(action.slice(4)); return render(); }
-  if (action.startsWith("choose:") && entry.stage === "dice" && mode === "manual") {
+  if (action.startsWith("choose:") && entry.stage === "dice" && entry.diceMode === "manual") {
     const [, indexText, valueText] = action.split(":");
     const index = Number(indexText), value = Number(valueText);
     entry.dice[index] = value;
@@ -285,7 +285,7 @@ document.addEventListener("keydown", event => {
   if (target.matches("input,textarea,select") || target.isContentEditable) return;
   if (event.key >= "0" && event.key <= "9") {
     const entry = current();
-    if (entry?.stage === "dice" && mode === "manual") {
+    if (entry?.stage === "dice" && entry.diceMode === "manual") {
       const hasD10 = (entry.whole! * 10 + (entry.fraction ?? 0)) % 10 !== 0 && entry.steps.length === 0;
       if (!(hasD10 && entry.cursor === 0) && Number(event.key) > 6) return;
     }
