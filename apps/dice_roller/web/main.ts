@@ -190,7 +190,8 @@ function diceView(entry: Entry, editable: boolean): string {
       const fraction = value % 10;
       html += '<p class="rounding-note">' + die +
         (die <= fraction ? ' ≤ ' : ' > ') + fraction +
-        ', round ' + (die <= fraction ? 'up' : 'down') + '</p>';
+        ', rounding skill ' + (value / 10).toFixed(1) +
+        ' to ' + (Math.floor(value / 10) + (die <= fraction ? 1 : 0)) + '.</p>';
     }
     if (editable && entry.diceMode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
   }
@@ -219,8 +220,8 @@ function resultView(entry: Entry, editable: boolean): string {
   const fractionExplanation = fraction === 0
     ? ''
     : '<p class="rounding-note">' + r.skill.fractionDie +
-      (roundedUp ? ' ≤ ' : ' > ') + fraction + ', round ' +
-      (roundedUp ? 'up' : 'down') + '</p>';
+      (roundedUp ? ' ≤ ' : ' > ') + fraction + ', rounding skill ' +
+      (r.skill.supplied / 10).toFixed(1) + ' to ' + r.skill.rounded + '.</p>';
   const diceBoxes = (dice: readonly number[]) => '<div class="dice-row">' +
     dice.map((value, i) => '<div class="die-box result-die"><span class="die-value">' +
       value + '</span><small>Die ' + (i + 1) + '</small></div>').join('') + '</div>';
