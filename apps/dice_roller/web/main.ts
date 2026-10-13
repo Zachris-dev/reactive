@@ -59,6 +59,19 @@ function current(): Entry | undefined {
   return entries[entries.length - 1];
 }
 function setMode(value: Mode): void {
+  const entry = current();
+  // Switching to automatic can generate a roll only if none of the dice
+  // in the current pane has been entered or generated yet.
+  // A partial or complete roll must never be silently replaced.
+  if (value === "automatic" &&
+      entry?.stage === "dice" &&
+      !entry.committed &&
+      entry.diceMode === "manual" &&
+      entry.dice.every(die => die === null)) {
+    const fractional = entry.dice.length === 4;
+    entry.dice = entry.dice.map((_, i) => randomDie(fractional && i === 0 ? 10 : 6));
+    entry.diceMode = "automatic";
+  }
   mode = value;
   localStorage.setItem(storageKey, value);
   render();
