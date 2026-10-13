@@ -181,7 +181,7 @@ function skillView(entry: Entry, editable: boolean): string {
 function diceView(entry: Entry, editable: boolean): string {
   const value = entry.whole! * 10 + (entry.fraction ?? 0);
   const hasD10 = value % 10 !== 0 && entry.steps.length === 0;
-  const heading = hasD10 ? '<p class="hint">Skill fraction roll (d10; 0 = 10)</p>' : "";
+  const heading = hasD10 && entry.diceMode === "manual" ? '<p class="hint">Skill fraction roll (d10; 0 = 10)</p>' : "";
   let html = heading;
   if (hasD10) {
     html += '<div class="dice-row">' + dieBox(entry, 0, "d10", editable) + '</div>';
@@ -237,8 +237,9 @@ function resultView(entry: Entry, editable: boolean): string {
     '<p class="calculation">Total: ' + total + ' → |' + total +
     ' − 10| = ' + Math.abs(total - 10) +
     (r.steps.length > 1 ? ' (doubling: highest roll value ' + r.finalRollValue + ')' : '') +
-    ' + skill ' + r.skill.rounded + ' = <strong>' + r.finalTotal +
-    '</strong></p>';
+    ' + skill ' + r.skill.rounded + ' =</p>' +
+    '<div class="final-total" aria-label="Preliminary total ' + r.finalTotal + '">' +
+    '<strong>' + r.finalTotal + '</strong></div>';
   // A fumble overrides the usual total. Do not imply that the arithmetic
   // calculated the forced zero.
   if (r.fumbleSeverity !== null) {
