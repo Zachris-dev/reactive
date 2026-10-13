@@ -600,6 +600,36 @@ test("resolution calculates Success Level from difference, Effect modifiers, and
   equal(resolved.effects[0].level, 1, "effect level");
 });
 
+test("Risk does not reduce Success Level supplied by opponent fumble", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const source = {
+    ...rolled.returns[0],
+    aTotal: 4,
+    bTotal: 0,
+    riskA: true,
+    bFumbleSeverity: 2,
+  };
+  const resolved = resolveOpposedReturn({ source });
+
+  equal(resolved.ordinary.type, "success", "ordinary result");
+  if (resolved.ordinary.type === "success") {
+    equal(resolved.ordinary.side, "A", "winner");
+    equal(resolved.ordinary.provisionalLevel, 2, "ordinary provisional level");
+    equal(resolved.ordinary.riskPenalty, 1, "ordinary Risk penalty");
+    equal(resolved.ordinary.level, 1, "ordinary level after Risk");
+  }
+  equal(resolved.effects.length, 1, "one effect");
+  equal(resolved.effects[0].sufferedBy, "B", "effect target");
+  equal(resolved.effects[0].ordinaryLevel, 1, "Risk-reduced ordinary component");
+  equal(resolved.effects[0].fumbleFloor, 2, "opponent fumble floor");
+  equal(resolved.effects[0].level, 2, "fumble-caused Success Level is not reduced");
+});
+
 test("modified total zero creates Fumble 1 and combines with ordinary effect", () => {
   const rolled = rollOpposed(
     [30],
