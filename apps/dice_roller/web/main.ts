@@ -40,7 +40,7 @@ function newEntry(): Entry {
   return {
     id: nextId++, stage: "skill", whole: null, fraction: null, slot: 0,
     dice: [], diceMode: mode, cursor: 0, steps: [], opponentRisk: false,
-    useEdge: false, committed: false
+    useEdge: true, committed: false
   };
 }
 function randomDie(sides: number): number {
@@ -168,27 +168,27 @@ function keypad(values: number[]): string {
 }
 function skillView(entry: Entry, editable: boolean): string {
   const fractionalDisplay = entry.fraction === null ? (entry.whole === null ? "–" : "0") : String(entry.fraction);
-  let html = '<div class="readout">' +
+  let html = '<p class="skill-label">' + (editable ? 'Input skill' : 'Skill') + '</p><div class="readout">' +
     button(entry.whole === null ? "–" : String(entry.whole), "slot:0", !editable, "digit-display " + (editable && entry.slot === 0 ? "active" : "")) +
     '<span class="point">.</span>' +
     button(fractionalDisplay, "slot:1", !editable, "digit-display " + (editable && entry.slot === 1 ? "active" : "")) +
     '</div>';
   if (editable) html += keypad([0,1,2,3,4,5,6,7,8,9]) +
-    '<p class="under-keypad">Skill input</p><div class="action-gap"></div>' +
+    '<div class="action-gap"></div>' +
     button("Continue →", "continue", entry.whole === null, "primary continue");
   return html;
 }
 function diceView(entry: Entry, editable: boolean): string {
   const value = entry.whole! * 10 + (entry.fraction ?? 0);
   const hasD10 = value % 10 !== 0 && entry.steps.length === 0;
-  const heading = hasD10 ? '<p class="hint">d10 for fractional skill rounding (0 = 10)</p>' : "";
+  const heading = hasD10 ? '<p class="hint">Skill fraction roll (d10; 0 = 10)</p>' : "";
   let html = heading;
   if (hasD10) {
     html += '<div class="dice-row">' + dieBox(entry, 0, "d10", editable) + '</div>';
     if (editable && entry.diceMode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
   }
   const offset = hasD10 ? 1 : 0;
-  html += '<p class="hint">3d6' + (entry.steps.length ? " — doubling ×" + (2 ** entry.steps.length) : "") + '</p>';
+  if (entry.steps.length) html += '<p class="hint">Doubling ×' + (2 ** entry.steps.length) + '</p>';
   html += '<div class="dice-row">' + [0,1,2].map(i => dieBox(entry, i + offset, "Die " + (i+1), editable)).join("") + '</div>';
   if (editable && entry.diceMode === "manual") html += '<div class="three-keypads">' +
     [0,1,2].map(i => '<div class="die-keypad"><span>Die ' + (i + 1) + '</span>' +
@@ -207,28 +207,56 @@ function dieBox(entry: Entry, i: number, label: string, editable: boolean): stri
 }
 function resultView(entry: Entry, editable: boolean): string {
   const r = entry.result!;
-  const flags = [
-    r.pendingRisk ? '<strong class="flag">Risk</strong>' : "",
-    r.edgeAvailable ? '<strong class="flag">Edge available</strong>' : "",
-    r.fumbleSeverity !== null ? '<strong class="flag danger">Fumble ' + r.fumbleSeverity + '</strong>' : "",
-    entry.steps.length > 1 ? '<strong class="flag">Doubling ×' + (2 ** (entry.steps.length-1)) + '</strong>' : ""
-  ].join("");
-  let html = '<div class="result-total"><span>Preliminary total</span><strong>' + r.finalTotal +
-    '</strong><small>Roll ' + r.finalRollValue + ' + skill ' + r.skill.rounded + '</small></div>' +
-    '<div class="flags">' + flags + '</div>' +
-    '<p class="hint">Dice: ' + r.steps.map(s => s.dice.join(", ") + (s.isTriple ? " → triple" : "")).join(" | ") + '</p>';
+  const fraction = r.skill.supplied % 10;
+  const roundedUp = r.skill.rounded > Math.floor(r.skill.supplied / 10);
+  const fractionExplanation = fraction === 0
+    ? ''
+    : '<p class="rounding-note">' + r.skill.fractionDie +
+      (roundedUp ? ' ≤ ' : ' > ') + fraction + ', round ' +
+      (roundedUp ? 'up' : 'down') + '</p>';
+  const diceBoxes = (dice: readonly number[]) => '<div class="dice-row">' +
+    dice.map((value, i) => '<div class="die-box result-die"><span class="die-value">' +
+      value + '</span><small>Die ' + (i + 1) + '</small></div>').join('') + '</div>';
+  const displayedSteps = r.steps.map((step, i) =>
+    '<div class="result-step">' + (r.steps.length > 1
+      ? '<p class="hint">Roll ' + (i + 1) + (step.isTriple ? ' — triple' : '') +
+        ' (×' + step.multiplier + ')</p>' : '') + diceBoxes(step.dice) +
+    '</div>').join('');
+  const total = r.steps[r.steps.length - 1].sum;
+  let html = '<div class="result-skill"><span>Skill for test:</span>' +
+    '<strong>' + r.skill.rounded + '</strong>' + fractionExplanation + '</div>' +
+    '<p class="result-label">Dice</p>' + displayedSteps +
+    '<p class="calculation">Total: ' + total + ' → |' + total +
+    ' − 10| = ' + Math.abs(total - 10) +
+    (r.steps.length > 1 ? ' (doubling: highest roll value ' + r.finalRollValue + ')' : '') +
+    ' + skill ' + r.skill.rounded + ' = <strong>' + r.finalTotal +
+    '</strong></p>';
+  // A fumble overrides the usual total. Do not imply that the arithmetic
+  // calculated the forced zero.
+  if (r.fumbleSeverity !== null) {
+    html += '<p class="hint">Fumble overrides the calculated total to 0.</p>';
+  }
+  html += '<div class="result-flags">' +
+    (r.pendingRisk ? '<div class="event-box risk-box">RISK!</div>' : '') +
+    (r.edgeAvailable
+      ? (editable
+          ? button(entry.useEdge ? 'EDGE (press to pass)' : 'EDGE passed (press to use)', 'edge', false, 'event-box edge-box')
+          : '<div class="event-box edge-box">' + (entry.useEdge ? 'EDGE' : 'EDGE passed') + '</div>')
+      : '') +
+    (r.fumbleSeverity !== null ? '<div class="event-box fumble-box">FUMBLE' +
+      (r.fumbleSeverity > 1 ? ' ' + r.fumbleSeverity : '') + '</div>' : '') +
+    '</div>';
   if (editable) {
-    if (r.edgeAvailable) html += button(entry.useEdge ? "Edge: use ✓" : "Edge: don't use", "edge", false, "secondary");
-    html += button(entry.opponentRisk ? "Opponent Risk: Yes ✓" : "Opponent Risk: No", "opponent-risk", false, "secondary");
+    html += button(entry.opponentRisk ? 'Opponent Risk: Yes ✓' : 'Opponent Risk: No', 'opponent-risk', false, 'secondary');
     html += '<div class="action-gap"></div>';
-    if (r.pendingRisk || entry.opponentRisk) html += button("Continue to Risk skill →", "risk", false, "primary continue");
-    else html += button("Finish roll", "finish", false, "primary continue");
+    if (r.pendingRisk || entry.opponentRisk) html += button('Continue to Risk skill →', 'risk', false, 'primary continue');
+    else html += button('Finish roll', 'finish', false, 'primary continue');
   } else {
-    html += '<p class="hint">Opponent Risk: ' + (entry.opponentRisk ? "Yes" : "No") +
-      (r.edgeAvailable ? " · Edge used: " + (entry.useEdge ? "Yes" : "No") : "") + '</p>';
+    html += '<p class="hint">Opponent Risk: ' + (entry.opponentRisk ? 'Yes' : 'No') + '</p>';
   }
   return html;
 }
+
 function render(): void {
   const cards = entries.map((entry, i) => {
     const active = i === entries.length - 1 && !finished && !entry.committed;
@@ -237,12 +265,7 @@ function render(): void {
     if (entry.stage === "dice") body =
       '<div class="step-history"><h3>Confirmed skill</h3>' + skillView(entry, false) + '</div>' +
       diceView(entry, active);
-    if (entry.stage === "result") body =
-      '<div class="step-history"><h3>Confirmed skill</h3>' + skillView(entry, false) + '</div>' +
-      '<div class="step-history"><h3>Confirmed dice</h3>' +
-      '<p>' + entry.steps.map((step, i) => '3d6 #' + (i+1) + ': ' + step.dice.join(", ")).join(" · ") +
-      (entry.skill?.fractionDie !== undefined ? ' · d10: ' + entry.skill.fractionDie : '') +
-      '</p></div>' + resultView(entry, active);
+    if (entry.stage === "result") body = resultView(entry, active);
     return '<section class="pane ' + (active ? "current" : "past") + '"><div class="pane-heading">' +
       '<span>Contest ' + (i + 1) + '</span><span>' + (entry.stage === "skill" ? "Skill" : entry.stage === "dice" ? "Dice" : "Preliminary result") +
       '</span></div>' + body + '</section>';
