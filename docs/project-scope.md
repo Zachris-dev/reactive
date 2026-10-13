@@ -25,7 +25,9 @@ The rules engine is responsible for Reactive's mechanical state and calculations
 - fumbles and fumble severity;
 - opposed rolls;
 - result calculation and success levels;
-- retaining complete roll history and flags needed by later resolution and narration.
+- retaining complete roll history and flags needed by later resolution and narration;
+- preserving each presented skill as its canonical supplied value plus the whole-number value actually used by that test, with the fractional d10 retained only when rounding was required;
+- resumable opposed-roll sessions that pause for externally supplied dice, optional Edge decisions, newly selected Risk skills, and score resolution rather than assuming the entire Risk chain completes in one call.
 
 Random number generation must be replaceable with supplied dice values so the mechanics can be tested exhaustively and unusual roll chains can be reproduced exactly.
 
@@ -85,7 +87,8 @@ In particular, an opposed roll may involve a GM and player, or two player-contro
 
 - create a shared opposed-roll session identified with the relevant campaign and participants;
 - let each participating client submit or perform its own side of the roll through the shared rules engine;
-- synchronize roll state needed by the opposed-roll procedure, including completion state, pending Risk, Edge use, doubling chains, fumbles, and nested Risk contests;
+- synchronize roll state needed by the opposed-roll procedure, including presented/rounded skills, preserved dice history, completion state, pending Risk, Edge use, doubling chains, fumbles, and nested Risk contests;
+- preserve explicit pause states while waiting for dice input, an Edge decision, Risk-skill selection, or resolution of returned comparative scores;
 - preserve which participant is the recipient of Risk and propagate Risk and fumble state correctly through nested contests;
 - allow one side to continue rolling when the other has completed or fumbled;
 - hand the completed opposed-roll state to the common resolution procedure;
