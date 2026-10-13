@@ -180,7 +180,10 @@ function diceView(entry: Entry, editable: boolean): string {
   const offset = hasD10 ? 1 : 0;
   html += '<p class="hint">3d6' + (entry.steps.length ? " — doubling ×" + (2 ** entry.steps.length) : "") + '</p>';
   html += '<div class="dice-row">' + [0,1,2].map(i => dieBox(entry, i + offset, "Die " + (i+1), editable)).join("") + '</div>';
-  if (editable && mode === "manual") html += keypad([1,2,3,4,5,6]);
+  if (editable && mode === "manual") html += '<div class="three-keypads">' +
+    [0,1,2].map(i => '<div class="die-keypad"><span>Die ' + (i + 1) + '</span>' +
+      [1,2,3,4,5,6].map(n => button(String(n), "choose:" + (i + offset) + ":" + n, false, "key")).join("") +
+      '</div>').join("") + '</div>';
   if (editable) html += '<div class="action-gap"></div>' +
     button("Continue →", "continue", entry.dice.some(d => d === null), "primary continue");
   return html;
@@ -249,11 +252,21 @@ root.addEventListener("click", event => {
   const entry = current();
   if (action === "mode:auto") return setMode("automatic");
   if (action === "mode:manual") return setMode("manual");
-  if (action === "new") return newRoll();
+  if (action === "new") return if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => undefined));
+}
+newRoll();
   if (!entry || finished || entry.committed) return;
   if (action.startsWith("digit:")) return digit(Number(action.slice(6)));
   if (action.startsWith("slot:") && entry.stage === "skill") { entry.slot = Number(action.slice(5)) as 0|1; return render(); }
   if (action.startsWith("die:") && entry.stage === "dice") { entry.cursor = Number(action.slice(4)); return render(); }
+  if (action.startsWith("choose:") && entry.stage === "dice" && mode === "manual") {
+    const [, indexText, valueText] = action.split(":");
+    const index = Number(indexText), value = Number(valueText);
+    entry.dice[index] = value;
+    entry.cursor = (index + 1) % entry.dice.length;
+    return render();
+  }
   if (action === "continue") return continueStep();
   if (action === "opponent-risk" && entry.stage === "result") { entry.opponentRisk = !entry.opponentRisk; return render(); }
   if (action === "edge" && entry.stage === "result") { entry.useEdge = !entry.useEdge; return render(); }
