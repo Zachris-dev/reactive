@@ -7,11 +7,13 @@ import {
   RollStep,
   Side,
   SimpleRollResult,
+  SkillInput,
+  SkillSelection,
 } from "./types";
 import {
+  normalizeSkillInput,
   presentStoredSkill,
   skillNeedsRounding,
-  validateStoredSkill,
 } from "./skills";
 import {
   completeSimpleRoll,
@@ -28,12 +30,12 @@ export interface OpposedSessionOptions {
 }
 
 export interface OpposedSessionSideState {
-  /** Canonical integer-tenths skill selected for this contest. */
-  suppliedSkill: number;
+  /** Named canonical skill selection for this contest, before rounding. */
+  selectedSkill: SkillSelection;
   /**
    * Frozen skill instance for this contest once presentation/rounding is done.
-   * Exact skills have only supplied + rounded. Fractional skills also retain
-   * the d10 that produced the rounded value.
+   * Exact skills retain name + supplied + rounded. Fractional skills also
+   * retain the d10 that produced the rounded value.
    */
   skill: PresentedSkill | null;
   /** Preserved 3d6 history for this one test, including all doublings. */
@@ -60,7 +62,7 @@ export type OpposedSessionRequest =
       type: "fraction-die";
       depth: number;
       side: Side;
-      suppliedSkill: number;
+      skill: SkillSelection;
     }
   | {
       type: "roll-dice";
@@ -111,8 +113,8 @@ export type OpposedSessionInput =
     }
   | {
       type: "risk-skills";
-      aSkill: number;
-      bSkill: number;
+      aSkill: SkillInput;
+      bSkill: SkillInput;
     }
   | {
       type: "scores-resolved";
@@ -135,10 +137,9 @@ export interface OpposedRollSession {
   maxRiskDepth: number;
 }
 
-function newSideState(suppliedSkill: number): OpposedSessionSideState {
-  validateStoredSkill(suppliedSkill);
+function newSideState(skillInput: SkillInput): OpposedSessionSideState {
   return {
-    suppliedSkill,
+    selectedSkill: normalizeSkillInput(skillInput),
     skill: null,
     steps: [],
     result: null,
@@ -147,8 +148,8 @@ function newSideState(suppliedSkill: number): OpposedSessionSideState {
 
 function newActiveFrame(
   depth: number,
-  aSkill: number,
-  bSkill: number,
+  aSkill: SkillInput,
+  bSkill: SkillInput,
   enteredWithRiskA: boolean,
   enteredWithRiskB: boolean,
 ): OpposedSessionActiveFrame {
@@ -167,6 +168,7 @@ function cloneSide(
 ): OpposedSessionSideState {
   return {
     ...side,
+    selectedSkill: { ...side.selectedSkill },
     skill: side.skill === null ? null : { ...side.skill },
     steps: side.steps.map((step) => ({
       ...step,
@@ -206,8 +208,8 @@ function sideState(
 
 function presentExactSkills(frame: OpposedSessionActiveFrame): void {
   for (const side of [frame.a, frame.b]) {
-    if (side.skill === null && !skillNeedsRounding(side.suppliedSkill)) {
-      side.skill = presentStoredSkill(side.suppliedSkill);
+    if (side.skill === null && !skillNeedsRounding(side.selectedSkill)) {
+      side.skill = presentStoredSkill(side.selectedSkill);
     }
   }
 }
@@ -315,7 +317,7 @@ function advanceUntilPause(session: OpposedRollSession): void {
         type: "fraction-die",
         depth: active.depth,
         side: "A",
-        suppliedSkill: active.a.suppliedSkill,
+        skill: { ...active.a.selectedSkill },
       };
       return;
     }
@@ -325,7 +327,7 @@ function advanceUntilPause(session: OpposedRollSession): void {
         type: "fraction-die",
         depth: active.depth,
         side: "B",
-        suppliedSkill: active.b.suppliedSkill,
+        skill: { ...active.b.selectedSkill },
       };
       return;
     }
@@ -383,8 +385,8 @@ function advanceUntilPause(session: OpposedRollSession): void {
 }
 
 export function startOpposedSession(
-  aSkill: number,
-  bSkill: number,
+  aSkill: SkillInput,
+  bSkill: SkillInput,
   options: OpposedSessionOptions = {},
 ): OpposedRollSession {
   const session: OpposedRollSession = {
@@ -434,7 +436,7 @@ export function advanceOpposedSession(
     }
 
     const side = sideState(active, input.side);
-    side.skill = presentStoredSkill(side.suppliedSkill, input.value);
+    side.skill = presentStoredSkill(side.selectedSkill, input.value);
     advanceUntilPause(next);
     return next;
   }
@@ -483,9 +485,6 @@ export function advanceOpposedSession(
 
   if (input.type === "risk-skills") {
     const request = requireRequest(next, "risk-skills");
-    validateStoredSkill(input.aSkill);
-    validateStoredSkill(input.bSkill);
-
     next.activeFrame = newActiveFrame(
       request.depth,
       input.aSkill,
