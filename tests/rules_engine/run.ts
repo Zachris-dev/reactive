@@ -613,6 +613,8 @@ test("modified total zero creates Fumble 1 and combines with ordinary effect", (
   });
 
   equal(resolved.a.modifiedTotal, 0, "A modified total");
+  equal(resolved.a.circumstancesFumbleSeverity, 1, "A circumstances Fumble");
+  equal(resolved.a.fumbleCause, "circumstances", "A Fumble cause");
   equal(resolved.a.fumbleSeverity, 1, "A Fumble severity");
   equal(resolved.ordinary.type, "success", "B ordinary success");
   if (resolved.ordinary.type === "success") {
@@ -643,10 +645,37 @@ test("total modifiers can worsen an existing fumble", () => {
   });
 
   equal(resolved.a.modifiedTotal, -2, "A modified total");
-  equal(resolved.a.rolledFumbleSeverity, 1, "rolled fumble");
+  equal(resolved.a.doubledRiskFumbleSeverity, 1, "doubled-Risk fumble");
+  equal(resolved.a.circumstancesFumbleSeverity, 3, "circumstances fumble");
+  equal(
+    resolved.a.fumbleCause,
+    "doubled-risk-and-circumstances",
+    "combined Fumble cause",
+  );
   equal(resolved.a.fumbleSeverity, 3, "worsened fumble");
   equal(resolved.effects[0].sufferedBy, "A", "A suffers effect");
   equal(resolved.effects[0].level, 3, "Fumble 3 floor");
+});
+
+test("an existing doubled-Risk fumble is not relabelled as circumstances", () => {
+  const rolled = rollOpposed(
+    [30],
+    [30],
+    new SequenceDiceSource([2, 3, 4]),
+    new SequenceDiceSource([2, 3, 4]),
+  );
+  const source = {
+    ...rolled.returns[0],
+    aTotal: 0,
+    aFumbleSeverity: 2,
+  };
+  const resolved = resolveOpposedReturn({ source });
+
+  equal(resolved.a.doubledRiskFumbleSeverity, 2, "doubled-Risk severity");
+  equal(resolved.a.circumstancesFumbleSeverity, null, "no circumstances Fumble");
+  equal(resolved.a.fumbleCause, "doubled-risk", "Fumble cause");
+  equal(resolved.a.fumbleSeverity, 2, "final severity");
+  equal(resolved.effects[0].fumbleCause, "doubled-risk", "effect Fumble cause");
 });
 
 test("double fumble can produce effects on both sides", () => {
@@ -669,8 +698,10 @@ test("double fumble can produce effects on both sides", () => {
   equal(resolved.effects.length, 2, "two fumble effects");
   equal(resolved.effects[0].sufferedBy, "A", "first target");
   equal(resolved.effects[0].level, 1, "A fumble floor");
+  equal(resolved.effects[0].fumbleCause, "doubled-risk", "A Fumble cause");
   equal(resolved.effects[1].sufferedBy, "B", "second target");
   equal(resolved.effects[1].level, 2, "B fumble floor");
+  equal(resolved.effects[1].fumbleCause, "doubled-risk", "B Fumble cause");
 });
 
 test("resolution preserves the exact modifier entries submitted by the UI", () => {
