@@ -217,7 +217,8 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
       console.log(
         `  return depth ${returned.depth}: A=${returned.aTotal} B=${returned.bTotal} ` +
           `Risk=${returned.riskA}/${returned.riskB} ` +
-          `Fumble=${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"} ` +
+          `Fumble=${resolved.a.fumbleSeverity ?? "none"}/${resolved.b.fumbleSeverity ?? "none"} ` +
+          `source=${resolved.a.fumbleCause ?? "none"}/${resolved.b.fumbleCause ?? "none"} ` +
           `-> ${outcome}`,
       );
     }
@@ -270,11 +271,13 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
     console.log(
       `    Risk A/B: ${returned.riskA ? "yes" : "no"}/${returned.riskB ? "yes" : "no"}`,
     );
-    console.log(
-      `    Fumble A/B: ${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"}`,
-    );
-
     const resolved = resolveOpposedReturn({ source: returned });
+    console.log(
+      `    Fumble A/B: ${resolved.a.fumbleSeverity ?? "none"}/${resolved.b.fumbleSeverity ?? "none"}`,
+    );
+    console.log(
+      `    Fumble source A/B: ${resolved.a.fumbleCause ?? "none"}/${resolved.b.fumbleCause ?? "none"}`,
+    );
     if (resolved.ordinary.type === "equal") {
       console.log("    Result: Equal");
     } else if (resolved.ordinary.type === "carryover") {
@@ -287,7 +290,8 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
 
     for (const effect of resolved.effects) {
       console.log(
-        `    Effect on ${effect.sufferedBy}: SL ${effect.level} (${effect.cause})`,
+        `    Effect on ${effect.sufferedBy}: SL ${effect.level} (${effect.cause}` +
+          (effect.fumbleCause === null ? ")" : `, fumble=${effect.fumbleCause})`),
       );
     }
   });
