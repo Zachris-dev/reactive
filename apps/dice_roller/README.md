@@ -37,17 +37,25 @@ Normal play does not have to finish an entire opposed roll in one call. The shar
 
 A Risk therefore pauses before the new contest. The player and GM can select the next relevant unused skills, those new skills are rounded independently if necessary, and then rolling continues. Once the deepest Risk contest is finished, score results are returned one at a time from deepest to original.
 
-Each skill presentation is preserved as data. An exact 4.0 skill is:
+Each skill presentation is preserved as data, including its display name. When a caller supplies only a numeric value, the engine generates a name from the unrounded value. An exact 4.0 skill from the standalone roller is:
 
 ```text
-{ supplied: 40, rounded: 4 }
+{ name: "Skill 4.0", supplied: 40, rounded: 4 }
 ```
 
 A fractional 3.3 that rounded up on a d10 result of 2 is:
 
 ```text
-{ supplied: 33, rounded: 4, fractionDie: 2 }
+{ name: "Skill 3.3", supplied: 33, rounded: 4, fractionDie: 2 }
 ```
+
+A character sheet can instead supply the real skill name:
+
+```text
+{ name: "Longsword", supplied: 33, rounded: 4, fractionDie: 2 }
+```
+
+The name always describes the selected, unrounded skill; it is not regenerated from the rounded value.
 
 Doubling remains part of the same test and therefore reuses that stored rounded value. A newly selected Risk skill is a new presentation and receives its own fractional-rounding roll when needed. All previous dice steps and presented skills remain in the session state.
 
