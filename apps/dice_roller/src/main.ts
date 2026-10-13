@@ -145,7 +145,7 @@ function printSimple(label: string, result: SimpleRollResult, level: LogLevel): 
     return;
   }
 
-  console.log(`${label}: skill ${formatSkill(result.skill.storedSkill)} (${result.skill.storedSkill})`);
+  console.log(`${label}: skill ${formatSkill(result.skill.supplied)} (${result.skill.supplied})`);
 
   if (level === "summary") {
     console.log(
@@ -155,12 +155,13 @@ function printSimple(label: string, result: SimpleRollResult, level: LogLevel): 
     return;
   }
 
-  if (result.skill.fraction === 0) {
-    console.log(`  Fractional check: none -> rounded skill ${result.skill.roundedSkill}`);
+  const fraction = result.skill.supplied % 10;
+  if (fraction === 0) {
+    console.log(`  Fractional check: none -> rounded skill ${result.skill.rounded}`);
   } else {
     console.log(
-      `  Fractional check: d10=${result.skill.fractionDie}, fraction=${result.skill.fraction} ` +
-        `-> rounded skill ${result.skill.roundedSkill}`,
+      `  Fractional check: d10=${result.skill.fractionDie}, fraction=${fraction} ` +
+        `-> rounded skill ${result.skill.rounded}`,
     );
   }
 
