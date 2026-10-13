@@ -63,7 +63,7 @@ The batch `rollOpposed()` helper used by the CLI and deterministic cases now dri
 
 ## Deterministic engine cases
 
-The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills. The later cases exercise result resolution: Equal versus Carryover, Effect modifiers and Risk, modifier-created/worsened fumbles, and double-fumble results on both sides.
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills. The later cases exercise result resolution: Equal versus Carryover, Effect modifiers and Risk, modifier-created/worsened fumbles, double-fumble results on both sides, and preservation of doubled-Risk versus circumstances fumble provenance for GM narration.
 
 Run the readable walkthrough with:
 
@@ -122,7 +122,7 @@ The UI/game-state layer decides which stored scene and character modifiers apply
 Resolution order is:
 
 1. apply the selected roll-total modifiers to each returned total;
-2. a modified total of 0 creates Fumble 1, -1 creates Fumble 2, and so on, preserving any worse fumble already produced by rolling;
+2. a modified total of 0 creates Fumble 1, -1 creates Fumble 2, and so on, preserving any worse fumble already produced by rolling; resolution also preserves whether the fumble came from doubled Risk during the roll, from circumstances during resolution, or from both;
 3. compare the modified totals;
 4. difference 0 is Equal, difference 1 is Carryover to the higher side, and difference 2+ is Success for the higher side;
 5. only Success applies the signed Effect modifiers selected for that winning side, then divides the adjusted margin by 2 and floors it;
