@@ -29,7 +29,8 @@ The rules engine is responsible for Reactive's mechanical state and calculations
 - preserving each presented skill with its display name, canonical supplied value, and whole-number value actually used by that test, with the fractional d10 retained only when rounding was required; numeric-only callers receive a generated name such as `Skill 4.4`, while character sheets can supply names such as `Longsword`;
 - resumable opposed-roll sessions that pause for externally supplied dice, optional Edge decisions, newly selected Risk skills, and score resolution rather than assuming the entire Risk chain completes in one call;
 - exposing the complete returned contest stack during score resolution so the GM can see all nested contests and their named skills at once;
-- a separate deterministic result-resolution step that receives only the roll-total and Effect modifiers selected by the UI, checks modifier-created fumbles, and produces Equal, Carryover, Success Levels, and fumble-forced effects.
+- a separate deterministic result-resolution step that receives only the roll-total and Effect modifiers selected by the UI, checks modifier-created fumbles, and produces Equal, Carryover, Success Levels, and fumble-forced effects;
+- preserving fumble provenance for narration: a fumble may come from doubled Risk during rolling, from circumstances reducing the resolved total to 0 or below, or from both, with each source's severity retained.
 
 Random number generation must be replaceable with supplied dice values so the mechanics can be tested exhaustively and unusual roll chains can be reproduced exactly.
 
