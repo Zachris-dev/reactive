@@ -63,7 +63,7 @@ The batch `rollOpposed()` helper used by the CLI and deterministic cases now dri
 
 ## Deterministic engine cases
 
-The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills.
+The repository also contains an ordered suite of deliberately non-random cases. These begin with ordinary simple rolls and then introduce fractional rounding, Edge, Risk, doubling and fumbles before moving into opposed rolls, nested Risk, both-side Risk, Edge-created Risk, doubling inside Risk contests, deeper nesting, propagated fumbles, a five-frame Risk chain that verifies five separate return values in deepest-first resolution order, and separate fractional rounding for newly selected Risk skills. The later cases exercise result resolution: Equal versus Carryover, Effect modifiers and Risk, modifier-created/worsened fumbles, and double-fumble results on both sides.
 
 Run the readable walkthrough with:
 
