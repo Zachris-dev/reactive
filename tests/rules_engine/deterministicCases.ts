@@ -672,6 +672,50 @@ const CASES: DeterministicCase[] = [
       };
     },
   },
+
+
+  {
+    id: "23",
+    name: "Risk reduces ordinary success but not opponent-fumble Success Level",
+    run: () => {
+      const rolled = rollOpposed(
+        [30],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const resolved = resolveOpposedReturn({
+        source: {
+          ...rolled.returns[0],
+          aTotal: 4,
+          bTotal: 0,
+          riskA: true,
+          bFumbleSeverity: 2,
+        },
+      });
+
+      equal(resolved.ordinary.type, "success", "ordinary result");
+      if (resolved.ordinary.type !== "success") {
+        throw new Error("Expected success.");
+      }
+      equal(resolved.ordinary.provisionalLevel, 2, "ordinary provisional level");
+      equal(resolved.ordinary.riskPenalty, 1, "ordinary Risk penalty");
+      equal(resolved.ordinary.level, 1, "ordinary level after Risk");
+      equal(resolved.effects[0].fumbleFloor, 2, "opponent Fumble floor");
+      equal(resolved.effects[0].level, 2, "final level preserves Fumble floor");
+
+      return {
+        id: "23",
+        name: "Risk reduces ordinary success but not opponent-fumble Success Level",
+        details: [
+          "ordinary SL 2 with Risk -> 1",
+          "opponent Fumble 2 -> floor 2",
+          "final effect SL 2",
+        ],
+        trace: [],
+      };
+    },
+  },
 ];
 
 export function runDeterministicCases(level: LogLevel = "verbose"): void {
