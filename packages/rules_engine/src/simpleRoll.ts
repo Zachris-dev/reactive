@@ -4,6 +4,7 @@ import {
   EngineEvent,
   PresentedSkill,
   RollStep,
+  SkillInput,
   SimpleRollResult,
 } from "./types";
 import { roundStoredSkill } from "./skills";
@@ -65,6 +66,7 @@ function skillEvent(skill: PresentedSkill): EngineEvent {
   if (skill.fractionDie === undefined) {
     return {
       type: "skill-rounded",
+      name: skill.name,
       supplied: skill.supplied,
       rounded: skill.rounded,
     };
@@ -72,6 +74,7 @@ function skillEvent(skill: PresentedSkill): EngineEvent {
 
   return {
     type: "skill-rounded",
+    name: skill.name,
     supplied: skill.supplied,
     rounded: skill.rounded,
     fractionDie: skill.fractionDie,
@@ -204,7 +207,7 @@ export function completeSimpleRoll(
 }
 
 export function rollSimple(
-  storedSkill: number,
+  storedSkill: SkillInput,
   dice: DiceSource,
   options: SimpleRollOptions = {},
 ): SimpleRollResult {
