@@ -27,7 +27,9 @@ The rules engine is responsible for Reactive's mechanical state and calculations
 - result calculation and success levels;
 - retaining complete roll history and flags needed by later resolution and narration;
 - preserving each presented skill with its display name, canonical supplied value, and whole-number value actually used by that test, with the fractional d10 retained only when rounding was required; numeric-only callers receive a generated name such as `Skill 4.4`, while character sheets can supply names such as `Longsword`;
-- resumable opposed-roll sessions that pause for externally supplied dice, optional Edge decisions, newly selected Risk skills, and score resolution rather than assuming the entire Risk chain completes in one call.
+- resumable opposed-roll sessions that pause for externally supplied dice, optional Edge decisions, newly selected Risk skills, and score resolution rather than assuming the entire Risk chain completes in one call;
+- exposing the complete returned contest stack during score resolution so the GM can see all nested contests and their named skills at once;
+- a separate deterministic result-resolution step that receives only the roll-total and Effect modifiers selected by the UI, checks modifier-created fumbles, and produces Equal, Carryover, Success Levels, and fumble-forced effects.
 
 Random number generation must be replaceable with supplied dice values so the mechanics can be tested exhaustively and unusual roll chains can be reproduced exactly.
 
@@ -59,6 +61,23 @@ It is expected to support:
 - an End Round action that clears round-use state;
 - creation, play, and XP/training interfaces;
 - XP/training applied to base skills, with automatic improvement when thresholds are reached.
+
+### Modifier game state
+
+Scene and character modifiers belong to game state rather than to the result-resolution engine.
+
+The intended modifier model should support:
+
+- signed values, with penalties normally negative and explicit bonuses represented as separate entries;
+- character modifiers such as wounds and spells and scene modifiers such as weather or terrain;
+- GM editing or removing a persistent modifier as fiction changes, without retroactively changing previously resolved contests;
+- temporarily ignoring any available persistent modifier for one resolution without deleting it;
+- mitigation linked to a specific negative, with an independently editable value and duration; mitigation can reduce that negative to 0 but excess mitigation never becomes a bonus;
+- persistent duration, scene duration, or numerical round duration;
+- round duration where `remaining: 0` is still active and means "expires at the end of this round";
+- one authoritative Advance Round operation that removes round-based modifiers already at 0 and decrements positive remaining values. The GM interface can call this operation by button initially; the later variable-initiative application should call the same operation when it advances a round.
+
+Resolution does not decide which stored modifiers apply. The UI presents the currently available scene/character modifiers and mitigations, the GM selects or suppresses them for the particular returned contest, and resolution receives the resulting signed entries. The historical resolution stores a snapshot of what was actually submitted.
 
 ### Campaign synchronization
 
