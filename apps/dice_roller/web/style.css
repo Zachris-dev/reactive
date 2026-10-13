@@ -71,3 +71,9 @@ button:focus-visible { outline: 3px solid #94baf9; outline-offset: 2px; }
 
 .final-total { display:flex; justify-content:center; align-items:center; margin:8px auto 20px; min-width:90px; width:max-content; min-height:90px; padding:10px 20px; border:2px solid #90b9f3; border-radius:12px; background:#283e5b; }
 .final-total strong { font-size:2.5rem; line-height:1.15; font-variant-numeric:tabular-nums; }
+
+.step-calculation { text-align:center; color:#dce7f7; font-size:1.02rem; margin:5px 0 13px; }
+.highest-step { border:1px solid #8fb9f6; border-radius:10px; background:#243751; padding:10px 5px; }
+.highest-marker { display:inline-block; margin-left:8px; border:1px solid #9ec5ff; border-radius:6px; padding:2px 6px; font-size:.85rem; font-weight:700; }
+.selected-value { text-align:center; border-top:1px solid #63738a; padding-top:16px; margin-top:18px; font-size:1.08rem; }
+.selected-value strong { font-size:1.4rem; }
