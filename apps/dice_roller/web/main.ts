@@ -296,7 +296,18 @@ document.addEventListener("keydown", event => {
     continueStep();
   }
 });
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => undefined));
+// During development do not register a service worker or cache application files.
+// Remove any earlier dice-roller service worker and its old application cache.
+if ("serviceWorker" in navigator) {
+  void navigator.serviceWorker.getRegistrations().then(registrations =>
+    Promise.all(registrations.filter(registration =>
+      registration.scope.startsWith(new URL("./", location.href).href)
+    ).map(registration => registration.unregister()))
+  ).catch(() => undefined);
+}
+if ("caches" in window) {
+  void caches.keys().then(keys => Promise.all(
+    keys.filter(key => key.startsWith("reactive-dice-")).map(key => caches.delete(key))
+  )).catch(() => undefined);
 }
 newRoll();
