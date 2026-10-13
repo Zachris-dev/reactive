@@ -4,3 +4,5 @@ export * from "./skills";
 export * from "./simpleRoll";
 export * from "./opposedRoll";
 export * from "./opposedSession";
+
+export * from "./resolution";
