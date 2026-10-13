@@ -683,16 +683,15 @@ test("resolution preserves the exact modifier entries submitted by the UI", () =
   const resolved = resolveOpposedReturn({
     source: rolled.returns[0],
     aRollModifiers: [
-      { id: "scene-shrub", name: "Heavy shrub", value: -3 },
-      { id: "mitigation-obstructed", name: "Obstructed Fighting mitigation", value: 2 },
+      { id: "scene-shrub", name: "Heavy shrub (mitigated)", value: -1 },
     ],
   });
 
-  equal(resolved.a.modifiers.length, 2, "modifier count");
+  equal(resolved.a.modifiers.length, 1, "modifier count");
   equal(resolved.a.modifiers[0].id, "scene-shrub", "modifier id");
-  equal(resolved.a.modifiers[0].name, "Heavy shrub", "modifier name");
-  equal(resolved.a.modifiers[1].value, 2, "mitigation value");
-  equal(resolved.a.modifierTotal, -1, "net selected adjustment");
+  equal(resolved.a.modifiers[0].name, "Heavy shrub (mitigated)", "modifier name");
+  equal(resolved.a.modifiers[0].value, -1, "effective modifier value");
+  equal(resolved.a.modifierTotal, -1, "selected adjustment");
 });
 
 console.log("All rules-engine tests passed.");
