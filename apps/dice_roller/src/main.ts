@@ -10,6 +10,7 @@ import {
   SimpleRollResult,
   rollOpposed,
   rollSimple,
+  resolveOpposedReturn,
 } from "../../../packages/rules_engine/src";
 
 type EdgePolicy = "always" | "never";
@@ -206,10 +207,18 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
         `Fumble(A/B)=${result.aFumbleSeverity ?? "none"}/${result.bFumbleSeverity ?? "none"}`,
     );
     for (const returned of result.returns) {
+      const resolved = resolveOpposedReturn({ source: returned });
+      const outcome =
+        resolved.ordinary.type === "equal"
+          ? "Equal"
+          : resolved.ordinary.type === "carryover"
+            ? `Carryover ${resolved.ordinary.side}`
+            : `Success ${resolved.ordinary.side} SL ${resolved.ordinary.level}`;
       console.log(
         `  return depth ${returned.depth}: A=${returned.aTotal} B=${returned.bTotal} ` +
           `Risk=${returned.riskA}/${returned.riskB} ` +
-          `Fumble=${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"}`,
+          `Fumble=${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"} ` +
+          `-> ${outcome}`,
       );
     }
     return;
@@ -264,6 +273,23 @@ function printOpposed(result: OpposedRollResult, level: LogLevel): void {
     console.log(
       `    Fumble A/B: ${returned.aFumbleSeverity ?? "none"}/${returned.bFumbleSeverity ?? "none"}`,
     );
+
+    const resolved = resolveOpposedReturn({ source: returned });
+    if (resolved.ordinary.type === "equal") {
+      console.log("    Result: Equal");
+    } else if (resolved.ordinary.type === "carryover") {
+      console.log(`    Result: Carryover to side ${resolved.ordinary.side}`);
+    } else {
+      console.log(
+        `    Result: Success for side ${resolved.ordinary.side}, SL ${resolved.ordinary.level}`,
+      );
+    }
+
+    for (const effect of resolved.effects) {
+      console.log(
+        `    Effect on ${effect.sufferedBy}: SL ${effect.level} (${effect.cause})`,
+      );
+    }
   });
 }
 
