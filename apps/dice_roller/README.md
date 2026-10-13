@@ -117,7 +117,7 @@ The rules engine itself does not print. It returns structured roll state and eve
 
 Opposed roll generation and result resolution are separate stages. The shared engine exposes `resolveOpposedReturn()` for resolving one returned contest.
 
-The UI/game-state layer decides which stored scene and character modifiers apply to this particular result. Resolution receives only the selected signed entries. Penalties are negative and bonuses are positive; the engine preserves the submitted names and values in the resolution history.
+The UI/game-state layer decides which stored scene and character modifiers apply to this particular result. Resolution receives only the selected effective signed entries. Mitigation is calculated before submission, including the rule that excess mitigation cannot become a bonus. Penalties are negative and explicit bonuses are positive; the engine preserves the submitted names and values in the resolution history.
 
 Resolution order is:
 
