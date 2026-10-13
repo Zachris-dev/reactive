@@ -14,7 +14,7 @@ npm run roll -- roll 33 25
 npm run roll -- roll --a-skills "40,32,11" --b-skills "36,23"
 ```
 
-One skill performs a simple roll. Two sides perform a complete opposed roll, including any nested Risk contests.
+One skill performs a simple roll. Two sides perform a complete opposed roll, including any nested Risk contests. Opposed CLI output also runs each returned contest through the resolution engine with no additional selected modifiers, so it reports Equal, Carryover, or Success Level as a baseline result.
 
 For opposed rolls, each side's skill list is consumed one entry per contest frame. Later entries are used for nested Risk contests. Once a list is exhausted, further Risk tests use Skill 0. Doubling never consumes another skill because it remains part of the same test.
 
