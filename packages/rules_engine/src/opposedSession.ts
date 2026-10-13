@@ -20,7 +20,7 @@ import {
 import {
   buildOpposedReturns,
   createOpposedContestResult,
-} from "./opposedRoll";
+} from "./opposedCore";
 
 export interface OpposedSessionOptions {
   /** Safety limit for nested Risk contests; the initial contest is depth 0. */
