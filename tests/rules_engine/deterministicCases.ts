@@ -29,8 +29,8 @@ function equal<T>(actual: T, expected: T, label: string): void {
 function simpleDetails(result: SimpleRollResult): string[] {
   const lines: string[] = [];
   lines.push(
-    "skill=" + result.skill.supplied +
-      " rounded=" + result.skill.rounded +
+    "skill=" + result.skill.name +
+      " [" + result.skill.supplied + "->" + result.skill.rounded + "]" +
       " final=" + result.finalTotal,
   );
   for (const step of result.steps) {
@@ -66,8 +66,8 @@ function opposedDetails(result: OpposedRollResult): string[] {
     lines.push(
       label +
         ": skills A/B=" +
-        frame.aSkill.supplied + "->" + frame.aSkill.rounded + "/" +
-        frame.bSkill.supplied + "->" + frame.bSkill.rounded +
+        frame.aSkill.name + " [" + frame.aSkill.supplied + "->" + frame.aSkill.rounded + "]/" +
+        frame.bSkill.name + " [" + frame.bSkill.supplied + "->" + frame.bSkill.rounded + "]" +
         " enteredRisk A/B=" + frame.enteredWithRiskA + "/" + frame.enteredWithRiskB,
     );
     lines.push(
@@ -397,8 +397,14 @@ const CASES: DeterministicCase[] = [
     name: "new fractional skills are rounded separately in a Risk contest",
     run: () => {
       const result = rollOpposed(
-        [20, 33],
-        [40, 27],
+        [
+          { name: "Balance", supplied: 20 },
+          { name: "Athletics", supplied: 33 },
+        ],
+        [
+          { name: "Spear", supplied: 40 },
+          { name: "Footwork", supplied: 27 },
+        ],
         new SequenceDiceSource(
           [3, 4, 5, 2, 3, 4],
           [2],
@@ -409,11 +415,14 @@ const CASES: DeterministicCase[] = [
         ),
       );
       equal(result.frames.length, 2, "frame count");
+      equal(result.frames[0].aSkill.name, "Balance", "original A skill name");
       equal(result.frames[0].aSkill.supplied, 20, "original A supplied skill");
       equal(result.frames[0].aSkill.rounded, 2, "original A rounded skill");
+      equal(result.frames[1].aSkill.name, "Athletics", "Risk A skill name");
       equal(result.frames[1].aSkill.supplied, 33, "Risk A supplied skill");
       equal(result.frames[1].aSkill.rounded, 4, "Risk A rounded skill");
       equal(result.frames[1].aSkill.fractionDie, 2, "Risk A fraction die");
+      equal(result.frames[1].bSkill.name, "Footwork", "Risk B skill name");
       equal(result.frames[1].bSkill.supplied, 27, "Risk B supplied skill");
       equal(result.frames[1].bSkill.rounded, 2, "Risk B rounded skill");
       equal(result.frames[1].bSkill.fractionDie, 8, "Risk B fraction die");
