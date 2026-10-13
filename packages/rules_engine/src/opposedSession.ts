@@ -88,9 +88,12 @@ export type OpposedSessionRequest =
     }
   | {
       type: "scores";
+      /** Current result to resolve, deepest first. */
       index: number;
       total: number;
       result: OpposedReturnResult;
+      /** All returned contests, so the GM UI can display the whole stack. */
+      results: OpposedReturnResult[];
     }
   | {
       type: "complete";
@@ -232,6 +235,7 @@ function beginReturns(session: OpposedRollSession): void {
     index: 0,
     total: session.returns.length,
     result: first,
+    results: [...session.returns],
   };
 }
 
@@ -512,6 +516,7 @@ export function advanceOpposedSession(
       index: nextIndex,
       total: next.returns.length,
       result: next.returns[nextIndex],
+      results: [...next.returns],
     };
     return next;
   }
