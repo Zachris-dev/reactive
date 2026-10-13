@@ -225,19 +225,34 @@ function resultView(entry: Entry, editable: boolean): string {
   const diceBoxes = (dice: readonly number[]) => '<div class="dice-row">' +
     dice.map((value, i) => '<div class="die-box result-die"><span class="die-value">' +
       value + '</span><small>Die ' + (i + 1) + '</small></div>').join('') + '</div>';
-  const displayedSteps = r.steps.map((step, i) =>
-    '<div class="result-step">' + (r.steps.length > 1
-      ? '<p class="hint">Roll ' + (i + 1) + (step.isTriple ? ' — triple' : '') +
-        ' (×' + step.multiplier + ')</p>' : '') + diceBoxes(step.dice) +
-    '</div>').join('');
-  const total = r.steps[r.steps.length - 1].sum;
+  const doubling = r.steps.length > 1;
+  const highest = r.finalRollValue;
+  const displayedSteps = r.steps.map((step, i) => {
+    const candidate = Math.abs(step.sum - 10) * step.multiplier;
+    const selected = doubling && candidate === highest;
+    const calculation = doubling
+      ? '<p class="step-calculation">|' + step.sum + ' − 10| × ' +
+        step.multiplier + ' = <strong>' + candidate + '</strong>' +
+        (selected ? ' <span class="highest-marker">Highest</span>' : '') + '</p>'
+      : '';
+    return '<div class="result-step' + (selected ? ' highest-step' : '') + '">' +
+      (doubling ? '<p class="hint">Roll ' + (i + 1) +
+        (step.isTriple ? ' — triple' : '') + ' (×' + step.multiplier + ')</p>' : '') +
+      diceBoxes(step.dice) + calculation + '</div>';
+  }).join('');
+  const total = r.steps[0].sum;
+  const resultCalculation = doubling
+    ? '<p class="calculation">Highest roll value: <strong>' + highest +
+      '</strong> + skill ' + r.skill.rounded + ' =</p>'
+    : '<p class="calculation">Total: ' + total + ' → |' + total +
+      ' − 10| = ' + Math.abs(total - 10) +
+      ' + skill ' + r.skill.rounded + ' =</p>';
   let html = '<div class="result-skill"><span>Skill for test:</span>' +
     '<strong>' + r.skill.rounded + '</strong>' + fractionExplanation + '</div>' +
     '<p class="result-label">Dice</p>' + displayedSteps +
-    '<p class="calculation">Total: ' + total + ' → |' + total +
-    ' − 10| = ' + Math.abs(total - 10) +
-    (r.steps.length > 1 ? ' (doubling: highest roll value ' + r.finalRollValue + ')' : '') +
-    ' + skill ' + r.skill.rounded + ' =</p>' +
+    (doubling ? '<p class="selected-value">Selected highest roll value: <strong>' +
+      highest + '</strong></p>' : '') +
+    resultCalculation +
     '<div class="final-total" aria-label="Preliminary total ' + r.finalTotal + '">' +
     '<strong>' + r.finalTotal + '</strong></div>';
   // A fumble overrides the usual total. Do not imply that the arithmetic
