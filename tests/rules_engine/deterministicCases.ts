@@ -391,6 +391,40 @@ const CASES: DeterministicCase[] = [
       return { id: "16", name: "four nested Risks produce five return values", details: opposedDetails(result), trace: opposedTrace(result) };
     },
   },
+
+  {
+    id: "17",
+    name: "new fractional skills are rounded separately in a Risk contest",
+    run: () => {
+      const result = rollOpposed(
+        [20, 33],
+        [40, 27],
+        new SequenceDiceSource(
+          [3, 4, 5, 2, 3, 4],
+          [2],
+        ),
+        new SequenceDiceSource(
+          [2, 3, 4, 2, 3, 4],
+          [8],
+        ),
+      );
+      equal(result.frames.length, 2, "frame count");
+      equal(result.frames[0].aSkill.supplied, 20, "original A supplied skill");
+      equal(result.frames[0].aSkill.rounded, 2, "original A rounded skill");
+      equal(result.frames[1].aSkill.supplied, 33, "Risk A supplied skill");
+      equal(result.frames[1].aSkill.rounded, 4, "Risk A rounded skill");
+      equal(result.frames[1].aSkill.fractionDie, 2, "Risk A fraction die");
+      equal(result.frames[1].bSkill.supplied, 27, "Risk B supplied skill");
+      equal(result.frames[1].bSkill.rounded, 2, "Risk B rounded skill");
+      equal(result.frames[1].bSkill.fractionDie, 8, "Risk B fraction die");
+      return {
+        id: "17",
+        name: "new fractional skills are rounded separately in a Risk contest",
+        details: opposedDetails(result),
+        trace: opposedTrace(result),
+      };
+    },
+  },
 ];
 
 export function runDeterministicCases(level: LogLevel = "verbose"): void {
