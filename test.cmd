@@ -3,28 +3,31 @@ setlocal
 
 if "%~1"=="" (
   call npm test
+  set "TEST_ERROR=%ERRORLEVEL%"
   goto :check
 )
 
 if /I "%~1"=="roll" (
   if not "%~2"=="" goto :usage
   call npm run test:roll
+  set "TEST_ERROR=%ERRORLEVEL%"
   goto :check
 )
 
 if /I "%~1"=="result" (
   if not "%~2"=="" goto :usage
   call npm run test:result
+  set "TEST_ERROR=%ERRORLEVEL%"
   goto :check
 )
 
 goto :usage
 
 :check
-if errorlevel 1 (
+if not "%TEST_ERROR%"=="0" (
   echo.
   echo Tests failed.
-  exit /b 1
+  exit /b %TEST_ERROR%
 )
 echo.
 echo Tests passed.
