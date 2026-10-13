@@ -145,7 +145,7 @@ function printSimple(label: string, result: SimpleRollResult, level: LogLevel): 
     return;
   }
 
-  console.log(`${label}: skill ${formatSkill(result.skill.supplied)} (${result.skill.supplied})`);
+  console.log(`${label}: ${result.skill.name} (${result.skill.supplied})`);
 
   if (level === "summary") {
     console.log(
