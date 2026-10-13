@@ -1,4 +1,4 @@
-import { DiceSource, SkillRoundResult } from "./types";
+import { DiceSource, PresentedSkill } from "./types";
 
 export function validateStoredSkill(skill: number): void {
   if (!Number.isInteger(skill) || skill < 0) {
@@ -6,7 +6,25 @@ export function validateStoredSkill(skill: number): void {
   }
 }
 
-export function roundStoredSkill(skill: number, dice: DiceSource): SkillRoundResult {
+export function skillNeedsRounding(skill: number): boolean {
+  validateStoredSkill(skill);
+  return skill % 10 !== 0;
+}
+
+function validateFractionDie(value: number): void {
+  if (!Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error(`Fraction die must be an integer from 1 to 10; got ${value}.`);
+  }
+}
+
+/**
+ * Turn a canonical integer-tenths skill into the whole-number skill used by
+ * one test. Exact skills need no fraction die. Fractional skills require one.
+ */
+export function presentStoredSkill(
+  skill: number,
+  fractionDie?: number,
+): PresentedSkill {
   validateStoredSkill(skill);
 
   const whole = Math.floor(skill / 10);
@@ -14,24 +32,34 @@ export function roundStoredSkill(skill: number, dice: DiceSource): SkillRoundRes
 
   if (fraction === 0) {
     return {
-      storedSkill: skill,
-      whole,
-      fraction,
-      fractionDie: null,
-      roundedSkill: whole,
+      supplied: skill,
+      rounded: whole,
     };
   }
 
-  const fractionDie = dice.d10();
-  const roundedSkill = fractionDie <= fraction ? whole + 1 : whole;
+  if (fractionDie === undefined) {
+    throw new Error(
+      `Skill ${skill} requires a d10 fractional-rounding result before it can be presented.`,
+    );
+  }
+
+  validateFractionDie(fractionDie);
 
   return {
-    storedSkill: skill,
-    whole,
-    fraction,
+    supplied: skill,
+    rounded: fractionDie <= fraction ? whole + 1 : whole,
     fractionDie,
-    roundedSkill,
   };
+}
+
+export function roundStoredSkill(
+  skill: number,
+  dice: DiceSource,
+): PresentedSkill {
+  if (!skillNeedsRounding(skill)) {
+    return presentStoredSkill(skill);
+  }
+  return presentStoredSkill(skill, dice.d10());
 }
 
 export class SkillSequence {
