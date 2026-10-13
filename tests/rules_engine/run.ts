@@ -1,9 +1,11 @@
 import {
   SequenceDiceSource,
   SkillSequence,
+  advanceOpposedSession,
   rollOpposed,
   rollOpposedContest,
   rollSimple,
+  startOpposedSession,
 } from "../../packages/rules_engine/src";
 
 function equal<T>(actual: T, expected: T, label: string): void {
@@ -19,12 +21,22 @@ function test(name: string, fn: () => void): void {
 
 test("fractional skill rounds up when d10 <= fraction", () => {
   const result = rollSimple(33, new SequenceDiceSource([2, 3, 6], [3]));
-  equal(result.skill.roundedSkill, 4, "rounded skill");
+  equal(result.skill.supplied, 33, "supplied skill");
+  equal(result.skill.rounded, 4, "rounded skill");
+  equal(result.skill.fractionDie, 3, "fraction die");
 });
 
 test("fractional skill rounds down when d10 > fraction", () => {
   const result = rollSimple(33, new SequenceDiceSource([2, 3, 6], [4]));
-  equal(result.skill.roundedSkill, 3, "rounded skill");
+  equal(result.skill.rounded, 3, "rounded skill");
+  equal(result.skill.fractionDie, 4, "fraction die");
+});
+
+test("exact skill presentation has supplied and rounded values without a fraction die", () => {
+  const result = rollSimple(40, new SequenceDiceSource([2, 3, 6]));
+  equal(result.skill.supplied, 40, "supplied skill");
+  equal(result.skill.rounded, 4, "rounded skill");
+  equal("fractionDie" in result.skill, false, "fraction die absent");
 });
 
 test("Risk check uses signed sum-10, not absolute value", () => {
@@ -110,8 +122,8 @@ test("normal Risk starts a nested contest and exhausted skill lists use Skill 0"
   equal(result.returns[1].depth, 0, "second return is original contest");
   equal(result.riskA, true, "accumulated A Risk");
   equal(result.riskB, false, "accumulated B Risk");
-  equal(result.frames[1].aSkill, 0, "nested A skill");
-  equal(result.frames[1].bSkill, 0, "nested B skill");
+  equal(result.frames[1].aSkill.supplied, 0, "nested A skill");
+  equal(result.frames[1].bSkill.supplied, 0, "nested B skill");
   equal(result.frames[1].aSkillFallback, true, "nested A fallback marker");
   equal(result.frames[1].bSkillFallback, true, "nested B fallback marker");
 });
@@ -266,6 +278,196 @@ test("five contest frames produce five resolution returns in reverse order", () 
   equal(result.returns[2].depth, 2, "third return depth");
   equal(result.returns[3].depth, 1, "fourth return depth");
   equal(result.returns[4].depth, 0, "last return depth");
+});
+
+test("resumable session presents exact skills without inventing a fraction die", () => {
+  const session = startOpposedSession(40, 50);
+  equal(session.request.type, "roll-dice", "first request");
+  equal(session.activeFrame?.a.skill?.supplied, 40, "A supplied skill");
+  equal(session.activeFrame?.a.skill?.rounded, 4, "A rounded skill");
+  equal(session.activeFrame?.b.skill?.supplied, 50, "B supplied skill");
+  equal(session.activeFrame?.b.skill?.rounded, 5, "B rounded skill");
+  equal(
+    session.activeFrame?.a.skill === null
+      ? true
+      : "fractionDie" in session.activeFrame.a.skill,
+    false,
+    "A fraction die absent",
+  );
+});
+
+test("resumable session rounds each newly presented fractional skill once", () => {
+  let session = startOpposedSession(33, 27);
+  equal(session.request.type, "fraction-die", "A fraction request");
+
+  session = advanceOpposedSession(session, {
+    type: "fraction-die",
+    side: "A",
+    value: 2,
+  });
+  equal(session.activeFrame?.a.skill?.supplied, 33, "A supplied");
+  equal(session.activeFrame?.a.skill?.rounded, 4, "A rounded");
+  equal(session.activeFrame?.a.skill?.fractionDie, 2, "A fraction die");
+  equal(session.request.type, "fraction-die", "B fraction request");
+
+  session = advanceOpposedSession(session, {
+    type: "fraction-die",
+    side: "B",
+    value: 8,
+  });
+  equal(session.activeFrame?.b.skill?.supplied, 27, "B supplied");
+  equal(session.activeFrame?.b.skill?.rounded, 2, "B rounded");
+  equal(session.activeFrame?.b.skill?.fractionDie, 8, "B fraction die");
+  equal(session.request.type, "roll-dice", "3d6 request after rounding");
+});
+
+test("resumable session preserves the rounded skill and prior dice through doubling", () => {
+  let session = startOpposedSession(40, 40);
+
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "A",
+    dice: [4, 4, 4],
+  });
+  equal(session.request.type, "roll-dice", "doubling request");
+  if (session.request.type === "roll-dice") {
+    equal(session.request.side, "A", "doubling side");
+    equal(session.request.doublingLevel, 1, "doubling level");
+  }
+  equal(session.activeFrame?.a.steps.length, 1, "preserved first step");
+  equal(session.activeFrame?.a.skill?.rounded, 4, "preserved rounded skill");
+
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "A",
+    dice: [2, 3, 4],
+  });
+  equal(session.activeFrame?.a.steps.length, 2, "preserved doubling chain");
+  equal(session.activeFrame?.a.skill?.rounded, 4, "same rounded skill after doubling");
+  equal(session.request.type, "roll-dice", "B roll request");
+});
+
+test("resumable session pauses for Risk skills and preserves the original frame", () => {
+  let session = startOpposedSession(20, 40);
+
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "A",
+    dice: [3, 4, 5],
+  });
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "B",
+    dice: [2, 3, 4],
+  });
+
+  equal(session.request.type, "risk-skills", "Risk skill request");
+  equal(session.frames.length, 1, "original frame preserved");
+  equal(session.frames[0].aSkill.supplied, 20, "original A skill preserved");
+  equal(session.frames[0].contest.a.steps.length, 1, "original A roll preserved");
+
+  session = advanceOpposedSession(session, {
+    type: "risk-skills",
+    aSkill: 33,
+    bSkill: 40,
+  });
+  equal(session.request.type, "fraction-die", "new Risk skill rounding request");
+
+  session = advanceOpposedSession(session, {
+    type: "fraction-die",
+    side: "A",
+    value: 2,
+  });
+  equal(session.activeFrame?.depth, 1, "Risk frame depth");
+  equal(session.activeFrame?.a.skill?.supplied, 33, "Risk supplied skill");
+  equal(session.activeFrame?.a.skill?.rounded, 4, "Risk rounded skill");
+  equal(session.frames[0].aSkill.rounded, 2, "original rounded skill unchanged");
+});
+
+test("resumable session pauses for one-sided Edge before deciding whether Risk starts", () => {
+  let passSession = startOpposedSession(40, 40);
+  passSession = advanceOpposedSession(passSession, {
+    type: "roll-dice",
+    side: "A",
+    dice: [1, 1, 2],
+  });
+  passSession = advanceOpposedSession(passSession, {
+    type: "roll-dice",
+    side: "B",
+    dice: [2, 3, 4],
+  });
+  equal(passSession.request.type, "edge-choice", "Edge choice request");
+
+  passSession = advanceOpposedSession(passSession, {
+    type: "edge-decision",
+    use: false,
+  });
+  equal(passSession.request.type, "scores", "scores after passing Edge");
+  equal(passSession.frames[0].edgeUsedBy, null, "Edge declined");
+
+  let useSession = startOpposedSession(40, 40);
+  useSession = advanceOpposedSession(useSession, {
+    type: "roll-dice",
+    side: "A",
+    dice: [1, 1, 2],
+  });
+  useSession = advanceOpposedSession(useSession, {
+    type: "roll-dice",
+    side: "B",
+    dice: [2, 3, 4],
+  });
+  useSession = advanceOpposedSession(useSession, {
+    type: "edge-decision",
+    use: true,
+  });
+  equal(useSession.request.type, "risk-skills", "Risk skills after using Edge");
+  equal(useSession.frames[0].edgeUsedBy, "A", "Edge used by A");
+  equal(useSession.frames[0].riskStartedForB, true, "Risk started for B");
+});
+
+test("resumable session returns nested scores first and original scores afterward", () => {
+  let session = startOpposedSession(20, 40);
+
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "A",
+    dice: [3, 4, 5],
+  });
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "B",
+    dice: [2, 3, 4],
+  });
+  session = advanceOpposedSession(session, {
+    type: "risk-skills",
+    aSkill: 40,
+    bSkill: 40,
+  });
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "A",
+    dice: [2, 3, 4],
+  });
+  session = advanceOpposedSession(session, {
+    type: "roll-dice",
+    side: "B",
+    dice: [2, 3, 4],
+  });
+
+  equal(session.request.type, "scores", "first score return");
+  if (session.request.type === "scores") {
+    equal(session.request.result.depth, 1, "nested scores first");
+    equal(session.request.total, 2, "two score results");
+  }
+
+  session = advanceOpposedSession(session, { type: "scores-resolved" });
+  equal(session.request.type, "scores", "second score return");
+  if (session.request.type === "scores") {
+    equal(session.request.result.depth, 0, "original scores second");
+  }
+
+  session = advanceOpposedSession(session, { type: "scores-resolved" });
+  equal(session.request.type, "complete", "session complete");
 });
 
 console.log("All rules-engine tests passed.");
