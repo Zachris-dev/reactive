@@ -5,6 +5,7 @@ import {
   SimpleRollResult,
   rollOpposed,
   rollSimple,
+  resolveOpposedReturn,
 } from "../../packages/rules_engine/src";
 
 interface CaseResult {
@@ -431,6 +432,179 @@ const CASES: DeterministicCase[] = [
         name: "new fractional skills are rounded separately in a Risk contest",
         details: opposedDetails(result),
         trace: opposedTrace(result),
+      };
+    },
+  },
+
+
+  {
+    id: "18",
+    name: "resolution distinguishes Equal and Carryover before Effect",
+    run: () => {
+      const equalRoll = rollOpposed(
+        [30],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const equalResult = resolveOpposedReturn({
+        source: equalRoll.returns[0],
+        aRollModifiers: [{ name: "Rain", value: -1 }],
+        bRollModifiers: [{ name: "Rain", value: -1 }],
+      });
+      equal(equalResult.ordinary.type, "equal", "equal result");
+
+      const carryRoll = rollOpposed(
+        [40],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const carryResult = resolveOpposedReturn({
+        source: carryRoll.returns[0],
+        effectModifiers: {
+          aWins: [{ name: "Halberd", value: 3 }],
+        },
+      });
+      equal(carryResult.ordinary.type, "carryover", "carryover result");
+      equal(carryResult.effects.length, 0, "Effect modifiers cannot turn Carryover into an effect");
+
+      return {
+        id: "18",
+        name: "resolution distinguishes Equal and Carryover before Effect",
+        details: [
+          "Equal: modified totals " +
+            equalResult.a.modifiedTotal + "/" + equalResult.b.modifiedTotal +
+            " -> " + equalResult.ordinary.type,
+          "Carryover: modified totals " +
+            carryResult.a.modifiedTotal + "/" + carryResult.b.modifiedTotal +
+            " difference=" + carryResult.difference +
+            " -> " + carryResult.ordinary.type,
+        ],
+        trace: [],
+      };
+    },
+  },
+
+  {
+    id: "19",
+    name: "Success Level uses Effect modifiers and Risk",
+    run: () => {
+      const rolled = rollOpposed(
+        [50],
+        [20],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const resolved = resolveOpposedReturn({
+        source: { ...rolled.returns[0], riskA: true },
+        effectModifiers: {
+          aWins: [
+            { name: "Sword", value: 1 },
+            { name: "Medium armour", value: -2 },
+            { name: "Good leverage", value: 2 },
+          ],
+        },
+      });
+
+      equal(resolved.ordinary.type, "success", "success result");
+      if (resolved.ordinary.type !== "success") {
+        throw new Error("Expected success.");
+      }
+      equal(resolved.ordinary.effectMargin, 4, "Effect margin");
+      equal(resolved.ordinary.provisionalLevel, 2, "provisional level");
+      equal(resolved.ordinary.riskPenalty, 1, "Risk penalty");
+      equal(resolved.ordinary.level, 1, "final Success Level");
+
+      return {
+        id: "19",
+        name: "Success Level uses Effect modifiers and Risk",
+        details: [
+          "difference=" + resolved.difference +
+            " effectMods=" + resolved.ordinary.effectModifierTotal +
+            " margin=" + resolved.ordinary.effectMargin +
+            " provisionalSL=" + resolved.ordinary.provisionalLevel +
+            " Risk=-" + resolved.ordinary.riskPenalty +
+            " finalSL=" + resolved.ordinary.level,
+        ],
+        trace: [],
+      };
+    },
+  },
+
+  {
+    id: "20",
+    name: "roll modifiers can create or worsen a fumble",
+    run: () => {
+      const rolled = rollOpposed(
+        [30],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const resolved = resolveOpposedReturn({
+        source: {
+          ...rolled.returns[0],
+          aTotal: 0,
+          aFumbleSeverity: 1,
+        },
+        aRollModifiers: [{ name: "Crushed", value: -2 }],
+      });
+
+      equal(resolved.a.modifiedTotal, -2, "modified A total");
+      equal(resolved.a.fumbleSeverity, 3, "worsened Fumble severity");
+      equal(resolved.effects[0].level, 3, "Fumble floor");
+
+      return {
+        id: "20",
+        name: "roll modifiers can create or worsen a fumble",
+        details: [
+          "A total 0, Crushed -2 -> modified -2 -> Fumble " +
+            resolved.a.fumbleSeverity,
+          "effect on A level=" + resolved.effects[0].level +
+            " cause=" + resolved.effects[0].cause,
+        ],
+        trace: [],
+      };
+    },
+  },
+
+  {
+    id: "21",
+    name: "double fumble can produce results for both sides",
+    run: () => {
+      const rolled = rollOpposed(
+        [30],
+        [30],
+        new SequenceDiceSource([2, 3, 4]),
+        new SequenceDiceSource([2, 3, 4]),
+      );
+      const resolved = resolveOpposedReturn({
+        source: {
+          ...rolled.returns[0],
+          aTotal: 0,
+          bTotal: 0,
+          aFumbleSeverity: 1,
+          bFumbleSeverity: 2,
+        },
+      });
+
+      equal(resolved.ordinary.type, "equal", "ordinary result");
+      equal(resolved.effects.length, 2, "effect count");
+      equal(resolved.effects[0].sufferedBy, "A", "A effect");
+      equal(resolved.effects[0].level, 1, "A Fumble floor");
+      equal(resolved.effects[1].sufferedBy, "B", "B effect");
+      equal(resolved.effects[1].level, 2, "B Fumble floor");
+
+      return {
+        id: "21",
+        name: "double fumble can produce results for both sides",
+        details: [
+          "ordinary=" + resolved.ordinary.type,
+          "A suffers SL " + resolved.effects[0].level +
+            "; B suffers SL " + resolved.effects[1].level,
+        ],
+        trace: [],
       };
     },
   },
