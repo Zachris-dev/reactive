@@ -2,7 +2,7 @@
 setlocal
 
 if "%~1"=="" (
-  call npm test
+  call npm run test:all
   set "TEST_ERROR=%ERRORLEVEL%"
   goto :check
 )
@@ -64,7 +64,7 @@ exit /b 0
 :usage
 echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|all]
 echo.
-echo   no parameter  Run all tests
+echo   no parameter  Run rules engine and parser tests
 echo   roll          Run roll engine tests only
 echo   result        Run resolution tests only
 echo   parser        Run campaign parsing and selection tests
