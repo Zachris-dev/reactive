@@ -1,3 +1,4 @@
+import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -25,7 +26,7 @@ const groups = [
  {name:"Language",skills:"Emerspeak|Vealan Elvish|Kardish Dwarf|Squall (seafolk)|Vulgar Herisian|Arcane Herisian|Raggyr|Merchant seals bookkeeping|Sacred speech|Old Ennis"}
 ];
 const split = text => text.split("|").map(name => ({name, description:""}));
-const definitions = groups.map(group=>({
+let definitions = groups.map(group=>({
  ...group,
  skills: group.skills ? split(group.skills) : undefined,
  subgroups: group.subgroups?.map(s=>({...s,skills:split(s.skills)})),
@@ -108,6 +109,7 @@ const campaigns=[{
  templates:[]
 }];
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
+let templateDiagnostics=[];let loadFailure="";
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){
  const culture=campaign.selections.find(g=>g.id==="culture")?.options.find(o=>o.id===chosen.culture);
@@ -125,7 +127,7 @@ function readyForSkills(){
       group.options.some(o=>o.id===chosen[group.id]&&availableOption(group,o)));
 }
 function renderCampaignScreen(){
- root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>
+ root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
   campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={};expanded={};setupNotice="";screen="setup";render();
@@ -185,4 +187,35 @@ function render(){
  document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
 }
-render();
+async function loadCampaignFiles(){
+ try{
+  const [campaignResponse,skillsResponse]=await Promise.all([
+    fetch("../../campaigns/the-eldrich-race/campaign.txt"),
+    fetch("../../campaigns/the-eldrich-race/skills.txt")
+  ]);
+  if(!campaignResponse.ok||!skillsResponse.ok)throw new Error("Campaign files not available (serve from repository root)");
+  const parsedCampaign=parseCampaign(await campaignResponse.text());
+  const parsedSkills=parseSkillList(await skillsResponse.text());
+  templateDiagnostics=validateCampaign(parsedCampaign,parsedSkills);
+  definitions=parsedSkills.categories.map(group=>({
+    name:group.name,
+    skills:group.skills.length?group.skills:undefined,
+    subgroups:group.subgroups.length?group.subgroups:undefined,
+    alternatives:group.alternatives.length?group.alternatives:undefined
+  }));
+  const cultureGroup=campaign.selections.find(s=>s.id==="culture");
+  cultureGroup.options=parsedCampaign.cultures.map(c=>({
+    id:c.name,label:c.name,barred:c.barred,
+    allowedRaces:c.allows.length?c.allows.map(name=>parsedCampaign.races.find(r=>r.name.toLowerCase()===name.toLowerCase())?.name||name):undefined,
+    languages:c.primaryLanguage?[c.primaryLanguage]:[]
+  }));
+  const raceGroup=campaign.selections.find(s=>s.id==="race");
+  raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
+  campaign.restrictions=parsedCampaign.races.flatMap(r=>r.statements.flatMap(stmt=>{
+    const m=stmt.text.match(/^Disallow:\\s*Magic selection (.+)$/i);
+    return m?[{selection:"race",value:r.name[0].toUpperCase()+r.name.slice(1),disallow:{magic:[m[1].trim()]}}]:[];
+  }));
+ }catch(error){loadFailure=String(error);}
+ render();
+}
+loadCampaignFiles();
