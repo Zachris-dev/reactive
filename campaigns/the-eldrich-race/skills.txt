@@ -1,0 +1,171 @@
+Master skill list for 'The Eldrich Race' campaign using Reactive rules
+1. Combat
+ Form
+ Celerity
+ Precision
+ Axe/Mace
+ Spear/Polearm
+ Sword
+ Bow
+ Crossbow
+ Shield
+ Unarmed 
+2. Battle 
+ Steadfastness
+ Tactics
+ Formation
+ Skirmish
+ Hazard: darkness
+ Hazard: slippery
+ Hazard: confined
+ Ambush
+ Rally
+ Awareness
+3. Athletics
+ Throw
+ Wrestle
+ Ride
+ Jump
+ Swim
+ Climb
+ Stalk
+ Tumble
+ Boat
+ Trek
+4. Body
+ (Body / Strength)
+ Brawn
+ Clout
+ Speed
+ (Body / Finesse)
+ Dexterity
+ Agility
+ Balance
+ (Body / Constitution)
+ Durability
+ Health
+ Tenacity
+ (Body / Senses)
+ Senses
+5. Social
+ Smalltalk
+ Read Faces
+ Oration
+ Nonverbal
+ Emotional
+ Logical
+ Forceful
+ Personal
+ Subtle
+ Humorous 
+6. Artistic
+ Sing
+ Instrument
+ Compose
+ Act
+ Storytell
+ Author
+ Dance
+ Illustrate
+ Sculpt
+ Sleight
+7. Crafting
+ Woodwork
+ Leatherwork
+ Masonry
+ Smith
+ Weave
+ Tailor
+ Cook
+ Brew
+ Pottery
+ Artifice
+8. Mind
+ Memory
+ Reasoning
+ Wits
+ Focus
+ Mental Endurance
+ Sense of self
+ Composure
+ Imagination
+ Introspection
+ Intuition
+9. Nature
+ Orienteering
+ Plants
+ Birds
+ Beasts
+ Fish
+ Bugs
+ Traps
+ Medicines
+ Surgery
+ Animal handling
+10. Magic
+ [Magic - alternate choice 1: Arcane]
+ Magic Shield
+ Gather Mana
+ Purify Mana
+ Manawell
+ Movement
+ Light
+ Temperature
+ Echo
+ Call
+ Bond
+ [Magic - alternate choice 2: Divine]
+ Attunement
+ Healing
+ Restoration
+ Benediction
+ Divine Protection
+ Purification
+ Exorcism
+ Anchoring
+ Cursing
+ Domination
+ [Magic - alternate choice 3: Druidic]
+ Borrow Form
+ Borrow Aspect
+ Borrow Movement
+ Borrow Senses
+ Borrow Vitality
+ Borrow Instinct
+ Natural Remedies
+ Hidden Self
+ Natural Guard
+ Swift Change
+ [alternate choice 4: Physical Adept]
+ Battle Aura
+ Mental Block
+ Magic Resistance
+ Ignore Pain
+ Restore Aura
+ Sixth Sense
+ Multi-Focus
+ Adrenaline Surge
+ Cleave Magic
+ Hard to Kill
+11. Culture
+ High Emeri
+ Low Emeri
+ Herisian
+ Vaelthar
+ Seafolk
+ Kardsworn
+ Razyg
+ Emeri nobles
+ Revangelism
+ Merchants
+12. Language
+ Emerspeak
+ Vaelan Elvish
+ Kardish Dwarf
+ Squall (seafolk)
+ Vulgar Herisian
+ Arcane Herisian
+ Raggyr
+ Merchant seals bookkeeping
+ Sacred speech
+ Old Ennis
