@@ -82,9 +82,17 @@ const campaigns=[{
  id:"the-eldrich-race",name:"The Eldrich Race",
  selections:[
  {id:"culture",label:"Primary culture",required:true,options:[
+ {id:"Vaelthar",label:"Vaelthar",barred:true,allowedRaces:["Elf"],languages:["Vaelan Elvish"]},
+ {id:"Kardsworn",label:"Kardsworn",barred:true,allowedRaces:["Dwarf"],languages:["Kardish dwarf"]},
  {id:"High Emeri",label:"High Emeri",languages:["Emerspeak"]},
+ {id:"Low Emeri",label:"Low Emeri",barred:true,allowedRaces:["Human"],languages:["Emerspeak"]},
+ {id:"Herisian",label:"Herisian",barred:true,allowedRaces:["Human","Elf"],languages:["Vulgar Herisian"]},
+ {id:"Norr",label:"Norr",barred:true},
+ {id:"Razyg",label:"Razyg",barred:true},
+ {id:"Emeri Nobles",label:"Emeri Nobles",languages:["Emerspeak"]},
  {id:"Revangelism",label:"Revangelism",languages:["Emerspeak"]},
- {id:"Merchants",label:"Merchants",languages:[]}
+ {id:"Merchants",label:"Merchants",languages:["*"]},
+ {id:"Seafolk",label:"Seafolk",languages:["Squall (seafolk)"]}
  ]},
  {id:"race",label:"Race",required:true,options:[
  {id:"Human",label:"Human"}, {id:"Elf",label:"Elf"}, {id:"Dwarf",label:"Dwarf"}
@@ -102,11 +110,12 @@ const campaigns=[{
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){
- // Campaign rule restrictions, rather than UI rules tied to named concepts.
- if(group.id==="race"){
-   const culture=campaign.selections[0].options.find(o=>o.id===chosen.culture);
-   if(culture?.allowedRaces&&!culture.allowedRaces.includes(option.id))return false;
+ const culture=campaign.selections.find(g=>g.id==="culture")?.options.find(o=>o.id===chosen.culture);
+ if(group.id==="culture"){
+   if(option.barred && !option.allowedRaces?.length)return false;
+   if(option.allowedRaces?.length && chosen.race && !option.allowedRaces.includes(chosen.race))return false;
  }
+ if(group.id==="race" && culture?.allowedRaces?.length && !culture.allowedRaces.includes(option.id))return false;
  return !campaign.restrictions.some(r=>chosen[r.selection]===r.value &&
    r.disallow[group.id]?.includes(option.id));
 }
