@@ -35,6 +35,22 @@ const root=document.querySelector("#app");
 const savedMode=localStorage.getItem("reactive-sheet-value-format");
 let valueFormat=savedMode==="decimal"?"decimal":"integer";
 let magicChoice="Arcane";
+// The character creator will supply race, culture, campaign allowed choices and mode.
+// No race/culture is selected in this stand-alone skill-list preview.
+const characterContext = {race:null, culture:null, allowedMagic:null, mode:"creation"};
+function availableMagicChoices(group){
+ return group.alternatives.filter(a=>
+   (!characterContext.allowedMagic || characterContext.allowedMagic.includes(a.name)) &&
+   !(characterContext.race === "Elf" && a.name === "Physical Adept")
+ );
+}
+function selectableMagicChoice(group){
+ const available=availableMagicChoices(group);
+ if(!available.some(a=>a.name===magicChoice) && characterContext.mode!=="play"){
+   magicChoice=available[0]?.name ?? "";
+ }
+ return available;
+}
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function cleanName(name){return name.replace(/\s*\([^)]*\)/g,"").trim();}
 function skillRows(skills, subgroup=""){
@@ -42,22 +58,22 @@ function skillRows(skills, subgroup=""){
  <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value" aria-label="Unassigned">—</span></div>`).join("");
 }
 function activeSkills(group){
- if(group.alternatives)return group.alternatives.find(a=>a.name===magicChoice).skills;
+ if(group.alternatives)return group.alternatives.find(a=>a.name===magicChoice)?.skills ?? [];
  if(group.subgroups)return group.subgroups.flatMap(s=>s.skills);
  return group.skills;
 }
 function renderGroup(group){
+ const options=group.alternatives ? selectableMagicChoice(group) : [];
  const list=activeSkills(group);
  const valid=list.length===10;
  let content="";
- if(group.alternatives){
-  content+=`<div class="magic-picker"><label for="magic-choice">Magic type</label><select id="magic-choice">${group.alternatives.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select></div>`;
- }
+
  if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name)}</div>`).join("");
  else content+=skillRows(list);
  const problem=!valid?`<div class="diagnostic" role="status">${escapeHtml(group.name)} contains ${list.length} skills; exactly 10 required.</div>`:"";
+ const heading=group.alternatives ? (characterContext.mode==="play" ? `<h2>${escapeHtml(magicChoice)}</h2>` : `<label class="visually-hidden" for="magic-choice">Magic discipline</label><select id="magic-choice" class="magic-heading" aria-label="Magic discipline">${options.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select>`) : `<h2>${escapeHtml(group.name)}</h2>`;
  return `<section class="group ${valid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
- <div class="group-title"><h2>${escapeHtml(group.name)}</h2><span class="count">${list.length} / 10</span></div>
+ <div class="group-title">${heading}<span class="count">${list.length} / 10</span></div>
  <div class="group-main">${content}</div>${problem}</section>`;
 }
 function render(){
@@ -67,7 +83,7 @@ function render(){
  <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
  <div class="skills">${definitions.map(renderGroup).join("")}</div>
  <p class="notes">Skill descriptions are reserved in the data model. This is the listing panel; character allocations, category bonuses and campaign-specific changes will be connected separately.</p></div>`;
- document.querySelector("#magic-choice").addEventListener("change",event=>{magicChoice=event.target.value;render();});
+ document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
 }
 render();
