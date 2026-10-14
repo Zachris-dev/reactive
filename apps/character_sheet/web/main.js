@@ -212,7 +212,7 @@ async function loadCampaignFiles(){
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
   campaign.restrictions=parsedCampaign.races.flatMap(r=>r.statements.flatMap(stmt=>{
-    const m=stmt.text.match(/^Disallow:\\s*Magic selection (.+)$/i);
+    const m=stmt.text.match(/^Disallow:\s*Magic selection (.+)$/i);
     return m?[{selection:"race",value:r.name[0].toUpperCase()+r.name.slice(1),disallow:{magic:[m[1].trim()]}}]:[];
   }));
  }catch(error){loadFailure=String(error);}
