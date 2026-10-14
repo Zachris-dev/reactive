@@ -89,7 +89,7 @@ const campaigns=[{
  {id:"Herisian",label:"Herisian",barred:true,allowedRaces:["Human","Elf"],languages:["Vulgar Herisian"]},
  {id:"Norr",label:"Norr",barred:true},
  {id:"Razyg",label:"Razyg",barred:true},
- {id:"Emeri Nobles",label:"Emeri Nobles",languages:["Emerspeak"]},
+ {id:"Emeri Nobles",label:"Emeri Nobles",barred:true,allowedRaces:["Human"],languages:["Emerspeak"]},
  {id:"Revangelism",label:"Revangelism",languages:["Emerspeak"]},
  {id:"Merchants",label:"Merchants",languages:["*"]},
  {id:"Seafolk",label:"Seafolk",languages:["Squall (seafolk)"]}
