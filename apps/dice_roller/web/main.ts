@@ -296,7 +296,15 @@ function heldTestView(entry: Entry): string {
   return '<section class="held-test"><strong>' +
     escapeHtml(result.skill.name) +
     ' test on hold.</strong><div class="held-rolls">' + rolls +
-    '</div><small>Preliminary total: ' + result.finalTotal + '</small></section>';
+    '</div><small>Preliminary total: ' + result.finalTotal +
+    ' (' + (result.fumbleSeverity !== null
+      ? 'fumble, no skill added'
+      : result.finalRollValue + ' + skill ' +
+        (result.skill.supplied % 10 === 0
+          ? String(result.skill.rounded)
+          : (result.skill.rounded > Math.floor(result.skill.supplied / 10)
+            ? 'rounded up ' : 'rounded down ') + result.skill.rounded)) +
+    ')</small></section>';
 }
 
 /** Completed dice that triggered a doubling are displayed above the new input. */
