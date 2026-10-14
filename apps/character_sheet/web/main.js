@@ -10,7 +10,7 @@ const groups = [
   {name:"Constitution",skills:"Durability|Health|Tenacity"},
   {name:"Senses",skills:"Senses"}
  ]},
- {name:"Social", skills:"Smalltalk|Read Faces|Oration|Emotional|Logical|Forceful|Personal|Subtle|Humorous"},
+ {name:"Social", skills:"Smalltalk|Read Faces|Oration|Nonverbal|Emotional|Logical|Forceful|Personal|Subtle|Humorous"},
  {name:"Artistic", skills:"Sing|Instrument|Compose|Act|Storytell|Author|Dance|Illustrate|Sculpt|Sleight"},
  {name:"Crafting", skills:"Woodwork|Leatherwork|Masonry|Smith|Weave|Tailor|Cook|Brew|Pottery|Artifice"},
  {name:"Mind", skills:"Memory|Reasoning|Wits|Focus|Mental Endurance|Sense of self|Composure|Imagination|Introspection|Intuition"},
@@ -37,8 +37,8 @@ let valueFormat=savedMode==="decimal"?"decimal":"integer";
 let magicChoice="Arcane";
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function cleanName(name){return name.replace(/\s*\([^)]*\)/g,"").trim();}
-function skillRows(skills){
- return skills.map(skill=>`<div class="skill" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml(skill.description || skill.name)}">
+function skillRows(skills, subgroup=""){
+ return skills.map(skill=>`<div class="skill ${subgroup ? "subgroup-skill" : ""}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup ? "Subcategory " + subgroup : "", skill.description].filter(Boolean).join(" — ") || skill.name)}">
  <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value" aria-label="Unassigned">—</span></div>`).join("");
 }
 function activeSkills(group){
@@ -53,7 +53,7 @@ function renderGroup(group){
  if(group.alternatives){
   content+=`<div class="magic-picker"><label for="magic-choice">Magic type</label><select id="magic-choice">${group.alternatives.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select></div>`;
  }
- if(group.subgroups)content+=group.subgroups.map(s=>`<div class="subheading">${escapeHtml(s.name)}</div>${skillRows(s.skills)}`).join("");
+ if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name)}</div>`).join("");
  else content+=skillRows(list);
  const problem=!valid?`<div class="diagnostic" role="status">${escapeHtml(group.name)} contains ${list.length} skills; exactly 10 required.</div>`:"";
  return `<section class="group ${valid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
