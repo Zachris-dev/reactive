@@ -15,7 +15,11 @@
     "roll": "npm run build --silent && node dist/apps/dice_roller/src/main.js",
     "test:roll": "npm run build && node dist/tests/rules_engine/run.js roll && node dist/tests/rules_engine/cases.js --log quiet --suite roll",
     "test:result": "npm run build && node dist/tests/rules_engine/run.js result && node dist/tests/rules_engine/cases.js --log quiet --suite result",
-    "build:web": "esbuild apps/dice_roller/web/main.ts --bundle --platform=browser --format=iife --target=es2022 --outfile=apps/dice_roller/web/bundle.js"
+    "build:web": "esbuild apps/dice_roller/web/main.ts --bundle --platform=browser --format=iife --target=es2022 --outfile=apps/dice_roller/web/bundle.js",
+    "test:parser": "node --test tests/character_sheet/*.test.mjs",
+    "test:creation": "node --test tests/character_sheet/*.test.mjs",
+    "test:character": "node --test tests/character_sheet/*.test.mjs",
+    "test:all": "npm test && npm run test:parser"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
