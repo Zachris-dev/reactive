@@ -272,7 +272,7 @@ function resultView(entry: Entry, editable: boolean): string {
     html += button(entry.opponentRisk ? 'Opponent Risk: Yes ✓' : 'Opponent Risk: No', 'opponent-risk', false, 'secondary');
     html += '<div class="action-gap"></div>';
     if (r.pendingRisk || entry.opponentRisk) html += button('Continue to Risk skill →', 'risk', false, 'primary continue');
-    else html += button('Finish roll', 'finish', false, 'primary continue');
+    else html += button('Next roll', 'finish', false, 'primary continue');
   } else {
     html += '<p class="hint">Opponent Risk: ' + (entry.opponentRisk ? 'Yes' : 'No') + '</p>';
   }
