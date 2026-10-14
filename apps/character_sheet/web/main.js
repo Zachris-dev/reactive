@@ -115,11 +115,11 @@ function availableOption(group,option){
  const culture=campaign.selections.find(g=>g.id==="culture")?.options.find(o=>o.id===chosen.culture);
  if(group.id==="culture"){
    if(option.barred && !option.allowedRaces?.length)return false;
-   if(option.allowedRaces?.length && chosen.race && !option.allowedRaces.includes(chosen.race))return false;
+   if(option.allowedRaces?.length && chosen.race && !option.allowedRaces.some(r=>r.toLowerCase()===chosen.race.toLowerCase()))return false;
  }
- if(group.id==="race" && culture?.allowedRaces?.length && !culture.allowedRaces.includes(option.id))return false;
- return !campaign.restrictions.some(r=>chosen[r.selection]===r.value &&
-   r.disallow[group.id]?.includes(option.id));
+ if(group.id==="race" && culture?.allowedRaces?.length && !culture.allowedRaces.some(r=>r.toLowerCase()===option.id.toLowerCase()))return false;
+ return !campaign.restrictions.some(r=>String(chosen[r.selection]||"").toLowerCase()===r.value.toLowerCase() &&
+   (r.disallow[group.id]||[]).some(value=>value.toLowerCase()===option.id.toLowerCase()));
 }
 function readyForSkills(){
  return campaign.selections.every(group=>!group.required||Boolean(chosen[group.id])) &&
@@ -163,7 +163,7 @@ function renderSetupScreen(){
    setupNotice="";
    // Keep incompatible selections visible as a validation problem, never silently switch.
    const issues=campaign.selections.filter(g=>chosen[g.id]&&!g.options.some(o=>o.id===chosen[g.id]&&availableOption(g,o)));
-   if(issues.length)setupNotice="Selections conflict: "+issues.map(g=>g.label).join(", ")+". Change an affected selection.";
+   if(issues.length)setupNotice="Unavailable selection: "+issues.map(g=>g.label+" ("+chosen[g.id]+")").join(", ")+". Change the selection to continue.";
    render();
  }));
  root.querySelector("#open-skills").addEventListener("click",()=>{
@@ -212,8 +212,8 @@ async function loadCampaignFiles(){
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
   campaign.restrictions=parsedCampaign.races.flatMap(r=>r.statements.flatMap(stmt=>{
-    const m=stmt.text.match(/^Disallow:\s*Magic selection (.+)$/i);
-    return m?[{selection:"race",value:r.name[0].toUpperCase()+r.name.slice(1),disallow:{magic:[m[1].trim()]}}]:[];
+    const m=stmt.text.match(/^Disallow:\s*(\S+)\s+selection\s+(.+)$/i);
+    return m?[{selection:"race",value:r.name[0].toUpperCase()+r.name.slice(1),disallow:{[m[1].toLowerCase()]:[m[2].trim()]}}]:[];
   }));
  }catch(error){loadFailure=String(error);}
  render();
