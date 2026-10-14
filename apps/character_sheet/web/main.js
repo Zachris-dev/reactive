@@ -1,4 +1,5 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
+import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -111,21 +112,8 @@ const campaigns=[{
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
 let templateDiagnostics=[];let loadFailure="";
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
-function availableOption(group,option){
- const culture=campaign.selections.find(g=>g.id==="culture")?.options.find(o=>o.id===chosen.culture);
- if(group.id==="culture"){
-   if(option.barred && !option.allowedRaces?.length)return false;
-   if(option.allowedRaces?.length && chosen.race && !option.allowedRaces.some(r=>r.toLowerCase()===chosen.race.toLowerCase()))return false;
- }
- if(group.id==="race" && culture?.allowedRaces?.length && !culture.allowedRaces.some(r=>r.toLowerCase()===option.id.toLowerCase()))return false;
- return !campaign.restrictions.some(r=>String(chosen[r.selection]||"").toLowerCase()===r.value.toLowerCase() &&
-   (r.disallow[group.id]||[]).some(value=>value.toLowerCase()===option.id.toLowerCase()));
-}
-function readyForSkills(){
- return campaign.selections.every(group=>!group.required||Boolean(chosen[group.id])) &&
-   campaign.selections.every(group=>!chosen[group.id]||
-      group.options.some(o=>o.id===chosen[group.id]&&availableOption(group,o)));
-}
+function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
+function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
 function renderCampaignScreen(){
  root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
@@ -162,8 +150,8 @@ function renderSetupScreen(){
    chosen[input.name]=input.value;
    setupNotice="";
    // Keep incompatible selections visible as a validation problem, never silently switch.
-   const issues=campaign.selections.filter(g=>chosen[g.id]&&!g.options.some(o=>o.id===chosen[g.id]&&availableOption(g,o)));
-   if(issues.length)setupNotice="Unavailable selection: "+issues.map(g=>g.label+" ("+chosen[g.id]+")").join(", ")+". Change the selection to continue.";
+   const issues=selectionIssues(campaign,chosen);
+   if(issues.length)setupNotice=issues.map(issue=>issue.message).join("; ")+". Change the selection to continue.";
    render();
  }));
  root.querySelector("#open-skills").addEventListener("click",()=>{
@@ -204,17 +192,10 @@ async function loadCampaignFiles(){
     alternatives:group.alternatives.length?group.alternatives:undefined
   }));
   const cultureGroup=campaign.selections.find(s=>s.id==="culture");
-  cultureGroup.options=parsedCampaign.cultures.map(c=>({
-    id:c.name,label:c.name,barred:c.barred,
-    allowedRaces:c.allows.length?c.allows.map(name=>parsedCampaign.races.find(r=>r.name.toLowerCase()===name.toLowerCase())?.name||name):undefined,
-    languages:c.primaryLanguage?[c.primaryLanguage]:[]
-  }));
+  cultureGroup.options=buildCultureOptions(parsedCampaign);
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
-  campaign.restrictions=parsedCampaign.races.flatMap(r=>r.statements.flatMap(stmt=>{
-    const m=stmt.text.match(/^Disallow:\s*(\S+)\s+selection\s+(.+)$/i);
-    return m?[{selection:"race",value:r.name[0].toUpperCase()+r.name.slice(1),disallow:{[m[1].toLowerCase()]:[m[2].trim()]}}]:[];
-  }));
+  campaign.restrictions=selectionRules(parsedCampaign);
  }catch(error){loadFailure=String(error);}
  render();
 }
