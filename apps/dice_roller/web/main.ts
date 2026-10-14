@@ -271,7 +271,7 @@ function resultView(entry: Entry, editable: boolean): string {
   if (editable) {
     html += button(entry.opponentRisk ? 'Opponent [R]isk: Yes ✓' : 'Opponent [R]isk: No', 'opponent-risk', false, 'secondary');
     html += '<div class="action-gap"></div>';
-    if (r.pendingRisk || entry.opponentRisk) html += button('Continue to Risk skill →', 'risk', false, 'primary continue');
+    if (r.pendingRisk || entry.opponentRisk) html += button('Continue to Risk [S]kill →', 'risk', false, 'primary continue');
     else html += button('[N]ext roll', 'finish', false, 'primary continue');
   } else {
     html += '<p class="hint">Opponent Risk: ' + (entry.opponentRisk ? 'Yes' : 'No') + '</p>';
@@ -381,6 +381,12 @@ document.addEventListener("keydown", event => {
     event.preventDefault();
     entry.opponentRisk = !entry.opponentRisk;
     render();
+  } else if (event.key.toLowerCase() === "s") {
+    const entry = current();
+    if (entry?.stage !== "result" || entry.committed || finished ||
+        (!entry.result?.pendingRisk && !entry.opponentRisk)) return;
+    event.preventDefault();
+    nextRisk();
   } else if (event.key.toLowerCase() === "n") {
     const entry = current();
     // Match the actual Next roll button: it is unavailable during Risk.
