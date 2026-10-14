@@ -1,0 +1,113 @@
+Skill List: The Eldrich Race skill list
+div: integer division, discard remainder
+Rule: Total skill = Base skill + category bonus
+Creation Rule: skill max total 40
+Creation Rule: primary max total 40
+Creation Rule: secondary max total 20
+Creation Rule: tertiary max total 10
+Rule: XP required for base skill increase = max(1, 2 ^ ((base skill div 10) - 1))
+Rule: TP required to gain 1 xp: tp > base skill.
+Rule: secondary skill gain base skill = base skill +10
+Rule: tertiary skill gain base skill = base skill +20
+Rule: When TP gives xp, tp = tp - (base skill+1).
+Rule: When xp raises base skill, xp = xp - (xp needed to raise).
+
+
+Common assignment:
+Culture/{primary} assign base 30
+Culture/* require total 30
+Language/{primary} assign base 30
+Language/* require total 30
+Category gain [1..5]
+Base Skill gain [1..40]
+
+Race: human
+Choice: Physical/sub Primary
+Choice: Physical/sub Secondary
+Choice: Physical/sub Tertiary
+Senses: Primary
+
+Race: Elf
+Determined: Strength secondary
+Determined: Finesse primary
+Determined: Constitution tertiary
+Skill change: Speed assign subgroup Finesse
+Senses: Primary
+Disallow: Magic selection Physical Adept
+
+
+Race: Dwarf
+Determined: Constitution primary
+Determined: Strength secondary
+Determined: Finesse tertiary
+Senses: Secondary
+Skill change: Balance assign subgroup Strength
+Skill change: Speed assign subgroup Finesse.
+Creation Rule change: secondary max total 30
+Rule change: secondary skill gain base skill = base skill +5
+
+Barred culture: unavailable unless explicitly allowed.
+
+Primary Culture: Vaelthar
+Barred
+Allow: Elf
+Primary Language: Vaelan Elvish
+Category gain [1..5]
+Base Skill gain [1..30]
+Base Skill gain [1..30]
+Base Skill assign require Culture/Vaelthar = 35
+Base Skill assign require Language/Vealan Elvish = 35
+
+Primary Culture: Kardsworn
+Barred
+Allow: Dwarf
+Primary Language: Kardish dwarf
+Category gain [1..5]
+Base Skill gain [1..40]
+Creation Rule change: group Magic - druidic max total 20
+Rule change: group Magic - druidic skill gain base skill = base skill +10
+Rule change: group Magic - druidic/skill : total skill >= 31, remove rule skill gain 
+Creation Rule change: group Magic - arcane max total 20
+Rule change: group Magic - arcane skill gain base skill = base skill +10
+Rule change: group Magic - arcane/skill : total skill >= 31, remove rule skill gain
+
+
+Primary Culture: High Emeri
+Primary Language: Emerspeak
+Assignment: Common
+
+Primary Culture: Low Emeri
+Barred
+Allow Human
+Primary Language: Emerspeak
+Assignment: Common
+
+Primary Culture: Herisian
+Barred 
+Allow Human, Elf
+Primary Language: Vulgar Herisian
+Assignment: Common
+
+Primary Culture: Norr
+Barred
+
+Primary Culture: Razyg
+Barred
+
+Primary Culture: Emeri Nobles
+Barred
+Allow Human
+Primary language: Emerspeak
+Assignment: Common
+
+Primary Culture: Revangelism
+Primary Language: Emerspeak
+Assignment: Common
+
+Primary Culture: Merchants
+Primary Language: *
+Assignment: common
+
+Primary Culture: Seafolk
+Primary Language: Squall (seafolk)
+Assignment: Common
