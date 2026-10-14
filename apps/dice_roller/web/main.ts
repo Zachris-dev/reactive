@@ -196,7 +196,8 @@ function diceView(entry: Entry, editable: boolean): string {
     if (editable && entry.diceMode === "manual") html += keypad([1,2,3,4,5,6,7,8,9,10]);
   }
   const offset = hasD10 ? 1 : 0;
-  if (entry.steps.length) html += '<p class="hint">Doubling ×' + (2 ** entry.steps.length) + '</p>';
+  if (entry.steps.length) html += doublingHistory(entry) +
+    '<p class="hint">Next roll ×' + (2 ** entry.steps.length) + '</p>';
   html += '<div class="dice-row">' + [0,1,2].map(i => dieBox(entry, i + offset, "Die " + (i+1), editable)).join("") + '</div>';
   if (editable && entry.diceMode === "manual") html += '<div class="three-keypads">' +
     [0,1,2].map(i => '<div class="die-keypad"><span>Die ' + (i + 1) + '</span>' +
@@ -278,9 +279,45 @@ function resultView(entry: Entry, editable: boolean): string {
   return html;
 }
 
+/** Compact, immutable summary of a contest awaiting the Risk chain. */
+function heldTestView(entry: Entry): string {
+  const result = entry.result;
+  if (!result) return '';
+  const rolls = result.steps.map(step =>
+    '<div class="held-roll">' +
+    '<div class="held-dice">' + step.dice.map(die =>
+      '<span class="held-die">' + die + '</span>').join('') + '</div>' +
+    '<span class="held-value">' +
+    (step.multiplier === 1
+      ? String(Math.abs(step.sum - 10))
+      : Math.abs(step.sum - 10) + ' × ' + step.multiplier +
+        ' = ' + Math.abs(step.sum - 10) * step.multiplier) +
+    '</span></div>').join('');
+  return '<section class="held-test"><strong>' +
+    escapeHtml(result.skill.name) +
+    ' test on hold.</strong><div class="held-rolls">' + rolls +
+    '</div><small>Preliminary total: ' + result.finalTotal + '</small></section>';
+}
+
+/** Completed dice that triggered a doubling are displayed above the new input. */
+function doublingHistory(entry: Entry): string {
+  if (!entry.steps.length) return '';
+  return '<div class="doubling-history"><strong>Previous dice — doubling</strong>' +
+    '<div class="held-rolls">' + entry.steps.map(step => {
+      const base = Math.abs(step.sum - 10);
+      return '<div class="held-roll"><div class="held-dice">' +
+        step.dice.map(die => '<span class="held-die">' + die + '</span>').join('') +
+        '</div><span class="held-value">' +
+        (step.multiplier === 1 ? String(base)
+          : base + ' × ' + step.multiplier + ' = ' + base * step.multiplier) +
+        '</span></div>';
+    }).join('') + '</div></div>';
+}
+
 function render(): void {
   const cards = entries.map((entry, i) => {
     const active = i === entries.length - 1 && !finished && !entry.committed;
+    if (entry.committed && entry.result) return heldTestView(entry);
     let body = "";
     if (entry.stage === "skill") body = skillView(entry, active);
     if (entry.stage === "dice") body =
