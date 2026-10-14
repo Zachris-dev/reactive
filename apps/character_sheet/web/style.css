@@ -12,3 +12,31 @@
 .magic-heading:hover{border-color:#66758a}
 .magic-heading option{background:#253141;color:#e8edf5}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* New-character campaign selection and responsive campaign-defined choices. */
+.setup-app{max-width:1050px}
+.setup-app h1{margin:8px 0;font-size:1.6rem}
+.campaign-card{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:center;text-align:left;font-size:1.05rem;background:#283548;padding:18px;margin-top:20px}
+.campaign-card:hover,.template-card:hover{border-color:#9bc1fa;background:#32425a}
+.setup-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,.65fr);gap:16px;align-items:start;margin-top:20px}
+.setup-selections{display:grid;gap:12px}
+.setup-panel,.template-area{border:1px solid #45566c;border-radius:12px;background:#222a37;overflow:hidden}
+.setup-accordion{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;padding:15px;background:#2c3747;border:0;border-radius:0;text-align:left;font-weight:700}
+.setup-accordion small{display:block;color:#a8bad0;font-size:.8rem;font-weight:400;margin-top:4px}
+.setup-options{padding:8px 13px 12px;display:grid;gap:5px}
+.setup-option{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:7px;cursor:pointer;min-height:42px}
+.setup-option:has(input:checked){background:#345074}
+.setup-option:hover:not(.unavailable){background:#334459}
+.setup-option input{accent-color:#9bc1fa;width:18px;height:18px}
+.setup-option.unavailable{opacity:.5;cursor:not-allowed}
+.setup-option small{margin-left:auto;color:#e3aeb4}
+.template-area{padding:16px}
+.template-area h2{margin:0 0 12px;font-size:1.1rem}
+.template-card{display:block;width:100%;text-align:left;margin:8px 0}
+.hint{font-size:.9rem;color:#b4c2d2;line-height:1.45}
+.back-button{background:transparent;border:0;padding:7px 0;color:#b4ceec}
+.setup-footer{display:flex;justify-content:flex-end;margin:18px 0}
+.setup-footer button{background:#2c619c;border-color:#79a6e4;padding:12px 22px;font-weight:650}
+.setup-footer button:disabled{opacity:.45;cursor:not-allowed}
+.setup-warning{border:1px solid #b96470;color:#ffccd0;padding:12px;border-radius:8px}
+@media(max-width:600px){.setup-layout{grid-template-columns:minmax(0,1fr)}.setup-app h1{font-size:1.35rem}.setup-footer button{width:100%}}
