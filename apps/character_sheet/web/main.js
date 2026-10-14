@@ -190,8 +190,8 @@ function render(){
 async function loadCampaignFiles(){
  try{
   const [campaignResponse,skillsResponse]=await Promise.all([
-    fetch("../../campaigns/the-eldrich-race/campaign.txt"),
-    fetch("../../campaigns/the-eldrich-race/skills.txt")
+    fetch("../../../campaigns/the-eldrich-race/campaign.txt"),
+    fetch("../../../campaigns/the-eldrich-race/skills.txt")
   ]);
   if(!campaignResponse.ok||!skillsResponse.ok)throw new Error("Campaign files not available (serve from repository root)");
   const parsedCampaign=parseCampaign(await campaignResponse.text());
