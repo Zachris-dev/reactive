@@ -76,14 +76,104 @@ function renderGroup(group){
  <div class="group-title">${heading}<span class="count">${list.length} / 10</span></div>
  <div class="group-main">${content}</div>${problem}</section>`;
 }
+
+/* Campaign-defined setup data. Load-time parser can replace this object later. */
+const campaigns=[{
+ id:"the-eldrich-race",name:"The Eldrich Race",
+ selections:[
+ {id:"culture",label:"Primary culture",required:true,options:[
+ {id:"High Emeri",label:"High Emeri",languages:["Emerspeak"]},
+ {id:"Revangelism",label:"Revangelism",languages:["Emerspeak"]},
+ {id:"Merchants",label:"Merchants",languages:[]}
+ ]},
+ {id:"race",label:"Race",required:true,options:[
+ {id:"Human",label:"Human"}, {id:"Elf",label:"Elf"}, {id:"Dwarf",label:"Dwarf"}
+ ]},
+ {id:"magic",label:"Magic discipline",required:true,options:[
+ {id:"Arcane",label:"Arcane"}, {id:"Divine",label:"Divine"},
+ {id:"Druidic",label:"Druidic"}, {id:"Physical Adept",label:"Physical Adept"}
+ ]}
+ ],
+ restrictions:[
+ {selection:"race",value:"Elf",disallow:{magic:["Physical Adept"]}}
+ ],
+ templates:[]
+}];
+let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
+const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
+function availableOption(group,option){
+ // Campaign rule restrictions, rather than UI rules tied to named concepts.
+ if(group.id==="race"){
+   const culture=campaign.selections[0].options.find(o=>o.id===chosen.culture);
+   if(culture?.allowedRaces&&!culture.allowedRaces.includes(option.id))return false;
+ }
+ return !campaign.restrictions.some(r=>chosen[r.selection]===r.value &&
+   r.disallow[group.id]?.includes(option.id));
+}
+function readyForSkills(){
+ return campaign.selections.every(group=>!group.required||Boolean(chosen[group.id])) &&
+   campaign.selections.every(group=>!chosen[group.id]||
+      group.options.some(o=>o.id===chosen[group.id]&&availableOption(group,o)));
+}
+function renderCampaignScreen(){
+ root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>
+ ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
+ root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
+  campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={};expanded={};setupNotice="";screen="setup";render();
+ }));
+}
+function renderSetupScreen(){
+ const panels=campaign.selections.map(group=>{
+  const open=expanded[group.id]??!isPhone();
+  const selected=chosen[group.id];
+  return `<section class="setup-panel"><button class="setup-accordion" aria-expanded="${open}" data-toggle="${escapeHtml(group.id)}">
+    <span>${escapeHtml(group.label)} <small>${escapeHtml(selected||"Not selected")}</small></span><span>${open?"▴":"▾"}</span></button>
+    ${open?`<div class="setup-options">${group.options.map(option=>{
+      const allowed=availableOption(group,option);
+      const current=selected===option.id;
+      return `<label class="setup-option ${allowed?"":"unavailable"}">
+       <input type="radio" name="${escapeHtml(group.id)}" value="${escapeHtml(option.id)}" ${current?"checked":""} ${allowed?"":"disabled"}>
+       <span>${escapeHtml(option.label)}</span>${allowed?"":"<small>Not available</small>"}</label>`;
+    }).join("")}</div>`:""}
+   </section>`;
+ }).join("");
+ root.innerHTML=`<div class="app setup-app"><button class="back-button" id="back-campaign">‹ Campaigns</button>
+ <h1>New character</h1><p class="subtitle">${escapeHtml(campaign.name)}</p>
+ <div class="setup-layout"><div class="setup-selections">${panels}</div>
+ <aside class="template-area"><h2>Character templates</h2>
+ ${campaign.templates.length?campaign.templates.map(t=>`<button class="template-card" data-template="${escapeHtml(t.id)}">${escapeHtml(t.name)}</button>`).join(""):`<p class="hint">No template characters have been added for this campaign.</p>`}
+ <p class="hint">Templates are loaded as independent, editable characters; originals cannot be overwritten.</p></aside></div>
+ ${setupNotice?`<p class="setup-warning" role="status">${escapeHtml(setupNotice)}</p>`:""}
+ <div class="setup-footer"><button id="open-skills" ${readyForSkills()?"":"disabled"}>Continue to skills →</button></div></div>`;
+ root.querySelector("#back-campaign").addEventListener("click",()=>{screen="campaign";render();});
+ root.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>{const key=b.dataset.toggle;expanded[key]=!(expanded[key]??!isPhone());render();}));
+ root.querySelectorAll('input[type="radio"]').forEach(input=>input.addEventListener("change",()=>{
+   chosen[input.name]=input.value;
+   setupNotice="";
+   // Keep incompatible selections visible as a validation problem, never silently switch.
+   const issues=campaign.selections.filter(g=>chosen[g.id]&&!g.options.some(o=>o.id===chosen[g.id]&&availableOption(g,o)));
+   if(issues.length)setupNotice="Selections conflict: "+issues.map(g=>g.label).join(", ")+". Change an affected selection.";
+   render();
+ }));
+ root.querySelector("#open-skills").addEventListener("click",()=>{
+   if(!readyForSkills())return;
+   characterContext.race=chosen.race||null;
+   characterContext.culture=chosen.culture||null;
+   characterContext.allowedMagic=campaign.selections.find(g=>g.id==="magic")?.options.filter(o=>availableOption({id:"magic"},o)).map(o=>o.id)||null;
+   magicChoice=chosen.magic||magicChoice;screen="skills";render();
+ });
+}
 function render(){
+ if(screen==="campaign"){renderCampaignScreen();return;}
+ if(screen==="setup"){renderSetupScreen();return;}
  const invalid=definitions.filter(g=>activeSkills(g).length!==10);
- root.innerHTML=`<div class="app"><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
+ root.innerHTML=`<div class="app"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
  <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
  <div class="skills">${definitions.map(renderGroup).join("")}</div>
  <p class="notes">Skill descriptions are reserved in the data model. This is the listing panel; character allocations, category bonuses and campaign-specific changes will be connected separately.</p></div>`;
- document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;render();}});
+ document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
+ document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
 }
 render();
