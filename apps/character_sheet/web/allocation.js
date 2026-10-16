@@ -20,58 +20,65 @@ export function allocationsFromCampaign(campaign,cultureName){
  }
  const cultureValue=lines.find(line=>/^Culture\/\{primary\} assign base \d+$/i.test(line));
  const languageValue=lines.find(line=>/^Language\/\{primary\} assign base \d+$/i.test(line));
- if(cultureValue)required.push({group:"Culture",skill:culture.name,value:+cultureValue.match(/\d+$/)[0],fixed:true});
+ const initial=[];
+ if(cultureValue)initial.push({group:"Culture",skill:culture.name,value:+cultureValue.match(/\d+$/)[0]});
  if(languageValue&&culture.primaryLanguage&&culture.primaryLanguage!=="*")
-  required.push({group:"Language",skill:culture.primaryLanguage,value:+languageValue.match(/\d+$/)[0],fixed:true});
- return {category:pool("category"),skill:pool("skill"),required};
+  initial.push({group:"Language",skill:culture.primaryLanguage,value:+languageValue.match(/\d+$/)[0]});
+ // Custom cultural assignments must also populate the selected skills.
+ // "assign require" specifies a granted starting value as well as a requirement.
+ for(const r of required)initial.push({group:r.group,skill:r.skill,value:r.value});
+ // Custom cultures without explicit grants still receive their native culture
+ // and language. These can be reassigned like every other base value.
+ if(!initial.some(r=>r.group==="Culture"))
+  initial.push({group:"Culture",skill:culture.name,value:30});
+ if(culture.primaryLanguage&&culture.primaryLanguage!=="*"&&!initial.some(r=>r.group==="Language"))
+  initial.push({group:"Language",skill:culture.primaryLanguage,value:30});
+ return {category:pool("category"),skill:pool("skill"),required,initial};
 }
 export function makeAllocationState(config){
- return {category:{},skill:{},initial:Object.fromEntries(config.required.filter(r=>r.fixed).map(r=>[keyFor(r.group,r.skill),r.value])),cleared:{},selected:null,config};
+ const skill={};
+ for(const grant of config.initial){
+  const target=keyFor(grant.group,grant.skill);
+  skill[target]=grant.value;
+ }
+ // Each initial grant is a real token. Moving or removing it restores it
+ // to the ordinary skill pool, never deleting or duplicating its value.
+ return {category:{},skill,selected:null,config};
 }
 export function remaining(state,type){
- const spent=Object.values(state[type]);
- const count=new Map();
- for(const n of spent)count.set(n,(count.get(n)||0)+1);
- return state.config[type].filter(n=>{
-  const available=count.get(n)||0;
-  if(available>0){count.set(n,available-1);return false;}
+ const spent=new Map();
+ for(const n of Object.values(state[type]))spent.set(n,(spent.get(n)||0)+1);
+ const pool=type==="skill"
+  ?[...state.config.skill,...state.config.initial.map(r=>r.value)]
+  :state.config.category;
+ return pool.filter(n=>{
+  const count=spent.get(n)||0;
+  if(count>0){spent.set(n,count-1);return false;}
   return true;
  });
 }
 export function assign(state,type,target,value){
- if(!["category","skill"].includes(type))return false;
- if(!Number.isInteger(value)||!remaining(state,type).includes(value))return false;
-
- state[type][target]=value;return true;
+ if(!["category","skill"].includes(type)||!Number.isInteger(value))return false;
+ if(!remaining(state,type).includes(value))return false;
+ state[type][target]=value;
+ return true;
 }
 export function remove(state,type,target){
  if(!["category","skill"].includes(type)||state[type][target]===undefined)return false;
  delete state[type][target];return true;
 }
 export function hasToken(state,type,value){return remaining(state,type).includes(value);}
-export function skillBase(state,target){
- if(Object.hasOwn(state.skill,target))return state.skill[target];
- if(state.cleared[target])return undefined;
- return state.initial[target];
-}
-export function removeAssignment(state,type,target){
- if(type==="skill"&&state.initial[target]!==undefined&&!Object.hasOwn(state.skill,target)&&!state.cleared[target]){
-  state.cleared[target]=true;return true;
- }
- const removed=remove(state,type,target);
- if(removed&&type==="skill"&&state.initial[target]!==undefined)state.cleared[target]=true;
- return removed;
-}
+export function skillBase(state,target){return state.skill[target];}
+export function removeAssignment(state,type,target){return remove(state,type,target);}
 export function allocationRequirements(state,culture,language){
  const issues=[];
  for(const [group,target] of [["Culture",culture],["Language",language]]){
   if(!target||target==="*")continue;
   const key=keyFor(group,target);
-  const base=skillBase(state,key)||0;
-  const total=base+(state.category[group]||0);
+  const total=(skillBase(state,key)||0)+(state.category[group]||0);
   if(total<30)issues.push(group+"/"+target+" total "+total+" is below required 30");
  }
- for(const rule of state.config.required.filter(r=>!r.fixed)){
+ for(const rule of state.config.required){
   const total=(skillBase(state,keyFor(rule.group,rule.skill))||0)+(state.category[rule.group]||0);
   if(total<rule.value)issues.push(rule.group+"/"+rule.skill+" total "+total+" is below required "+rule.value);
  }
