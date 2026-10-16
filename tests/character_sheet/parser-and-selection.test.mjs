@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign,parseSkillList,validateCampaign,matchName} from "../../apps/character_sheet/web/template-parser.js";
-import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "../../apps/character_sheet/web/selection-rules.js";
+import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues,optionConflicts,chooseWithOverride} from "../../apps/character_sheet/web/selection-rules.js";
 const root=new URL("../../campaigns/the-eldrich-race/",import.meta.url);
 const campaignText=readFileSync(new URL("campaign.txt",root),"utf8");
 const skillsText=readFileSync(new URL("skills.txt",root),"utf8");
@@ -106,4 +106,26 @@ test("misspelled primary language is a validation error for a playable culture",
 test("two default cultures cause an error",()=>{
  const changed=campaignText.replace(/Primary Culture: High Emeri/,"Primary Culture: High Emeri\nDefault").replace(/Primary Culture: Revangelism/,"Primary Culture: Revangelism\nDefault");
  assert.ok(validateCampaign(parseCampaign(changed),skills).some(i=>i.severity==="error"&&i.message.includes("More than one default")));
+});
+
+test("campaign defaults are High Emeri and human",()=>{
+ assert.equal(parsed.cultures.find(c=>c.isDefault)?.name,"High Emeri");
+ assert.equal(parsed.races.find(r=>r.statements.some(s=>/^Default$/i.test(s.text)))?.name.toLowerCase(),"human");
+});
+test("overriding Vaelthar removes incompatible Human",()=>{
+ const chosen={race:"Human",culture:"High Emeri",magic:"Arcane"};
+ const group=options("culture"),option=group.options.find(o=>o.id==="Vaelthar");
+ assert.deepEqual(optionConflicts(campaign,chosen,group,option).conflicts,["race"]);
+ assert.deepEqual(chooseWithOverride(campaign,chosen,group,option),{culture:"Vaelthar",magic:"Arcane"});
+});
+test("overriding Elf removes incompatible culture and magic",()=>{
+ const chosen={culture:"Low Emeri",race:"Human",magic:"Physical Adept"};
+ const group=options("race"),option=group.options.find(o=>o.id==="Elf");
+ assert.deepEqual(optionConflicts(campaign,chosen,group,option).conflicts,["culture","magic"]);
+ assert.deepEqual(chooseWithOverride(campaign,chosen,group,option),{race:"Elf"});
+});
+test("entirely barred culture cannot be chosen",()=>{
+ const group=options("culture"),option=group.options.find(o=>o.id==="Norr");
+ assert.equal(optionConflicts(campaign,{race:"Human"},group,option).barred,true);
+ assert.equal(chooseWithOverride(campaign,{race:"Human"},group,option),null);
 });

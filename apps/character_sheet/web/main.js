@@ -1,5 +1,5 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
-import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
+import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues,optionConflicts,chooseWithOverride} from "./selection-rules.js";
 import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet,bodySubgroupsForRace} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
@@ -136,7 +136,7 @@ const campaigns=[{
  templates:[]
 }];
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
-let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;let allocatedCulture=null;
+let lastIncompatibleTap=null;let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;let allocatedCulture=null;
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
 function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
@@ -149,7 +149,7 @@ function renderCampaignScreen(){
  root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${validationReport()}${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
-  campaign=campaigns.find(c=>c.id===b.dataset.campaign);allocation=null;allocatedCulture=null;chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{})};expanded={};setupNotice="";screen="setup";render();
+  campaign=campaigns.find(c=>c.id===b.dataset.campaign);allocation=null;allocatedCulture=null;chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{}),...(campaign.defaultRace?{race:campaign.defaultRace}:{})};expanded={};setupNotice="";screen="setup";render();
  }));
 }
 function renderSetupScreen(){
@@ -159,11 +159,17 @@ function renderSetupScreen(){
   return `<section class="setup-panel"><button class="setup-accordion" aria-expanded="${open}" data-toggle="${escapeHtml(group.id)}">
     <span>${escapeHtml(group.label)} <small>${escapeHtml(selected||"Not selected")}</small></span><span>${open?"▴":"▾"}</span></button>
     ${open?`<div class="setup-options">${group.options.map(option=>{
-      const allowed=availableOption(group,option);
       const current=selected===option.id;
-      return `<label class="setup-option ${allowed?"":"unavailable"}">
-       <input type="radio" name="${escapeHtml(group.id)}" value="${escapeHtml(option.id)}" ${current?"checked":""} ${allowed?"":"disabled"}>
-       <span>${escapeHtml(option.label)}</span>${allowed?"":"<small>Not available</small>"}</label>`;
+      const status=optionConflicts(campaign,chosen,group,option);
+      const allowed=availableOption(group,option);
+      const blocked=status.barred;
+      const reasons=status.conflicts.map(id=>chosen[id]).filter(Boolean).join(", ");
+      return `<button type="button" class="setup-option ${allowed?"":blocked?"unavailable barred":"unavailable incompatible"}"
+         role="radio" aria-checked="${current}" aria-disabled="${blocked}"
+         data-selection="${escapeHtml(group.id)}" data-option="${escapeHtml(option.id)}">
+       <span class="setup-radio ${current?"checked":""}" aria-hidden="true"></span>
+       <span>${escapeHtml(option.label)}</span>
+       ${blocked?"<small>Barred</small>":!allowed?`<small>Incompatible: ${escapeHtml(reasons||chosen.race||chosen.culture||"selection")}</small>`:""}</button>`;
     }).join("")}</div>`:""}
    </section>`;
  }).join("");
@@ -177,13 +183,20 @@ function renderSetupScreen(){
  <div class="setup-footer"><button id="open-skills" ${readyForSkills()?"":"disabled"}>Continue to skills →</button></div></div>`;
  root.querySelector("#back-campaign").addEventListener("click",()=>{screen="campaign";render();});
  root.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>{const key=b.dataset.toggle;expanded[key]=!(expanded[key]??!isPhone());render();}));
- root.querySelectorAll('input[type="radio"]').forEach(input=>input.addEventListener("change",()=>{
-   chosen[input.name]=input.value;
-   setupNotice="";
-   // Keep incompatible selections visible as a validation problem, never silently switch.
-   const issues=selectionIssues(campaign,chosen);
-   if(issues.length)setupNotice=issues.map(issue=>issue.message).join("; ")+". Change the selection to continue.";
-   render();
+ root.querySelectorAll("[data-selection]").forEach(button=>button.addEventListener("click",()=>{
+  const group=campaign.selections.find(g=>g.id===button.dataset.selection);
+  const option=group.options.find(o=>o.id===button.dataset.option);
+  const status=optionConflicts(campaign,chosen,group,option);
+  if(status.barred)return;
+  if(status.conflicts.length){
+   const key=group.id+":"+option.id;
+   const now=Date.now();
+   const doubleTap=lastIncompatibleTap?.key===key&&now-lastIncompatibleTap.time<650;
+   lastIncompatibleTap={key,time:now};
+   if(!doubleTap){setupNotice="Tap again to select "+option.label+" and clear incompatible selections.";render();return;}
+  }
+  chosen=chooseWithOverride(campaign,chosen,group,option);
+  lastIncompatibleTap=null;setupNotice="";render();
  }));
  root.querySelector("#open-skills").addEventListener("click",()=>{
    if(!readyForSkills())return;
@@ -300,6 +313,7 @@ async function loadCampaignFiles(){
   const cultureGroup=campaign.selections.find(s=>s.id==="culture");
   cultureGroup.options=buildCultureOptions(parsedCampaign);
   campaign.defaultCulture=parsedCampaign.cultures.find(c=>c.isDefault)?.name||null;
+  campaign.defaultRace=(()=>{const race=parsedCampaign.races.find(r=>r.statements.some(s=>/^Default$/i.test(s.text)));return race?race.name[0].toUpperCase()+race.name.slice(1):null;})();
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
   campaign.restrictions=selectionRules(parsedCampaign);

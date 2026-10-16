@@ -35,3 +35,20 @@ export function selectionIssues(campaign,chosen){
     return [];
   });
 }
+
+export function optionConflicts(campaign,chosen,group,option){
+ if(group.id==="culture"&&option.barred&&!option.allowedRaces?.length)return {barred:true,conflicts:[]};
+ const proposed={...chosen,[group.id]:option.id};
+ const conflicts=campaign.selections.filter(g=>g.id!==group.id&&chosen[g.id]&&
+  !optionAvailable(campaign,proposed,g,g.options.find(o=>canonical(o.id)===canonical(chosen[g.id]))||{id:chosen[g.id]}))
+  .map(g=>g.id);
+ if(group.id==="magic"&&chosen.race&& !optionAvailable(campaign,chosen,group,option)&&!conflicts.includes("race"))conflicts.push("race");
+ return {barred:false,conflicts};
+}
+export function chooseWithOverride(campaign,chosen,group,option){
+ const {barred,conflicts}=optionConflicts(campaign,chosen,group,option);
+ if(barred)return null;
+ const next={...chosen,[group.id]:option.id};
+ for(const id of conflicts)delete next[id];
+ return next;
+}
