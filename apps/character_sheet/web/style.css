@@ -143,3 +143,12 @@
 .group-title .category-label h2{min-width:0}
 .group-title .magic-heading{display:block;flex:1 1 auto;width:100%;max-width:none;min-width:0;min-height:34px;padding:3px 26px 3px 4px;box-sizing:border-box;text-overflow:ellipsis}
 .group-title .category-bonus,.group-title .count{flex:0 0 auto}
+
+/* Setup choices use buttons so incompatible options remain double-tappable. */
+.setup-options .setup-option{width:100%;text-align:left;background:transparent;border:0;border-radius:7px;min-height:42px;display:flex;align-items:center;gap:12px}
+.setup-options .setup-option[aria-checked="true"]{background:#345074}
+.setup-options .setup-option.incompatible{opacity:.65;cursor:pointer}
+.setup-options .setup-option.incompatible:hover{opacity:1;background:#334459}
+.setup-options .setup-option.barred{opacity:.4;cursor:not-allowed}
+.setup-radio{flex:0 0 auto;width:18px;height:18px;border:2px solid #98b3d2;border-radius:50%;display:inline-grid;place-items:center}
+.setup-radio.checked:after{content:"";width:9px;height:9px;border-radius:50%;background:#9bc1fa}
