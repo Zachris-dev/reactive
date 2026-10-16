@@ -116,3 +116,19 @@ export function effectiveSkillValue(state,group,skill,options={}){
  const base=Math.max(0,Math.min(token,maximum-bonus));
  return {token,base,total:base+bonus,bonus,lost:token-base,maximum};
 }
+
+export function bodySubgroupsForRace(group,race){
+ if(group.name!=="Body"||!group.subgroups)return group.subgroups||[];
+ const subgroups=group.subgroups.map(s=>({...s,skills:[...s.skills]}));
+ const move=(skillName,to)=>{
+  let found=null;
+  for(const subgroup of subgroups){
+   const i=subgroup.skills.findIndex(s=>s.name.toLowerCase()===skillName.toLowerCase());
+   if(i!==-1){found=subgroup.skills.splice(i,1)[0];break;}
+  }
+  if(found)subgroups.find(s=>s.name===to)?.skills.push(found);
+ };
+ if(String(race).toLowerCase()==="elf")move("Speed","Finesse");
+ if(String(race).toLowerCase()==="dwarf"){move("Speed","Finesse");move("Balance","Strength");}
+ return subgroups;
+}
