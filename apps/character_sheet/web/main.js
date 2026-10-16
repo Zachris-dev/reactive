@@ -173,6 +173,9 @@ function renderSetupScreen(){
    characterContext.race=chosen.race||null;
    characterContext.culture=chosen.culture||null;
    characterContext.allowedMagic=campaign.selections.find(g=>g.id==="magic")?.options.filter(o=>availableOption({id:"magic"},o)).map(o=>o.id)||null;
+   if(allocation&&allocatedCulture===chosen.culture&&magicChoice!==chosen.magic){
+    for(const target of Object.keys(allocation.skill)){if(JSON.parse(target)[0]==="Magic")remove(allocation,"skill",target);}
+   }
    magicChoice=chosen.magic||magicChoice;
    if(!allocation||allocatedCulture!==chosen.culture){
     allocation=makeAllocationState(allocationsFromCampaign(parsedCampaignData,chosen.culture));
