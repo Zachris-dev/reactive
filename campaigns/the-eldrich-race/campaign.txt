@@ -58,7 +58,7 @@ Assignment: Common
 Primary Culture: Low Emeri
 Barred
 Allow Human
-Primary Language: Emmspeak
+Primary Language: Emerspeak
 Assignment: Common
 
 
@@ -108,7 +108,7 @@ Category gain [1..5]
 Base Skill gain [1..30]
 Base Skill gain [1..30]
 Base Skill assign require Culture/Vaelthar = 35
-Base Skill assign require Language/Vealan Elvish = 35
+Base Skill assign require Language/Vaelan Elvish = 35
 
 
 Primary Culture: Norr
