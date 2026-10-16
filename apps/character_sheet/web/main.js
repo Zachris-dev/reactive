@@ -313,7 +313,7 @@ async function loadCampaignFiles(){
   const cultureGroup=campaign.selections.find(s=>s.id==="culture");
   cultureGroup.options=buildCultureOptions(parsedCampaign);
   campaign.defaultCulture=parsedCampaign.cultures.find(c=>c.isDefault)?.name||null;
-  campaign.defaultRace=parsedCampaign.races.find(r=>r.statements.some(s=>/^Default$/i.test(s.text)))?.name||null;
+  campaign.defaultRace=(()=>{const race=parsedCampaign.races.find(r=>r.statements.some(s=>/^Default$/i.test(s.text)));return race?race.name[0].toUpperCase()+race.name.slice(1):null;})();
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
   campaign.restrictions=selectionRules(parsedCampaign);
