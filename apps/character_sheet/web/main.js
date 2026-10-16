@@ -238,7 +238,7 @@ function render(){
  if(screen==="campaign"){renderCampaignScreen();return;}
  if(screen==="setup"){renderSetupScreen();return;}
  const invalid=definitions.filter(g=>activeSkills(g).length!==10);
- root.innerHTML=`<div class="app"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
+ root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
  <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
  ${renderAllocationTools()}<div class="skills">${definitions.map(renderGroup).join("")}</div>
