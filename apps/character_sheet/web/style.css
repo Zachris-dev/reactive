@@ -63,3 +63,16 @@
 @media(max-width:760px){.allocation-tools{grid-template-columns:1fr}.allocation-entry{grid-column:auto}.allocation-entry .hint{width:100%;margin:0}}
 
 .fixed-skill .skill-value{border-style:dashed;color:#d7dce5}
+
+/* Two independently scrollable creation columns. */
+.creation-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,340px);gap:14px;align-items:stretch;height:calc(100dvh - 180px);min-height:390px}
+.creation-skill-scroll,.creation-allocation-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.creation-allocation-scroll{background:#1c2531;border:1px solid #42536a;border-radius:12px;padding:10px}
+.creation-allocation-scroll .allocation-tools{display:flex;flex-direction:column;margin:0;gap:12px}
+.creation-allocation-scroll .allocation-pool,.creation-allocation-scroll .allocation-entry{width:100%}
+.creation-allocation-scroll .allocation-entry{display:flex;flex-direction:column;align-items:stretch}
+.creation-allocation-scroll .allocation-entry input{width:100%}
+.creation-allocation-scroll .allocation-entry .hint{margin:0}
+.alloc-selected .skill-name,.alloc-selected .category-label,.alloc-selected .magic-heading{background:#f5e6a6!important;color:#1c2531!important;border-radius:4px;padding:2px 5px}
+.body-rank{font-size:.68rem;color:#cbd9e9;border:1px solid #627d96;border-radius:4px;padding:1px 4px}
+@media(max-width:760px){.creation-workspace{grid-template-columns:minmax(0,1fr);height:auto}.creation-skill-scroll{overflow:visible}.creation-allocation-scroll{position:sticky;bottom:0;max-height:34dvh;overflow-y:auto;z-index:2;box-shadow:0 -4px 20px #0008}.creation-allocation-scroll .allocation-tools{gap:7px}}
