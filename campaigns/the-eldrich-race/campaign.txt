@@ -48,51 +48,18 @@ Rule change: secondary skill gain base skill = base skill +5
 
 Barred culture: unavailable unless explicitly allowed.
 
-Primary Culture: Vaelthar
-Barred
-Allow: Elf
-Primary Language: Vaelan Elvish
-Category gain [1..5]
-Base Skill gain [1..30]
-Base Skill gain [1..30]
-Base Skill assign require Culture/Vaelthar = 35
-Base Skill assign require Language/Vealan Elvish = 35
-
-Primary Culture: Kardsworn
-Barred
-Allow: Dwarf
-Primary Language: Kardish dwarf
-Category gain [1..5]
-Base Skill gain [1..40]
-Creation Rule change: group Magic - druidic max total 20
-Rule change: group Magic - druidic skill gain base skill = base skill +10
-Rule change: group Magic - druidic/skill : total skill >= 31, remove rule skill gain 
-Creation Rule change: group Magic - arcane max total 20
-Rule change: group Magic - arcane skill gain base skill = base skill +10
-Rule change: group Magic - arcane/skill : total skill >= 31, remove rule skill gain
-
 
 Primary Culture: High Emeri
 Primary Language: Emerspeak
+Default
 Assignment: Common
 
 Primary Culture: Low Emeri
 Barred
 Allow Human
-Primary Language: Emerspeak
+Primary Language: Emmspeak
 Assignment: Common
 
-Primary Culture: Herisian
-Barred 
-Allow Human, Elf
-Primary Language: Vulgar Herisian
-Assignment: Common
-
-Primary Culture: Norr
-Barred
-
-Primary Culture: Razyg
-Barred
 
 Primary Culture: Emeri Nobles
 Barred
@@ -108,6 +75,45 @@ Primary Culture: Merchants
 Primary Language: *
 Assignment: common
 
+Primary Culture: Herisian
+Barred 
+Allow Human, Elf
+Primary Language: Vulgar Herisian
+Assignment: Common
+
 Primary Culture: Seafolk
 Primary Language: Squall (seafolk)
 Assignment: Common
+
+Primary Culture: Kardsworn
+Barred
+Allow: Dwarf
+Primary Language: Kardish dwarf
+Category gain [1..5]
+Base Skill gain [1..40]
+Creation Rule change: group Magic - druidic max total 20
+Rule change: group Magic - druidic skill gain base skill = base skill +10
+Rule change: group Magic - druidic/skill : total skill >= 31, remove rule skill gain 
+Creation Rule change: group Magic - arcane max total 20
+Rule change: group Magic - arcane skill gain base skill = base skill +10
+Rule change: group Magic - arcane/skill : total skill >= 31, remove rule skill gain
+
+
+Primary Culture: Vaelthar
+Barred
+Allow: Elf
+Primary Language: Vaelan Elvish
+Category gain [1..5]
+Base Skill gain [1..30]
+Base Skill gain [1..30]
+Base Skill assign require Culture/Vaelthar = 35
+Base Skill assign require Language/Vealan Elvish = 35
+
+
+Primary Culture: Norr
+Barred
+
+Primary Culture: Razyg
+Barred
+
+
