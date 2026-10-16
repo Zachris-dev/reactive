@@ -136,3 +136,10 @@
 .group.invalid .group-title{background:#2b3544!important}
 .group.invalid .count{color:#afc2d7!important}
 .group-requirement{padding:6px 12px 1px;font-size:.78rem;color:#bacbdc;font-weight:600}
+
+/* Magic selector: give the native select its own usable width.
+   The previous percentage max-width was resolved inside a shrink-to-fit span. */
+.group-title .category-label{display:flex;align-items:center;flex:1 1 auto;min-width:0}
+.group-title .category-label h2{min-width:0}
+.group-title .magic-heading{display:block;flex:1 1 auto;width:100%;max-width:none;min-width:0;min-height:34px;padding:3px 26px 3px 4px;box-sizing:border-box;text-overflow:ellipsis}
+.group-title .category-bonus,.group-title .count{flex:0 0 auto}
