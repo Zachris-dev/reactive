@@ -59,9 +59,10 @@ function cleanName(name){return name.replace(/\s*\([^)]*\)/g,"").trim();}
 function skillRows(skills, subgroup="", groupName=""){
  return skills.map(skill=>{
   const target=keyFor(groupName,cleanName(skill.name));
-  const placed=allocation?.skill[target];
+  const placed=allocation?.skill[target]??allocation?.fixed[target];
   const selected=allocation?.selected?.type==="skill"&&allocation.selected.target===target;
-  return `<div class="skill alloc-target ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
+  const fixed=allocation?.fixed[target]!==undefined;
+  return `<div class="skill alloc-target ${fixed?"fixed-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
  <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
  }).join("");
 }
@@ -201,6 +202,7 @@ function chooseToken(type,value){
 }
 function chooseTarget(type,target){
  if(!allocation)return;
+ if(type==="skill"&&allocation.fixed[target]!==undefined)return;
  const selected=allocation.selected;
  if(selected?.type===type&&selected.token!==undefined){
   assign(allocation,type,target,selected.token);allocation.selected=null;
@@ -240,7 +242,7 @@ function render(){
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
  <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
  ${renderAllocationTools()}<div class="skills">${definitions.map(renderGroup).join("")}</div>
- <p class="notes">Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
+ <p class="notes">Mandatory base values are fixed and do not consume floating tokens. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
  wireAllocation();
  document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
  document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
