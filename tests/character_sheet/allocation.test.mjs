@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -26,13 +26,14 @@ test("tap or drop allocations use a token exactly once",()=>{
  assert.equal(assign(state,"skill",keyFor("Combat","Sword"),20),true);
  assert.equal(assign(state,"skill",keyFor("Combat","Shield"),20),false);
 });
-test("cannot overwrite until previous value is removed",()=>{
+test("replacing an allocation refunds the original token",()=>{
  const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
  assert.equal(assign(state,"category","Combat",1),true);
- assert.equal(assign(state,"category","Combat",2),false);
- assert.equal(remove(state,"category","Combat"),true);
- assert.equal(remaining(state,"category").includes(1),true);
  assert.equal(assign(state,"category","Combat",2),true);
+ assert.equal(remaining(state,"category").includes(1),true);
+ assert.equal(remaining(state,"category").includes(2),false);
+ assert.equal(remove(state,"category","Combat"),true);
+ assert.equal(remaining(state,"category").includes(2),true);
 });
 test("required culture and language allocations are protected",()=>{
  const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
@@ -48,4 +49,24 @@ test("nonexistent tokens and mismatched pools cannot be assigned",()=>{
 test("palette is independent of the rules and can be replaced",()=>{
  assert.match(testPalette.category,/^#[\da-f]{6}$/i);
  assert.match(testPalette.skill,/^#[\da-f]{6}$/i);
+});
+
+test("human Body primary and secondary rankings follow maximum base values",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ const body={subgroups:[
+  {name:"Strength",skills:[{name:"Brawn"},{name:"Clout"}]},
+  {name:"Finesse",skills:[{name:"Dexterity"},{name:"Agility"}]},
+  {name:"Constitution",skills:[{name:"Durability"},{name:"Health"}]}
+ ]};
+ const rank=()=>humanBodyClassification(state,body);
+ assert.equal(assign(state,"skill",keyFor("Body","Brawn"),22),true);
+ assert.equal(rank().classification.Strength,"primary");
+ assert.equal(assign(state,"skill",keyFor("Body","Dexterity"),17),true);
+ assert.equal(rank().classification.Finesse,"secondary");
+ assert.equal(assign(state,"skill",keyFor("Body","Durability"),29),true);
+ assert.equal(rank().classification.Constitution,"primary");
+ assert.equal(rank().classification.Strength,"secondary");
+ assert.equal(rank().violations.some(v=>v.subgroup==="Strength"),true);
+ assert.equal(remove(state,"skill",keyFor("Body","Durability")),true);
+ assert.equal(rank().classification.Strength,"primary");
 });
