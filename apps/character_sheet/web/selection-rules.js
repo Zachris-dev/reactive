@@ -42,6 +42,7 @@ export function optionConflicts(campaign,chosen,group,option){
  const conflicts=campaign.selections.filter(g=>g.id!==group.id&&chosen[g.id]&&
   !optionAvailable(campaign,proposed,g,g.options.find(o=>canonical(o.id)===canonical(chosen[g.id]))||{id:chosen[g.id]}))
   .map(g=>g.id);
+ if(group.id==="magic"&&chosen.race&& !optionAvailable(campaign,chosen,group,option)&&!conflicts.includes("race"))conflicts.push("race");
  return {barred:false,conflicts};
 }
 export function chooseWithOverride(campaign,chosen,group,option){
