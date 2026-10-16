@@ -112,3 +112,12 @@
   overflow-y:auto!important;z-index:20;
  }
 }
+
+/* Short viewports: scrolling belongs to the fixed allocation dock itself. */
+.creation-allocation-scroll{overflow-y:scroll!important;overflow-x:hidden!important;min-height:0!important;scrollbar-width:auto;scrollbar-color:#95abc4 #263241}
+@media(min-width:601px){
+ .creation-allocation-scroll{height:calc(100dvh - 24px)!important;max-height:calc(100dvh - 24px)!important;min-height:0!important}
+}
+.skill{grid-template-columns:minmax(0,1fr) auto auto}
+.skill-total{font-size:.8rem;min-width:37px;text-align:right;color:#b7c9d8;font-variant-numeric:tabular-nums}
+.skill-value.base-loss{color:#ffb5a2;background:#62363c;border-color:#ee947c;font-weight:800}
