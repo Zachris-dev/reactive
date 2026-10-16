@@ -70,17 +70,25 @@ export function remove(state,type,target){
 export function hasToken(state,type,value){return remaining(state,type).includes(value);}
 export function skillBase(state,target){return state.skill[target];}
 export function removeAssignment(state,type,target){return remove(state,type,target);}
-export function allocationRequirements(state,culture,language){
+export function cultureRequirementMet(state,cultureSkills){
+ return cultureSkills.some(skill=>{
+  const value=effectiveSkillValue(state,"Culture",skill);
+  return value.token!==undefined&&value.total>=30;
+ });
+}
+export function allocationRequirements(state,culture,language,cultureSkills=[culture]){
  const issues=[];
- for(const [group,target] of [["Culture",culture],["Language",language]]){
-  if(!target||target==="*")continue;
-  const key=keyFor(group,target);
-  const total=(skillBase(state,key)||0)+(state.category[group]||0);
-  if(total<30)issues.push(group+"/"+target+" total "+total+" is below required 30");
+ if(!cultureRequirementMet(state,cultureSkills))
+  issues.push("Culture: at least one culture skill must have total 30 or higher");
+ if(language&&language!=="*"){
+  const value=effectiveSkillValue(state,"Language",language);
+  if(value.token===undefined||value.total<30)
+   issues.push("Language/"+language+" total "+(value.token===undefined?0:value.total)+" is below required 30");
  }
  for(const rule of state.config.required){
-  const total=(skillBase(state,keyFor(rule.group,rule.skill))||0)+(state.category[rule.group]||0);
-  if(total<rule.value)issues.push(rule.group+"/"+rule.skill+" total "+total+" is below required "+rule.value);
+  const value=effectiveSkillValue(state,rule.group,rule.skill);
+  if(value.token===undefined||value.total<rule.value)
+   issues.push(rule.group+"/"+rule.skill+" total "+(value.token===undefined?0:value.total)+" is below required "+rule.value);
  }
  return issues;
 }
