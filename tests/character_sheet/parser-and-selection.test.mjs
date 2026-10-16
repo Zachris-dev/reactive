@@ -84,3 +84,25 @@ test("structurally invalid skill list is rejected",()=>{
  const result=parseSkillList(changed);
  assert.ok(result.issues.some(i=>i.severity==="error"&&i.message.includes("Social")));
 });
+
+test("unknown standalone directives generate line-numbered warnings",()=>{
+ const changed=campaignText.replace(/Primary Culture: High Emeri/, "Primary Culture: High Emeri\nMysterious invention");
+ const issue=parseCampaign(changed).issues.find(i=>i.message.includes("Mysterious invention"));
+ assert.equal(issue?.severity,"warning");
+ assert.ok(issue.line>0);
+});
+test("Default is recognized for cultures, without unknown directive warnings",()=>{
+ const changed=campaignText.replace(/Primary Culture: High Emeri/, "Primary Culture: High Emeri\nDefault");
+ const model=parseCampaign(changed);
+ assert.equal(model.cultures.find(c=>c.name==="High Emeri").isDefault,true);
+ assert.equal(model.issues.some(i=>i.message.includes("Default")),false);
+});
+test("misspelled primary language is a validation error for a playable culture",()=>{
+ const changed=campaignText.replace(/(Primary Culture: Low Emeri\s*Barred\s*Allow Human\s*Primary Language: )Emerspeak/i,"$1Emmspeak");
+ const issues=validateCampaign(parseCampaign(changed),skills);
+ assert.ok(issues.some(i=>i.severity==="error"&&i.message.includes("Emmspeak")),JSON.stringify(issues));
+});
+test("two default cultures cause an error",()=>{
+ const changed=campaignText.replace(/Primary Culture: High Emeri/,"Primary Culture: High Emeri\nDefault").replace(/Primary Culture: Revangelism/,"Primary Culture: Revangelism\nDefault");
+ assert.ok(validateCampaign(parseCampaign(changed),skills).some(i=>i.severity==="error"&&i.message.includes("More than one default")));
+});

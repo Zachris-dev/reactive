@@ -118,7 +118,7 @@ function renderCampaignScreen(){
  root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
-  campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={};expanded={};setupNotice="";screen="setup";render();
+  campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{})};expanded={};setupNotice="";screen="setup";render();
  }));
 }
 function renderSetupScreen(){
@@ -193,6 +193,7 @@ async function loadCampaignFiles(){
   }));
   const cultureGroup=campaign.selections.find(s=>s.id==="culture");
   cultureGroup.options=buildCultureOptions(parsedCampaign);
+  campaign.defaultCulture=parsedCampaign.cultures.find(c=>c.isDefault)?.name||null;
   const raceGroup=campaign.selections.find(s=>s.id==="race");
   raceGroup.options=parsedCampaign.races.map(r=>({id:r.name[0].toUpperCase()+r.name.slice(1),label:r.name[0].toUpperCase()+r.name.slice(1)}));
   campaign.restrictions=selectionRules(parsedCampaign);

@@ -29,12 +29,12 @@ export function parseSkillList(text){
 }
 export function parseCampaign(text){
  const issues=[],cultures=[],races=[],rules=[],selections=[],metadata={};let context=null;
- const known=/^(?:Skill List|Rule|Creation Rule|Common assignment|Culture\/|Language\/|Category gain|Base Skill gain|Base Skill assign|Race|Choice|Determined|Senses|Skill change|Disallow|Barred culture|Primary Culture|Barred|Allow|Primary Language|Assignment|Rule change|Creation Rule change)/i;
+ const recognizedStatement=/^(?:Rule:\s*.+|Creation Rule:\s*.+|Rule change:\s*.+|Creation Rule change:\s*.+|Culture\/[^:]+\s+(?:assign|require)\s+.+|Language\/[^:]+\s+(?:assign|require)\s+.+|Category gain\s+\[[^\]]+\]|Base Skill gain\s+\[[^\]]+\]|Base Skill assign require\s+.+|Choice:\s*.+|Determined:\s*.+|Senses:\s*.+|Skill change:\s*.+|Disallow:\s*.+)$/i;
  text.split(/\r?\n/).forEach((raw,i)=>{
   const value=raw.trim(),line=i+1;if(!value)return;
   const culture=value.match(/^Primary Culture:\s*(.+)$/i);
   const race=value.match(/^Race:\s*(.+)$/i);
-  if(culture){context={name:culture[1].trim(),line,barred:false,allows:[],primaryLanguage:null,assignment:null,statements:[]};cultures.push(context);return;}
+  if(culture){context={name:culture[1].trim(),line,barred:false,isDefault:false,allows:[],primaryLanguage:null,assignment:null,statements:[]};cultures.push(context);return;}
   if(race){context={name:race[1].trim(),line,statements:[]};races.push(context);return;}
   if(/^Common assignment:/i.test(value)){context={name:"Common",statements:[]};metadata.common=context;return;}
   if(/^Skill List:/i.test(value)){metadata.skillList=value.slice(value.indexOf(":")+1).trim();return;}
@@ -42,6 +42,7 @@ export function parseCampaign(text){
   if(/^Barred culture:/i.test(value)){metadata.barredDefinition=value;return;}
   if(context&&"barred" in context){
    if(/^Barred$/i.test(value)){context.barred=true;return;}
+   if(/^Default$/i.test(value)){context.isDefault=true;return;}
    if(/^Allow\s*:?[ \t]+/i.test(value)){context.allows.push(...value.replace(/^Allow\s*:?[ \t]+/i,"").split(",").map(x=>x.trim()));return;}
    if(/^Primary Language:/i.test(value)){context.primaryLanguage=value.split(":").slice(1).join(":").trim();return;}
    if(/^Assignment:/i.test(value)){context.assignment=value.split(":").slice(1).join(":").trim();return;}
@@ -49,7 +50,7 @@ export function parseCampaign(text){
   const statement={text:value,line};
   if(context)context.statements.push(statement);
   else rules.push(statement);
-  if(!known.test(value)&&!/^div:/i.test(value))issues.push(diagnostic("warning","campaign",line,"Unrecognized statement: "+value));
+  if(!recognizedStatement.test(value))issues.push(diagnostic("warning","campaign",line,"Unknown or malformed directive: "+value));
  });
  return {cultures,races,rules,metadata,issues};
 }
@@ -60,11 +61,15 @@ export function validateCampaign(campaign,skillList){
  const names=entries=>new Set((entries||[]).map(s=>matchName(s.name)));
  const cultureNames=names(cultureGroup?.skills),languageNames=names(languageGroup?.skills);
  const raceNames=new Set(campaign.races.map(r=>matchName(r.name)));
+ const defaults=campaign.cultures.filter(c=>c.isDefault);
+ if(defaults.length>1)issues.push(diagnostic("error","campaign",defaults[1].line,"More than one default culture is declared"));
  for(const c of campaign.cultures){
   const playable=!c.barred||c.allows.length>0;
   if(!cultureNames.has(matchName(c.name)))issues.push(diagnostic("warning","campaign",c.line,`Culture "${c.name}" is absent from Culture skills`));
+  if(c.primaryLanguage && c.primaryLanguage!=="*"&&!languageNames.has(matchName(c.primaryLanguage)))
+   issues.push(diagnostic(playable?"error":"info","campaign",c.line,`Primary language "${c.primaryLanguage}" for "${c.name}" is absent from Language skills`));
   if(!c.primaryLanguage)issues.push(diagnostic(playable?"error":"info","campaign",c.line,`Culture "${c.name}" has no primary language`));
-  else if(c.primaryLanguage!=="*"&&!languageNames.has(matchName(c.primaryLanguage)))issues.push(diagnostic("error","campaign",c.line,`Primary language "${c.primaryLanguage}" is absent from Language skills`));
+
   if(!c.assignment&&!c.statements.some(s=>/^(?:Category gain|Base Skill gain)/i.test(s.text)))issues.push(diagnostic(playable?"warning":"info","campaign",c.line,`Culture "${c.name}" has no explicit common or custom assignment`));
   for(const allowed of c.allows)if(!raceNames.has(matchName(allowed)))issues.push(diagnostic("error","campaign",c.line,`Unknown allowed race "${allowed}"`));
  }
