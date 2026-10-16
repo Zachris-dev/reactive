@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -35,10 +35,14 @@ test("replacing an allocation refunds the original token",()=>{
  assert.equal(remove(state,"category","Combat"),true);
  assert.equal(remaining(state,"category").includes(2),true);
 });
-test("required culture and language allocations are protected",()=>{
+test("initial culture and language assignments can be changed or removed and cause invalidity",()=>{
  const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
- assert.equal(state.fixed[keyFor("Culture","High Emeri")],30);
- assert.equal(assign(state,"skill",keyFor("Culture","High Emeri"),1),false);
+ assert.equal(skillBase(state,keyFor("Culture","High Emeri")),30);
+ assert.equal(assign(state,"skill",keyFor("Culture","High Emeri"),1),true);
+ assert.equal(skillBase(state,keyFor("Culture","High Emeri")),1);
+ assert.ok(allocationRequirements(state,"High Emeri","Emerspeak").some(x=>x.includes("Culture")));
+ assert.equal(removeAssignment(state,"skill",keyFor("Language","Emerspeak")),true);
+ assert.ok(allocationRequirements(state,"High Emeri","Emerspeak").some(x=>x.includes("Language")));
 });
 test("nonexistent tokens and mismatched pools cannot be assigned",()=>{
  const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
