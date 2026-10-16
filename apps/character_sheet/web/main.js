@@ -1,5 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -55,9 +56,14 @@ function selectableMagicChoice(group){
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function cleanName(name){return name.replace(/\s*\([^)]*\)/g,"").trim();}
-function skillRows(skills, subgroup=""){
- return skills.map(skill=>`<div class="skill ${subgroup ? "subgroup-skill" : ""}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup ? "Subcategory " + subgroup : "", skill.description].filter(Boolean).join(" — ") || skill.name)}">
- <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value" aria-label="Unassigned">—</span></div>`).join("");
+function skillRows(skills, subgroup="", groupName=""){
+ return skills.map(skill=>{
+  const target=keyFor(groupName,cleanName(skill.name));
+  const placed=allocation?.skill[target];
+  const selected=allocation?.selected?.type==="skill"&&allocation.selected.target===target;
+  return `<div class="skill alloc-target ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
+ <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
+ }).join("");
 }
 function activeSkills(group){
  if(group.alternatives)return group.alternatives.find(a=>a.name===magicChoice)?.skills ?? [];
@@ -70,12 +76,14 @@ function renderGroup(group){
  const valid=list.length===10;
  let content="";
 
- if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name)}</div>`).join("");
- else content+=skillRows(list);
+ if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name,group.name)}</div>`).join("");
+ else content+=skillRows(list,"",group.name);
  const problem=!valid?`<div class="diagnostic" role="status">${escapeHtml(group.name)} contains ${list.length} skills; exactly 10 required.</div>`:"";
+ const bonus=allocation?.category[group.name];
+ const categorySelected=allocation?.selected?.type==="category"&&allocation.selected.target===group.name;
  const heading=group.alternatives ? (characterContext.mode==="play" ? `<h2>${escapeHtml(magicChoice)}</h2>` : `<label class="visually-hidden" for="magic-choice">Magic discipline</label><select id="magic-choice" class="magic-heading" aria-label="Magic discipline">${options.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select>`) : `<h2>${escapeHtml(group.name)}</h2>`;
  return `<section class="group ${valid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
- <div class="group-title">${heading}<span class="count">${list.length} / 10</span></div>
+ <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label">${heading}</span><span class="category-bonus">${bonus===undefined?"—":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
  <div class="group-main">${content}</div>${problem}</section>`;
 }
 
@@ -110,7 +118,7 @@ const campaigns=[{
  templates:[]
 }];
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
-let templateDiagnostics=[];let loadFailure="";
+let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
 function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
@@ -164,7 +172,64 @@ function renderSetupScreen(){
    characterContext.race=chosen.race||null;
    characterContext.culture=chosen.culture||null;
    characterContext.allowedMagic=campaign.selections.find(g=>g.id==="magic")?.options.filter(o=>availableOption({id:"magic"},o)).map(o=>o.id)||null;
-   magicChoice=chosen.magic||magicChoice;screen="skills";render();
+   magicChoice=chosen.magic||magicChoice;
+   allocation=makeAllocationState(allocationsFromCampaign(parsedCampaignData,chosen.culture));
+   screen="skills";render();
+ });
+}
+function renderAllocationTools(){
+ if(!allocation)return "";
+ const tokens=type=>remaining(allocation,type).map((n,i)=>{
+   const selected=allocation.selected?.type===type&&allocation.selected?.token===n;
+   return `<button type="button" draggable="true" data-token="${type}" data-value="${n}" class="float-token ${type}-token ${selected?"alloc-selected":""}" title="Unassigned ${type} value ${n}">${n}</button>`;
+ }).join("");
+ const selected=allocation.selected;
+ const placement=selected?.target!==undefined?allocation[selected.type]?.[selected.target]:undefined;
+ return `<section class="allocation-tools" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}">
+ <div class="allocation-pool"><h2>Category bonuses <small>${remaining(allocation,"category").length} remaining</small></h2><div class="token-grid">${tokens("category")}</div></div>
+ <div class="allocation-pool"><h2>Skill values <small>${remaining(allocation,"skill").length} remaining</small></h2><div class="token-grid">${tokens("skill")}</div></div>
+ <div class="allocation-entry"><label for="allocation-number">Selected target value</label><input id="allocation-number" type="number" min="1" placeholder="Select a category or skill" ${selected?.target===undefined?"disabled":""}><button id="allocation-assign" ${selected?.target===undefined?"disabled":""}>Assign</button><button id="allocation-remove" ${placement===undefined?"disabled":""}>Remove ${placement===undefined?"":"("+placement+")"}</button><p class="hint">${selected?.target!==undefined?escapeHtml(selected.target):selected?.token!==undefined?"Selected "+selected.type+" token: "+selected.token:"Select a token or target"}</p></div>
+ </section>`;
+}
+function chooseToken(type,value){
+ if(!allocation)return;
+ const selected=allocation.selected;
+ if(selected?.type===type&&selected.target!==undefined){
+  assign(allocation,type,selected.target,value);allocation.selected=null;
+ }else allocation.selected={type,token:value};
+ render();
+}
+function chooseTarget(type,target){
+ if(!allocation)return;
+ const selected=allocation.selected;
+ if(selected?.type===type&&selected.token!==undefined){
+  assign(allocation,type,target,selected.token);allocation.selected=null;
+ }else allocation.selected={type,target};
+ render();
+}
+function wireAllocation(){
+ if(!allocation)return;
+ document.querySelectorAll("[data-token]").forEach(btn=>{
+  btn.style.setProperty("--category-token",testPalette.category);
+  btn.style.setProperty("--skill-token",testPalette.skill);
+  btn.addEventListener("click",()=>chooseToken(btn.dataset.token,Number(btn.dataset.value)));
+  btn.addEventListener("dragstart",e=>e.dataTransfer.setData("text/plain",JSON.stringify({type:btn.dataset.token,value:Number(btn.dataset.value)})));
+ });
+ document.querySelectorAll(".alloc-target").forEach(el=>{
+  el.addEventListener("click",e=>{if(e.target.closest("select"))return;chooseTarget(el.dataset.type,el.dataset.target);});
+  el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&!e.target.closest("select")){e.preventDefault();chooseTarget(el.dataset.type,el.dataset.target);}});
+  el.addEventListener("dragover",e=>e.preventDefault());
+  el.addEventListener("drop",e=>{e.preventDefault();try{const item=JSON.parse(e.dataTransfer.getData("text/plain"));if(item.type===el.dataset.type){assign(allocation,item.type,el.dataset.target,item.value);allocation.selected=null;render();}}catch{}});
+ });
+ document.querySelector("#allocation-assign")?.addEventListener("click",()=>{
+  const selected=allocation.selected;if(selected?.target===undefined)return;
+  const value=Number(document.querySelector("#allocation-number").value);
+  if(assign(allocation,selected.type,selected.target,value)){allocation.selected=null;render();}
+ });
+ document.querySelector("#allocation-number")?.addEventListener("keydown",e=>{if(e.key==="Enter")document.querySelector("#allocation-assign").click();});
+ document.querySelector("#allocation-remove")?.addEventListener("click",()=>{
+  const selected=allocation.selected;
+  if(selected?.target!==undefined){remove(allocation,selected.type,selected.target);allocation.selected=null;render();}
  });
 }
 function render(){
@@ -174,8 +239,9 @@ function render(){
  root.innerHTML=`<div class="app"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
  <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
- <div class="skills">${definitions.map(renderGroup).join("")}</div>
- <p class="notes">Skill descriptions are reserved in the data model. This is the listing panel; character allocations, category bonuses and campaign-specific changes will be connected separately.</p></div>`;
+ ${renderAllocationTools()}<div class="skills">${definitions.map(renderGroup).join("")}</div>
+ <p class="notes">Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
+ wireAllocation();
  document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
  document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
@@ -188,6 +254,7 @@ async function loadCampaignFiles(){
   ]);
   if(!campaignResponse.ok||!skillsResponse.ok)throw new Error("Campaign files not available (serve from repository root)");
   const parsedCampaign=parseCampaign(await campaignResponse.text());
+  parsedCampaignData=parsedCampaign;
   const parsedSkills=parseSkillList(await skillsResponse.text());
   templateDiagnostics=validateCampaign(parsedCampaign,parsedSkills);
   definitions=parsedSkills.categories.map(group=>({
