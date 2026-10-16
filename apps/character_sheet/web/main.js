@@ -1,6 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
-import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification} from "./allocation.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -59,13 +59,13 @@ function cleanName(name){return name.replace(/\s*\([^)]*\)/g,"").trim();}
 function skillRows(skills, subgroup="", groupName=""){
  return skills.map(skill=>{
   const target=keyFor(groupName,cleanName(skill.name));
-  const placed=allocation?.skill[target]??allocation?.fixed[target];
+  const placed=allocation?skillBase(allocation,target):undefined;
   const selected=allocation?.selected?.type==="skill"&&allocation.selected.target===target;
-  const fixed=allocation?.fixed[target]!==undefined;
+  const initial=allocation?.initial[target]!==undefined;
   const bodyState=groupName==="Body"&&chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
   const bodyRank=bodyState?.classification[subgroup];
-  return `<div class="skill alloc-target ${fixed?"fixed-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
- <span class="skill-name">${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
+  return `<div class="skill alloc-target ${initial?"initial-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" aria-pressed="${selected}" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
+ <span class="skill-name" ${selected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px;font-weight:750"':""}>${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
  }).join("");
 }
 function activeSkills(group){
@@ -86,7 +86,7 @@ function renderGroup(group){
  const categorySelected=allocation?.selected?.type==="category"&&allocation.selected.target===group.name;
  const heading=group.alternatives ? (characterContext.mode==="play" ? `<h2>${escapeHtml(magicChoice)}</h2>` : `<label class="visually-hidden" for="magic-choice">Magic discipline</label><select id="magic-choice" class="magic-heading" aria-label="Magic discipline">${options.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select>`) : `<h2>${escapeHtml(group.name)}</h2>`;
  return `<section class="group ${valid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
- <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label">${heading}</span><span class="category-bonus">${bonus===undefined?"—":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
+ <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label" ${categorySelected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px"':""}>${heading}</span><span class="category-bonus">${bonus===undefined?"—":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
  <div class="group-main">${content}</div>${problem}</section>`;
 }
 
@@ -193,7 +193,7 @@ function renderAllocationTools(){
    return `<button type="button" draggable="true" data-token="${type}" data-value="${n}" class="float-token ${type}-token ${selected?"alloc-selected":""}" title="Unassigned ${type} value ${n}">${n}</button>`;
  }).join("");
  const selected=allocation.selected;
- const placement=selected?.target!==undefined?allocation[selected.type]?.[selected.target]:undefined;
+ const placement=selected?.target!==undefined?(selected.type==="skill"?skillBase(allocation,selected.target):allocation[selected.type]?.[selected.target]):undefined;
  return `<section class="allocation-tools" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}">
  <div class="allocation-pool"><h2>Category bonuses <small>${remaining(allocation,"category").length} remaining</small></h2><div class="token-grid">${tokens("category")}</div></div>
  <div class="allocation-pool"><h2>Skill values <small>${remaining(allocation,"skill").length} remaining</small></h2><div class="token-grid">${tokens("skill")}</div></div>
@@ -204,16 +204,16 @@ function chooseToken(type,value){
  if(!allocation)return;
  const selected=allocation.selected;
  if(selected?.type===type&&selected.target!==undefined){
-  assign(allocation,type,selected.target,value);allocation.selected=null;
+  assign(allocation,type,selected.target,value);allocation.selected={type,target:selected.target};
  }else allocation.selected={type,token:value};
  render();
 }
 function chooseTarget(type,target){
  if(!allocation)return;
- if(type==="skill"&&allocation.fixed[target]!==undefined)return;
+
  const selected=allocation.selected;
  if(selected?.type===type&&selected.token!==undefined){
-  assign(allocation,type,target,selected.token);allocation.selected=null;
+  assign(allocation,type,target,selected.token);allocation.selected={type,target};
  }else allocation.selected={type,target};
  render();
 }
@@ -229,17 +229,17 @@ function wireAllocation(){
   el.addEventListener("click",e=>{if(e.target.closest("select"))return;chooseTarget(el.dataset.type,el.dataset.target);});
   el.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&!e.target.closest("select")){e.preventDefault();chooseTarget(el.dataset.type,el.dataset.target);}});
   el.addEventListener("dragover",e=>e.preventDefault());
-  el.addEventListener("drop",e=>{e.preventDefault();try{const item=JSON.parse(e.dataTransfer.getData("text/plain"));if(item.type===el.dataset.type){assign(allocation,item.type,el.dataset.target,item.value);allocation.selected=null;render();}}catch{}});
+  el.addEventListener("drop",e=>{e.preventDefault();try{const item=JSON.parse(e.dataTransfer.getData("text/plain"));if(item.type===el.dataset.type){assign(allocation,item.type,el.dataset.target,item.value);allocation.selected={type:item.type,target:el.dataset.target};render();}}catch{}});
  });
  document.querySelector("#allocation-assign")?.addEventListener("click",()=>{
   const selected=allocation.selected;if(selected?.target===undefined)return;
   const value=Number(document.querySelector("#allocation-number").value);
-  if(assign(allocation,selected.type,selected.target,value)){allocation.selected=null;render();}
+  if(assign(allocation,selected.type,selected.target,value)){allocation.selected={type:selected.type,target:selected.target};render();}
  });
  document.querySelector("#allocation-number")?.addEventListener("keydown",e=>{if(e.key==="Enter")document.querySelector("#allocation-assign").click();});
  document.querySelector("#allocation-remove")?.addEventListener("click",()=>{
   const selected=allocation.selected;
-  if(selected?.target!==undefined){remove(allocation,selected.type,selected.target);allocation.selected=null;render();}
+  if(selected?.target!==undefined){removeAssignment(allocation,selected.type,selected.target);allocation.selected=null;render();}
  });
 }
 function render(){
@@ -249,11 +249,12 @@ function render(){
  if(screen==="setup"){renderSetupScreen();return;}
  const invalid=definitions.filter(g=>activeSkills(g).length!==10);
  const bodyClassification=chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
+ const requirementIssues=allocation?allocationRequirements(allocation,chosen.culture,parsedCampaignData?.cultures.find(c=>c.name===chosen.culture)?.primaryLanguage):[];
  root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
- <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div>
- <div class="creation-workspace"><div class="creation-skill-scroll"><div class="skills">${definitions.map(renderGroup).join("")}</div></div><aside class="creation-allocation-scroll">${renderAllocationTools()}</aside></div>
- <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Mandatory base values are fixed and do not consume floating tokens. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
+ <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —${requirementIssues.length?` · Invalid: ${requirementIssues.map(escapeHtml).join("; ")}`:""}${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div>
+ <div class="creation-workspace" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,340px);gap:14px;height:calc(100dvh - 180px);min-height:400px"><div class="creation-skill-scroll" style="overflow-y:auto;min-height:0"><div class="skills">${definitions.map(renderGroup).join("")}</div></div><aside class="creation-allocation-scroll" style="overflow-y:auto;min-height:0">${renderAllocationTools()}</aside></div>
+ <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Initial Culture and Language values can be changed, which may make the character invalid. They do not consume floating tokens. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
  wireAllocation();
  if(root.querySelector(".creation-skill-scroll"))root.querySelector(".creation-skill-scroll").scrollTop=previousSkillScroll;
  if(root.querySelector(".creation-allocation-scroll"))root.querySelector(".creation-allocation-scroll").scrollTop=previousTokenScroll;
