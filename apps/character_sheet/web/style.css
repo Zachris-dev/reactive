@@ -130,3 +130,9 @@
 .testing-information summary{cursor:pointer;width:max-content}
 .testing-information .summary{margin:7px 0;padding:9px;background:#1e2835;border:1px dashed #52627a;border-radius:6px}
 .group.invalid{border:2px solid #de5864!important}
+
+/* Invalid groups signal by their outline, never by recoloring the interior. */
+.group.invalid{border:2px solid #de5864!important;background:#222a37!important}
+.group.invalid .group-title{background:#2b3544!important}
+.group.invalid .count{color:#afc2d7!important}
+.group-requirement{padding:6px 12px 1px;font-size:.78rem;color:#bacbdc;font-weight:600}
