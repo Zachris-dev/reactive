@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -140,4 +140,22 @@ test("culture total 30 can include a category bonus",()=>{
  assert.equal(assign(state,"skill",keyFor("Culture","Merchants"),27),true);
  assert.equal(assign(state,"category","Culture",3),true);
  assert.equal(cultureRequirementMet(state,["High Emeri","Merchants"]),true);
+});
+
+test("Vaelthar Culture and Language require a total of 35",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"Vaelthar"));
+ assert.equal(groupThreshold(state,"Culture"),35);
+ assert.equal(groupThreshold(state,"Language"),35);
+ assert.equal(groupRequirementMet(state,"Culture",["Vaelthar","Merchants"]),true);
+ assert.equal(groupRequirementMet(state,"Language",["Vaelan Elvish","Emerspeak"]),true);
+ removeAssignment(state,"skill",keyFor("Culture","Vaelthar"));
+ assert.equal(assign(state,"skill",keyFor("Culture","Merchants"),30),true);
+ assert.equal(groupRequirementMet(state,"Culture",["Vaelthar","Merchants"]),false);
+});
+test("Language requirement can be met by another language skill",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ removeAssignment(state,"skill",keyFor("Language","Emerspeak"));
+ assert.equal(groupRequirementMet(state,"Language",["Emerspeak","Old Ennis"]),false);
+ assert.equal(assign(state,"skill",keyFor("Language","Old Ennis"),30),true);
+ assert.equal(groupRequirementMet(state,"Language",["Emerspeak","Old Ennis"]),true);
 });
