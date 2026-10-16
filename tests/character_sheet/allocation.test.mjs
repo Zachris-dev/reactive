@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -122,4 +122,22 @@ test("secondary subgroup cap affects total and effective base",()=>{
  assert.equal(value.base,17);
  assert.equal(value.total,20);
  assert.equal(value.lost,5);
+});
+
+test("any Culture skill at 30 total satisfies common Culture requirement",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ const native=keyFor("Culture","High Emeri");
+ const other=keyFor("Culture","Merchants");
+ assert.equal(removeAssignment(state,"skill",native),true);
+ assert.equal(cultureRequirementMet(state,["High Emeri","Merchants"]),false);
+ assert.equal(assign(state,"skill",other,30),true);
+ assert.equal(cultureRequirementMet(state,["High Emeri","Merchants"]),true);
+ assert.equal(allocationRequirements(state,"High Emeri","Emerspeak",["High Emeri","Merchants"]).some(x=>x.startsWith("Culture:")),false);
+});
+test("culture total 30 can include a category bonus",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ removeAssignment(state,"skill",keyFor("Culture","High Emeri"));
+ assert.equal(assign(state,"skill",keyFor("Culture","Merchants"),27),true);
+ assert.equal(assign(state,"category","Culture",3),true);
+ assert.equal(cultureRequirementMet(state,["High Emeri","Merchants"]),true);
 });
