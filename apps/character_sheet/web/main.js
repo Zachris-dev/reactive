@@ -1,6 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
-import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue} from "./allocation.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -38,6 +38,7 @@ const root=document.querySelector("#app");
 const savedMode=localStorage.getItem("reactive-sheet-value-format");
 let valueFormat=savedMode==="decimal"?"decimal":"integer";
 let magicChoice="Arcane";
+let characterName="";
 // The character creator will supply race, culture, campaign allowed choices and mode.
 // No race/culture is selected in this stand-alone skill-list preview.
 const characterContext = {race:null, culture:null, allowedMagic:null, mode:"creation"};
@@ -75,7 +76,7 @@ function skillRows(skills, subgroup="", groupName=""){
   const result=allocation?effectiveSkillValue(allocation,groupName,cleanName(skill.name),{subgroupLimit:max}):null;
   const tooltip=result?.lost? `Warning: total skill value exceed allowed total. (${result.lost}) base value lost.`:"";
   return `<div class="skill alloc-target ${initial?"initial-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" aria-pressed="${selected}" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml(tooltip||[subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
- <span class="skill-name" ${selected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px;font-weight:750"':""}>${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-total" title="Total skill">${result?.base===undefined?"—":result.total}</span><span class="skill-value ${result?.lost?"base-loss":""}" title="${escapeHtml(tooltip||"Assigned base value")}" aria-label="${escapeHtml(tooltip||"Base skill value")}">${result?.base===undefined?"—":result.base}</span></div>`;
+ <span class="skill-name" ${selected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px;font-weight:750"':""}>${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-total" title="Total skill">${result?.base===undefined?"":result.total}</span><span class="skill-value ${result?.lost?"base-loss":""}" title="${escapeHtml(tooltip||"Assigned base value")}" aria-label="${escapeHtml(tooltip||"Base skill value")}">${result?.base===undefined?"":result.base}</span></div>`;
  }).join("");
 }
 function activeSkills(group){
@@ -87,6 +88,7 @@ function renderGroup(group){
  const options=group.alternatives ? selectableMagicChoice(group) : [];
  const list=activeSkills(group);
  const valid=list.length===10;
+ const cultureInvalid=group.name==="Culture"&&allocation&&!cultureRequirementMet(allocation,activeSkills(group).map(s=>s.name));
  let content="";
 
  if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name,group.name)}</div>`).join("");
@@ -95,8 +97,8 @@ function renderGroup(group){
  const bonus=allocation?.category[group.name];
  const categorySelected=allocation?.selected?.type==="category"&&allocation.selected.target===group.name;
  const heading=group.alternatives ? (characterContext.mode==="play" ? `<h2>${escapeHtml(magicChoice)}</h2>` : `<label class="visually-hidden" for="magic-choice">Magic discipline</label><select id="magic-choice" class="magic-heading" aria-label="Magic discipline">${options.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select>`) : `<h2>${escapeHtml(group.name)}</h2>`;
- return `<section class="group ${valid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
- <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label" ${categorySelected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px"':""}>${heading}</span><span class="category-bonus">${bonus===undefined?"—":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
+ return `<section class="group ${valid&&!cultureInvalid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
+ <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label" ${categorySelected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px"':""}>${heading}</span><span class="category-bonus">${bonus===undefined?"":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
  <div class="group-main">${content}</div>${problem}</section>`;
 }
 
@@ -259,13 +261,16 @@ function render(){
  if(screen==="setup"){renderSetupScreen();return;}
  const invalid=definitions.filter(g=>activeSkills(g).length!==10);
  const bodyClassification=chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
- const requirementIssues=allocation?allocationRequirements(allocation,chosen.culture,parsedCampaignData?.cultures.find(c=>c.name===chosen.culture)?.primaryLanguage):[];
- root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
+ const requirementIssues=allocation?allocationRequirements(allocation,chosen.culture,parsedCampaignData?.cultures.find(c=>c.name===chosen.culture)?.primaryLanguage,activeSkills(definitions.find(g=>g.name==="Culture")).map(s=>s.name)):[];
+ root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button>
+ <header class="top"><div class="character-identity"><label for="character-name">Character name</label><input id="character-name" type="text" autocomplete="off" placeholder="Name" value="${escapeHtml(characterName)}"><span class="identity-culture-race">(${escapeHtml(chosen.culture||"")}) (${escapeHtml(chosen.race||"")})</span></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
- <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —${requirementIssues.length?` · Invalid: ${requirementIssues.map(escapeHtml).join("; ")}`:""}${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div>
+ <details class="testing-information"><summary>Testing information</summary><div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue(s) in source skill list`}${requirementIssues.length?` · Invalid: ${requirementIssues.map(escapeHtml).join("; ")}`:""}${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div></details>
  <div class="creation-workspace"><div class="creation-skill-scroll"><div class="skills">${definitions.map(renderGroup).join("")}</div></div><aside class="creation-allocation-scroll">${renderAllocationTools()}</aside></div>
- <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Initial Culture and Language values are assigned from real tokens; removing or replacing them returns those tokens to the pool and may make the character invalid. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
+ <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Initial Culture and Language tokens can be reassigned. Tap a token then a target, or a target then a token.</p></div>`;
+
  wireAllocation();
+ document.querySelector("#character-name")?.addEventListener("input",event=>{characterName=event.target.value;});
  window.scrollTo(0,previousSkillScroll);
  if(root.querySelector(".creation-allocation-scroll"))root.querySelector(".creation-allocation-scroll").scrollTop=previousTokenScroll;
  document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
