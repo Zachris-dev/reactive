@@ -76,3 +76,10 @@
 .alloc-selected .skill-name,.alloc-selected .category-label,.alloc-selected .magic-heading{background:#f5e6a6!important;color:#1c2531!important;border-radius:4px;padding:2px 5px}
 .body-rank{font-size:.68rem;color:#cbd9e9;border:1px solid #627d96;border-radius:4px;padding:1px 4px}
 @media(max-width:760px){.creation-workspace{grid-template-columns:minmax(0,1fr);height:auto}.creation-skill-scroll{overflow:visible}.creation-allocation-scroll{position:sticky;bottom:0;max-height:34dvh;overflow-y:auto;z-index:2;box-shadow:0 -4px 20px #0008}.creation-allocation-scroll .allocation-tools{gap:7px}}
+
+/* Skills belong to the document; only the allocation sidebar is a scroll frame. */
+@media(min-width:761px){
+ .creation-workspace{height:auto!important;min-height:0!important;align-items:start}
+ .creation-skill-scroll{overflow:visible!important;height:auto!important;min-height:0}
+ .creation-allocation-scroll{position:sticky;top:12px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto!important;align-self:start}
+}
