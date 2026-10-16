@@ -83,3 +83,32 @@
  .creation-skill-scroll{overflow:visible!important;height:auto!important;min-height:0}
  .creation-allocation-scroll{position:sticky;top:12px;height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto!important;align-self:start}
 }
+
+/* Allocation dock: independent of the height and flow of skill categories.
+   The earlier sticky grid item moved below the skills on narrow viewports. */
+@media (min-width:601px){
+ .creation-workspace{display:block!important;height:auto!important;min-height:0!important;padding-right:354px;position:static}
+ .creation-skill-scroll{display:block;overflow:visible!important;height:auto!important;min-height:0!important}
+ .creation-allocation-scroll{
+  position:fixed!important;
+  top:12px!important;
+  right:clamp(12px,2.5vw,40px)!important;
+  bottom:12px!important;
+  width:340px!important;
+  height:auto!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain;
+  z-index:20;
+  box-shadow:0 8px 24px #0009;
+ }
+}
+@media (max-width:600px){
+ .creation-workspace{display:block!important;height:auto!important;padding-bottom:35dvh}
+ .creation-skill-scroll{overflow:visible!important;height:auto!important}
+ .creation-allocation-scroll{
+  position:fixed!important;top:auto!important;left:8px!important;right:8px!important;
+  bottom:8px!important;width:auto!important;height:32dvh!important;max-height:32dvh!important;
+  overflow-y:auto!important;z-index:20;
+ }
+}
