@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
+import {parseCampaign,parseSkillList,matchName} from "../../apps/character_sheet/web/template-parser.js";
 import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet,bodySubgroupsForRace} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
@@ -88,13 +88,43 @@ test("overwriting starting language returns original token and removal returns r
  assert.equal(remaining(state,"skill").filter(n=>n===30).length,originalCount+1);
  assert.equal(assign(state,"skill",keyFor("Combat","Sword"),30),true);
 });
-test("Seafolk Kardsworn and Vaelthar receive culture and language starting values",()=>{
- for(const [culture,language,value] of [["Seafolk","Squall (seafolk)",30],["Kardsworn","Kardish dwarf",30],["Vaelthar","Vaelan Elvish",35]]){
-  const state=makeAllocationState(allocationsFromCampaign(parsed,culture));
-  assert.equal(skillBase(state,keyFor("Culture",culture)),value===35?35:30);
-  assert.equal(skillBase(state,keyFor("Language",language)),value);
-  assert.equal(removeAssignment(state,"skill",keyFor("Language",language)),true);
-  assert.ok(remaining(state,"skill").includes(value));
+test("every playable culture grants its declared primary language as a recoverable starting token",()=>{
+ const skills=parseSkillList(readFileSync(new URL("../../campaigns/the-eldrich-race/skills.txt",import.meta.url),"utf8"));
+ const languageCategory=skills.categories.find(c=>matchName(c.name)==="language");
+ assert.ok(languageCategory,"The skill list must define a Language category");
+ const playable=parsed.cultures.filter(c=>!c.barred||c.allows.length>0);
+ assert.ok(playable.length>0,"Campaign must have playable cultures to test");
+ for(const culture of playable){
+  const label="Culture "+culture.name;
+  assert.ok(culture.primaryLanguage,label+" must declare a primary language (or *)");
+  const config=allocationsFromCampaign(parsed,culture.name);
+  const state=makeAllocationState(config);
+  const grants=config.initial.filter(grant=>matchName(grant.group)==="language");
+  if(culture.primaryLanguage==="*"){
+   assert.equal(grants.length,0,label+" uses * and must not receive a predetermined language");
+   continue;
+  }
+  assert.ok(languageCategory.skills.some(skill=>matchName(skill.name)===matchName(culture.primaryLanguage)),
+   label+" references a language absent from the skill list: "+culture.primaryLanguage);
+  const target=keyFor("Language",culture.primaryLanguage);
+  const assigned=skillBase(state,target);
+  assert.ok(Number.isInteger(assigned)&&assigned>0,label+" must start with a positive base in "+culture.primaryLanguage);
+  assert.equal(grants.length,1,label+" must grant exactly one primary language token");
+  assert.equal(grants[0].value,assigned,label+" initial token must match the displayed language base");
+
+  // Where the template specifies a number, verify it independently of the allocator.
+  const lines=culture.assignment?.toLowerCase()==="common"
+   ?parsed.metadata.common?.statements.map(s=>s.text)??[]
+   :culture.statements.map(s=>s.text);
+  const primary=lines.find(line=>/^Language\/\{primary\} assign base \d+$/i.test(line));
+  const explicit=lines.map(line=>line.match(/^Base Skill assign require Language\/(.+?) = (\d+)$/i))
+   .find(m=>m&&matchName(m[1])===matchName(culture.primaryLanguage));
+  const declared=explicit?Number(explicit[2]):primary?Number(primary.match(/\d+$/)[0]):null;
+  if(declared!==null)assert.equal(assigned,declared,label+" must honor its campaign-defined initial value");
+
+  assert.equal(removeAssignment(state,"skill",target),true,label+" language token must be removable");
+  assert.equal(skillBase(state,target),undefined,label+" removed language must be unassigned");
+  assert.ok(remaining(state,"skill").includes(assigned),label+" released language token must return to the pool");
  }
 });
 
