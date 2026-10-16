@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -96,4 +96,30 @@ test("Seafolk Kardsworn and Vaelthar receive culture and language starting value
   assert.equal(removeAssignment(state,"skill",keyFor("Language",language)),true);
   assert.ok(remaining(state,"skill").includes(value));
  }
+});
+
+test("category bonus raises total without consuming base below cap",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ const sword=keyFor("Combat","Sword");
+ assert.equal(assign(state,"skill",sword,32),true);
+ assert.equal(assign(state,"category","Combat",5),true);
+ assert.deepEqual(effectiveSkillValue(state,"Combat","Sword"),{token:32,base:32,total:37,bonus:5,lost:0,maximum:40});
+});
+test("excess category bonus trims displayed base, preserving assigned token",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ assert.equal(assign(state,"skill",keyFor("Combat","Sword"),39),true);
+ assert.equal(assign(state,"category","Combat",5),true);
+ assert.deepEqual(effectiveSkillValue(state,"Combat","Sword"),{token:39,base:35,total:40,bonus:5,lost:4,maximum:40});
+ assert.equal(skillBase(state,keyFor("Combat","Sword")),39);
+ assert.equal(remove(state,"category","Combat"),true);
+ assert.equal(effectiveSkillValue(state,"Combat","Sword").base,39);
+});
+test("secondary subgroup cap affects total and effective base",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ assert.equal(assign(state,"skill",keyFor("Body","Brawn"),22),true);
+ assert.equal(assign(state,"category","Body",3),true);
+ const value=effectiveSkillValue(state,"Body","Brawn",{subgroupLimit:20});
+ assert.equal(value.base,17);
+ assert.equal(value.total,20);
+ assert.equal(value.lost,5);
 });
