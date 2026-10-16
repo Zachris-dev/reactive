@@ -1,6 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
-import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements} from "./allocation.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -64,8 +64,18 @@ function skillRows(skills, subgroup="", groupName=""){
   const initial=allocation?.config.initial.some(r=>keyFor(r.group,r.skill)===target);
   const bodyState=groupName==="Body"&&chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
   const bodyRank=bodyState?.classification[subgroup];
-  return `<div class="skill alloc-target ${initial?"initial-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" aria-pressed="${selected}" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
- <span class="skill-name" ${selected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px;font-weight:750"':""}>${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
+  const ranks={primary:40,secondary:20,tertiary:10};
+  const race=String(chosen.race||"").toLowerCase();
+  const determined=groupName==="Body" && subgroup && subgroup!=="Senses"
+   ?(race==="human"?bodyRank:race==="elf"?{Strength:"secondary",Finesse:"primary",Constitution:"tertiary"}[subgroup]:race==="dwarf"?{Strength:"secondary",Finesse:"tertiary",Constitution:"primary"}[subgroup]:undefined)
+   :undefined;
+  const sensesRank=groupName==="Body"&&subgroup==="Senses"?(race==="dwarf"?"secondary":"primary"):undefined;
+  const rank=determined||sensesRank;
+  const max=rank?ranks[rank]+(race==="dwarf"&&rank==="secondary"?10:0):40;
+  const result=allocation?effectiveSkillValue(allocation,groupName,cleanName(skill.name),{subgroupLimit:max}):null;
+  const tooltip=result?.lost? `Warning: total skill value exceed allowed total. (${result.lost}) base value lost.`:"";
+  return `<div class="skill alloc-target ${initial?"initial-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" aria-pressed="${selected}" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml(tooltip||[subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
+ <span class="skill-name" ${selected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px;font-weight:750"':""}>${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-total" title="Total skill">${result?.base===undefined?"—":result.total}</span><span class="skill-value ${result?.lost?"base-loss":""}" title="${escapeHtml(tooltip||"Assigned base value")}" aria-label="${escapeHtml(tooltip||"Base skill value")}">${result?.base===undefined?"—":result.base}</span></div>`;
  }).join("");
 }
 function activeSkills(group){
