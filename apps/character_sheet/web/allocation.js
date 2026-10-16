@@ -26,7 +26,7 @@ export function allocationsFromCampaign(campaign,cultureName){
  return {category:pool("category"),skill:pool("skill"),required};
 }
 export function makeAllocationState(config){
- return {category:{},skill:{},selected:null,config};
+ return {category:{},skill:{},fixed:Object.fromEntries(config.required.filter(r=>r.fixed).map(r=>[keyFor(r.group,r.skill),r.value])),selected:null,config};
 }
 export function remaining(state,type){
  const spent=Object.values(state[type]);
@@ -41,7 +41,7 @@ export function remaining(state,type){
 export function assign(state,type,target,value){
  if(!["category","skill"].includes(type))return false;
  if(!Number.isInteger(value)||!remaining(state,type).includes(value))return false;
- if(state[type][target]!==undefined)return false; // Explicit removal prevents silent swaps.
+ if(state[type][target]!==undefined||type==="skill"&&state.fixed[target]!==undefined)return false; // Explicit removal prevents silent swaps.
  state[type][target]=value;return true;
 }
 export function remove(state,type,target){
