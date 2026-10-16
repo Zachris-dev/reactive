@@ -99,3 +99,14 @@ export function humanBodyClassification(state,bodyGroup){
  const violations=ranked.filter(r=>r.max>limits[classification[r.name]]).map(r=>({subgroup:r.name,max:r.max,limit:limits[classification[r.name]]}));
  return {classification,violations,ranked};
 }
+
+export function effectiveSkillValue(state,group,skill,options={}){
+ const token=skillBase(state,keyFor(group,skill));
+ const bonus=state.category[group]||0;
+ const creationMax=options.creationMax??40;
+ const subgroupLimit=options.subgroupLimit??creationMax;
+ const maximum=Math.min(creationMax,subgroupLimit);
+ if(token===undefined)return {token:undefined,base:undefined,total:bonus,bonus,lost:0,maximum};
+ const base=Math.max(0,Math.min(token,maximum-bonus));
+ return {token,base,total:base+bonus,bonus,lost:token-base,maximum};
+}
