@@ -61,7 +61,8 @@ export function validateCampaign(campaign,skillList){
  const names=entries=>new Set((entries||[]).map(s=>matchName(s.name)));
  const cultureNames=names(cultureGroup?.skills),languageNames=names(languageGroup?.skills);
  const raceNames=new Set(campaign.races.map(r=>matchName(r.name)));
- const defaults=campaign.cultures.filter(c=>c.isDefault);\n if(defaults.length>1)issues.push(diagnostic("error","campaign",defaults[1].line,"More than one default culture is declared"));
+ const defaults=campaign.cultures.filter(c=>c.isDefault);
+ if(defaults.length>1)issues.push(diagnostic("error","campaign",defaults[1].line,"More than one default culture is declared"));
  for(const c of campaign.cultures){
   const playable=!c.barred||c.allows.length>0;
   if(!cultureNames.has(matchName(c.name)))issues.push(diagnostic("warning","campaign",c.line,`Culture "${c.name}" is absent from Culture skills`));
