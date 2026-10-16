@@ -70,25 +70,23 @@ export function remove(state,type,target){
 export function hasToken(state,type,value){return remaining(state,type).includes(value);}
 export function skillBase(state,target){return state.skill[target];}
 export function removeAssignment(state,type,target){return remove(state,type,target);}
-export function cultureRequirementMet(state,cultureSkills){
- return cultureSkills.some(skill=>{
-  const value=effectiveSkillValue(state,"Culture",skill);
-  return value.token!==undefined&&value.total>=30;
+export function groupThreshold(state,group){
+ const named=state.config.required.filter(r=>r.group.toLowerCase()===group.toLowerCase());
+ return Math.max(group==="Culture"||group==="Language"?30:0,...named.map(r=>r.value));
+}
+export function groupRequirementMet(state,group,skills){
+ const threshold=groupThreshold(state,group);
+ return skills.some(skill=>{
+  const value=effectiveSkillValue(state,group,skill);
+  return value.token!==undefined&&value.total>=threshold;
  });
 }
-export function allocationRequirements(state,culture,language,cultureSkills=[culture]){
+export function cultureRequirementMet(state,skills){return groupRequirementMet(state,"Culture",skills);}
+export function allocationRequirements(state,culture,language,cultureSkills=[culture],languageSkills=[language]){
  const issues=[];
- if(!cultureRequirementMet(state,cultureSkills))
-  issues.push("Culture: at least one culture skill must have total 30 or higher");
- if(language&&language!=="*"){
-  const value=effectiveSkillValue(state,"Language",language);
-  if(value.token===undefined||value.total<30)
-   issues.push("Language/"+language+" total "+(value.token===undefined?0:value.total)+" is below required 30");
- }
- for(const rule of state.config.required){
-  const value=effectiveSkillValue(state,rule.group,rule.skill);
-  if(value.token===undefined||value.total<rule.value)
-   issues.push(rule.group+"/"+rule.skill+" total "+(value.token===undefined?0:value.total)+" is below required "+rule.value);
+ for(const [group,skills] of [["Culture",cultureSkills],["Language",languageSkills]]){
+  if(!groupRequirementMet(state,group,skills))
+   issues.push(group+": at least one skill must have total "+groupThreshold(state,group)+" or higher");
  }
  return issues;
 }
