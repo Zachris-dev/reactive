@@ -40,3 +40,26 @@
 .setup-footer button:disabled{opacity:.45;cursor:not-allowed}
 .setup-warning{border:1px solid #b96470;color:#ffccd0;padding:12px;border-radius:8px}
 @media(max-width:600px){.setup-layout{grid-template-columns:minmax(0,1fr)}.setup-app h1{font-size:1.35rem}.setup-footer button{width:100%}}
+
+/* Temporary campaign-overridable allocation palette. */
+.allocation-tools{display:grid;grid-template-columns:minmax(190px,.55fr) minmax(260px,1.6fr);gap:12px;margin:10px 0 19px;align-items:start}
+.allocation-pool,.allocation-entry{padding:12px;background:#222a37;border:1px solid #4c5b71;border-radius:10px;min-width:0}
+.allocation-pool h2{font-size:.94rem;margin:0 0 10px;display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap}
+.allocation-pool h2 small{color:#9eb3c9;font-weight:400}
+.token-grid{display:flex;gap:5px;flex-wrap:wrap}
+.float-token{padding:4px 7px;min-width:42px;min-height:35px;border:2px solid currentColor;background:#1e2935;font-weight:750;touch-action:manipulation}
+.category-token{color:var(--category-token,#e6b86a);width:43px;height:43px;min-width:43px;border-radius:7px}
+.skill-token{color:var(--skill-token,#83c7ed);min-width:58px;width:58px;height:33px;min-height:33px;border-radius:5px}
+.alloc-target{cursor:pointer}
+.group-title .category-label,.group-title .category-bonus{color:var(--category-token,#e6b86a)}
+.skill-name{color:var(--skill-token,#83c7ed)}
+.group-title{--category-token:#e6b86a}
+.skill{--skill-token:#83c7ed}
+.category-bonus{font-weight:750;min-width:24px;text-align:center}
+.alloc-selected{outline:2px solid #f8f0c3!important;outline-offset:-2px;background-color:#3e5064!important}
+.alloc-target:hover{background-color:#34495e}
+.alloc-target:focus-visible{outline:2px solid #bddafc;outline-offset:-2px}
+.allocation-entry{grid-column:1/-1;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.allocation-entry input{color:#f1f5fb;background:#303948;border:1px solid #74869d;border-radius:6px;padding:8px;width:110px;min-height:39px}
+.allocation-entry .hint{margin:0 0 0 auto}
+@media(max-width:760px){.allocation-tools{grid-template-columns:1fr}.allocation-entry{grid-column:auto}.allocation-entry .hint{width:100%;margin:0}}
