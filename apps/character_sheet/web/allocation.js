@@ -41,7 +41,7 @@ export function remaining(state,type){
 export function assign(state,type,target,value){
  if(!["category","skill"].includes(type))return false;
  if(!Number.isInteger(value)||!remaining(state,type).includes(value))return false;
- if(state[type][target]!==undefined||type==="skill"&&state.fixed[target]!==undefined)return false; // Explicit removal prevents silent swaps.
+ if(type==="skill"&&state.fixed[target]!==undefined)return false;
  state[type][target]=value;return true;
 }
 export function remove(state,type,target){
@@ -49,3 +49,18 @@ export function remove(state,type,target){
  delete state[type][target];return true;
 }
 export function hasToken(state,type,value){return remaining(state,type).includes(value);}
+
+export function humanBodyClassification(state,bodyGroup){
+ const subgroupNames=["Strength","Finesse","Constitution"];
+ const ranked=subgroupNames.map((name,index)=>{
+  const subgroup=bodyGroup?.subgroups?.find(s=>s.name===name);
+  const values=(subgroup?.skills||[]).map(s=>state.skill[keyFor("Body",s.name.replace(/\\s*\\([^)]*\\)/g,"").trim())]??state.fixed[keyFor("Body",s.name.replace(/\\s*\\([^)]*\\)/g,"").trim())]??0);
+  return {name,index,max:Math.max(0,...values)};
+ }).sort((a,b)=>b.max-a.max||a.index-b.index);
+ // Always rank all three: as assignments change, primary and secondary follow
+ // the highest base values; ties retain source subgroup order.
+ const classification=Object.fromEntries(ranked.map((r,i)=>[r.name,["primary","secondary","tertiary"][i]]));
+ const limits={primary:40,secondary:20,tertiary:10};
+ const violations=ranked.filter(r=>r.max>limits[classification[r.name]]).map(r=>({subgroup:r.name,max:r.max,limit:limits[classification[r.name]]}));
+ return {classification,violations,ranked};
+}
