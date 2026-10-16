@@ -61,8 +61,9 @@ test("race options also respect culture restrictions",()=>{
  assert.equal(can({culture:"Vaelthar"},"race","Elf"),true);
  assert.equal(can({culture:"Vaelthar"},"race","Human"),false);
 });
-test("current intentionally misspelled Vealan reference is detected with line number",()=>{
- const errors=validateCampaign(parsed,skills).filter(x=>x.severity==="error");
+test("misspelled Vaelthar skill reference is detected with line number",()=>{
+ const altered=parseCampaign(campaignText.replace("Language/Vaelan Elvish = 35","Language/Vealan Elvish = 35"));
+ const errors=validateCampaign(altered,skills).filter(x=>x.severity==="error");
  assert.ok(errors.some(x=>x.message.includes("Vealan Elvish")&&x.line>0),JSON.stringify(errors));
 });
 test("Norr absence from Culture skill list produces a warning",()=>{
