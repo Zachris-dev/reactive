@@ -1,6 +1,6 @@
 // Allocation rules are pure so the browser and tests share one implementation.
 export const testPalette={category:"#e6b86a",skill:"#83c7ed"};
-export const keyFor=(group,skill)=>JSON.stringify([group,skill]);
+export const keyFor=(group,skill)=>JSON.stringify([String(group).trim().toLowerCase(),String(skill).replace(/\s*\([^)]*\)/g,"").trim().toLowerCase()]);
 export function allocationsFromCampaign(campaign,cultureName){
  const culture=campaign.cultures.find(c=>c.name===cultureName);
  if(!culture)throw Error("Unknown culture "+cultureName);
