@@ -9,8 +9,8 @@ test("common culture gives category values 1..5 and skill values 1..40",()=>{
  const c=allocationsFromCampaign(parsed,"High Emeri");
  assert.deepEqual(c.category,[1,2,3,4,5]);
  assert.deepEqual(c.skill,Array.from({length:40},(_,i)=>i+1));
- assert.ok(c.required.some(r=>r.skill==="High Emeri"&&r.value===30&&r.fixed));
- assert.ok(c.required.some(r=>r.skill==="Emerspeak"&&r.value===30&&r.fixed));
+ assert.ok(c.initial.some(r=>r.skill==="High Emeri"&&r.value===30));
+ assert.ok(c.initial.some(r=>r.skill==="Emerspeak"&&r.value===30));
 });
 test("Vaelthar has two copies of each 1..30 skill value",()=>{
  const c=allocationsFromCampaign(parsed,"Vaelthar");
@@ -73,4 +73,27 @@ test("human Body primary and secondary rankings follow maximum base values",()=>
  assert.equal(rank().violations.some(v=>v.subgroup==="Strength"),true);
  assert.equal(remove(state,"skill",keyFor("Body","Durability")),true);
  assert.equal(rank().classification.Strength,"primary");
+});
+
+test("overwriting starting language returns original token and removal returns replacement",()=>{
+ const state=makeAllocationState(allocationsFromCampaign(parsed,"High Emeri"));
+ const target=keyFor("Language","Emerspeak");
+ const originalCount=remaining(state,"skill").filter(n=>n===30).length;
+ assert.equal(assign(state,"skill",target,39),true);
+ assert.equal(skillBase(state,target),39);
+ assert.equal(remaining(state,"skill").filter(n=>n===30).length,originalCount+1);
+ assert.equal(removeAssignment(state,"skill",target),true);
+ assert.equal(skillBase(state,target),undefined);
+ assert.equal(remaining(state,"skill").includes(39),true);
+ assert.equal(remaining(state,"skill").filter(n=>n===30).length,originalCount+1);
+ assert.equal(assign(state,"skill",keyFor("Combat","Sword"),30),true);
+});
+test("Seafolk Kardsworn and Vaelthar receive culture and language starting values",()=>{
+ for(const [culture,language,value] of [["Seafolk","Squall (seafolk)",30],["Kardsworn","Kardish dwarf",30],["Vaelthar","Vaelan Elvish",35]]){
+  const state=makeAllocationState(allocationsFromCampaign(parsed,culture));
+  assert.equal(skillBase(state,keyFor("Culture",culture)),value===35?35:30);
+  assert.equal(skillBase(state,keyFor("Language",language)),value);
+  assert.equal(removeAssignment(state,"skill",keyFor("Language",language)),true);
+  assert.ok(remaining(state,"skill").includes(value));
+ }
 });
