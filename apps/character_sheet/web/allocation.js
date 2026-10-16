@@ -26,7 +26,7 @@ export function allocationsFromCampaign(campaign,cultureName){
  return {category:pool("category"),skill:pool("skill"),required};
 }
 export function makeAllocationState(config){
- return {category:{},skill:{},fixed:Object.fromEntries(config.required.filter(r=>r.fixed).map(r=>[keyFor(r.group,r.skill),r.value])),selected:null,config};
+ return {category:{},skill:{},initial:Object.fromEntries(config.required.filter(r=>r.fixed).map(r=>[keyFor(r.group,r.skill),r.value])),cleared:{},selected:null,config};
 }
 export function remaining(state,type){
  const spent=Object.values(state[type]);
@@ -41,7 +41,7 @@ export function remaining(state,type){
 export function assign(state,type,target,value){
  if(!["category","skill"].includes(type))return false;
  if(!Number.isInteger(value)||!remaining(state,type).includes(value))return false;
- if(type==="skill"&&state.fixed[target]!==undefined)return false;
+
  state[type][target]=value;return true;
 }
 export function remove(state,type,target){
@@ -49,12 +49,38 @@ export function remove(state,type,target){
  delete state[type][target];return true;
 }
 export function hasToken(state,type,value){return remaining(state,type).includes(value);}
+export function skillBase(state,target){
+ if(Object.hasOwn(state.skill,target))return state.skill[target];
+ if(state.cleared[target])return undefined;
+ return state.initial[target];
+}
+export function removeAssignment(state,type,target){
+ if(type==="skill"&&state.initial[target]!==undefined&&!Object.hasOwn(state.skill,target)&&!state.cleared[target]){
+  state.cleared[target]=true;return true;
+ }
+ return remove(state,type,target);
+}
+export function allocationRequirements(state,culture,language){
+ const issues=[];
+ for(const [group,target] of [["Culture",culture],["Language",language]]){
+  if(!target||target==="*")continue;
+  const key=keyFor(group,target);
+  const base=skillBase(state,key)||0;
+  const total=base+(state.category[group]||0);
+  if(total<30)issues.push(group+"/"+target+" total "+total+" is below required 30");
+ }
+ for(const rule of state.config.required.filter(r=>!r.fixed)){
+  const total=(skillBase(state,keyFor(rule.group,rule.skill))||0)+(state.category[rule.group]||0);
+  if(total<rule.value)issues.push(rule.group+"/"+rule.skill+" total "+total+" is below required "+rule.value);
+ }
+ return issues;
+}
 
 export function humanBodyClassification(state,bodyGroup){
  const subgroupNames=["Strength","Finesse","Constitution"];
  const ranked=subgroupNames.map((name,index)=>{
   const subgroup=bodyGroup?.subgroups?.find(s=>s.name===name);
-  const values=(subgroup?.skills||[]).map(s=>state.skill[keyFor("Body",s.name.replace(/\\s*\\([^)]*\\)/g,"").trim())]??state.fixed[keyFor("Body",s.name.replace(/\\s*\\([^)]*\\)/g,"").trim())]??0);
+  const values=(subgroup?.skills||[]).map(s=>skillBase(state,keyFor("Body",s.name.replace(/\\s*\\([^)]*\\)/g,"").trim()))??0);
   return {name,index,max:Math.max(0,...values)};
  }).sort((a,b)=>b.max-a.max||a.index-b.index);
  // Always rank all three: as assignments change, primary and secondary follow
