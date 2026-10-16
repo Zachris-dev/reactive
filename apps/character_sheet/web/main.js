@@ -114,8 +114,13 @@ let templateDiagnostics=[];let loadFailure="";
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
 function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
+function validationReport(){
+ const errors=templateDiagnostics.filter(d=>d.severity==="error");
+ if(!errors.length)return "";
+ return `<section class="setup-warning" role="alert"><strong>Campaign has ${errors.length} validation error(s)</strong><ul>${errors.map(d=>`<li>${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</li>`).join("")}</ul></section>`;
+}
 function renderCampaignScreen(){
- root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
+ root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${validationReport()}${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
   campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{})};expanded={};setupNotice="";screen="setup";render();
@@ -137,7 +142,7 @@ function renderSetupScreen(){
    </section>`;
  }).join("");
  root.innerHTML=`<div class="app setup-app"><button class="back-button" id="back-campaign">‹ Campaigns</button>
- <h1>New character</h1><p class="subtitle">${escapeHtml(campaign.name)}</p>
+ <h1>New character</h1><p class="subtitle">${escapeHtml(campaign.name)}</p>${validationReport()}
  <div class="setup-layout"><div class="setup-selections">${panels}</div>
  <aside class="template-area"><h2>Character templates</h2>
  ${campaign.templates.length?campaign.templates.map(t=>`<button class="template-card" data-template="${escapeHtml(t.id)}">${escapeHtml(t.name)}</button>`).join(""):`<p class="hint">No template characters have been added for this campaign.</p>`}

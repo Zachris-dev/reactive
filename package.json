@@ -19,7 +19,8 @@
     "test:parser": "node --test tests/character_sheet/parser-and-selection.test.mjs",
     "test:creation": "node --test tests/character_sheet/parser-and-selection.test.mjs",
     "test:character": "node --test tests/character_sheet/parser-and-selection.test.mjs",
-    "test:all": "npm test && npm run test:parser"
+    "test:all": "npm test && npm run test:parser",
+    "validate:campaign": "node tests/character_sheet/validate-campaign.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3",

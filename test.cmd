@@ -49,6 +49,13 @@ if /I "%~1"=="all" (
   goto :check
 )
 
+if /I "%~1"=="validate" (
+  if not "%~2"=="" goto :usage
+  call npm run validate:campaign
+  set "TEST_ERROR=%ERRORLEVEL%"
+  goto :check
+)
+
 goto :usage
 
 :check
@@ -62,7 +69,7 @@ echo Tests passed.
 exit /b 0
 
 :usage
-echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|all]
+echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|validate^|all]
 echo.
 echo   no parameter  Run rules engine and parser tests
 echo   roll          Run roll engine tests only
@@ -70,5 +77,6 @@ echo   result        Run resolution tests only
 echo   parser        Run campaign parsing and selection tests
 echo   creation      Run character creation tests ^(currently same suite^)
 echo   character     Run character tests ^(currently same suite^)
+echo   validate      Check actual campaign files; fail on errors
 echo   all           Run rules engine and parser tests
 exit /b 2
