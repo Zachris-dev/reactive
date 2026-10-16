@@ -18,6 +18,34 @@ const campaign={
  ],
  restrictions:selectionRules(parsed)
 };
+
+// Parser tests use independent, deliberately constructed fixtures.
+// Live campaign files are used only by explicitly named integration checks.
+const parserFixture=`Common assignment:
+Culture/{primary} assign base 30
+Language/{primary} assign base 30
+Category gain [1..5]
+Base Skill gain [1..40]
+
+Race: Human
+Race: Elf
+Disallow: Magic selection Physical Adept
+
+Primary Culture: Test Culture
+Primary Language: Emerspeak
+Assignment: Common
+
+Primary Culture: Other Culture
+Primary Language: Emerspeak
+Assignment: Common
+`;
+const minimalSkillList={
+ categories:[
+  {name:"Culture",skills:[{name:"Test Culture"},{name:"Other Culture"}]},
+  {name:"Language",skills:[{name:"Emerspeak"}]}
+ ],
+ issues:[]
+};
 const options=id=>campaign.selections.find(s=>s.id===id);
 const can=(chosen,group,name)=>optionAvailable(campaign,chosen,options(group),options(group).options.find(o=>matchName(o.id)===matchName(name)));
 test("skill list has 12 groups of 10 and four 10-skill magic alternatives",()=>{
@@ -29,8 +57,8 @@ test("parentheses are only descriptive for matching",()=>{
  assert.equal(matchName("Squall (seafolk)"),matchName("Squall"));
  assert.equal(matchName("Merchants (signs, bookkeeping)"),matchName("Merchants"));
 });
-test("parser recognizes race exclusion from actual campaign file",()=>{
- assert.deepEqual(selectionRules(parsed).filter(r=>matchName(r.value)==="elf"),[
+test("parser recognizes a race exclusion directive",()=>{
+ assert.deepEqual(selectionRules(parseCampaign(parserFixture)).filter(r=>matchName(r.value)==="elf"),[
   {selection:"race",value:"elf",disallow:{magic:["Physical Adept"]}}
  ]);
 });
@@ -62,50 +90,51 @@ test("race options also respect culture restrictions",()=>{
  assert.equal(can({culture:"Vaelthar"},"race","Human"),false);
 });
 test("misspelled Vaelthar skill reference is detected with line number",()=>{
- const altered=parseCampaign(campaignText.replace("Language/Vaelan Elvish = 35","Language/Vealan Elvish = 35"));
- const errors=validateCampaign(altered,skills).filter(x=>x.severity==="error");
+ const altered=parseCampaign(parserFixture+"\nPrimary Culture: Typo Culture\nPrimary Language: Emerspeak\nBase Skill assign require Language/Vealan Elvish = 35\n");
+ const errors=validateCampaign(altered,minimalSkillList).filter(x=>x.severity==="error");
  assert.ok(errors.some(x=>x.message.includes("Vealan Elvish")&&x.line>0),JSON.stringify(errors));
 });
-test("Norr absence from Culture skill list produces a warning",()=>{
- const issues=validateCampaign(parsed,skills);
- assert.ok(issues.some(x=>x.severity==="warning"&&x.message.includes("Norr")),JSON.stringify(issues));
+test("culture absent from skill list produces a warning",()=>{
+ const model=parseCampaign(parserFixture+"\nPrimary Culture: Missing Culture\nPrimary Language: Emerspeak\nAssignment: Common\n");
+ const issues=validateCampaign(model,minimalSkillList);
+ assert.ok(issues.some(x=>x.severity==="warning"&&x.message.includes("Missing Culture")),JSON.stringify(issues));
 });
 test("barred incomplete cultures are notes rather than errors",()=>{
- const notes=validateCampaign(parsed,skills);
- assert.ok(notes.some(x=>x.severity==="info"&&x.message.includes("Razyg")&&x.message.includes("primary language")));
- assert.equal(notes.some(x=>x.severity==="error"&&x.message.includes('Culture "Razyg"')),false);
+ const model=parseCampaign(parserFixture+"\nPrimary Culture: Incomplete Culture\nBarred\n");
+ const notes=validateCampaign(model,minimalSkillList);
+ assert.ok(notes.some(x=>x.severity==="info"&&x.message.includes("Incomplete Culture")&&x.message.includes("primary language")));
+ assert.equal(notes.some(x=>x.severity==="error"&&x.message.includes('Culture "Incomplete Culture"')),false);
 });
 test("a missing language on a playable culture is an error",()=>{
- const altered=parseCampaign(campaignText.replace(/(Primary Culture: High Emeri\s*)Primary Language: Emerspeak/,"$1"));
- const issues=validateCampaign(altered,skills);
- assert.ok(issues.some(x=>x.severity==="error"&&x.message.includes('Culture "High Emeri" has no primary language')));
+ const altered=parseCampaign(parserFixture+"\nPrimary Culture: No Language\nAssignment: Common\n");
+ const issues=validateCampaign(altered,minimalSkillList);
+ assert.ok(issues.some(x=>x.severity==="error"&&x.message.includes('Culture "No Language" has no primary language')));
 });
 test("structurally invalid skill list is rejected",()=>{
- const changed=skillsText.replace(/^\s*Nonverbal\s*$/m,"");
+ const changed="1. Example Skills\n"+Array.from({length:9},(_,i)=>"Skill "+i).join("\n");
  const result=parseSkillList(changed);
- assert.ok(result.issues.some(i=>i.severity==="error"&&i.message.includes("Social")));
+ assert.ok(result.issues.some(i=>i.severity==="error"&&i.message.includes("Example Skills")));
 });
 
 test("unknown standalone directives generate line-numbered warnings",()=>{
- const changed=campaignText.replace(/Primary Culture: High Emeri/, "Primary Culture: High Emeri\nMysterious invention");
+ const changed=parserFixture+"\nPrimary Culture: Strange Culture\nMysterious invention\n";
  const issue=parseCampaign(changed).issues.find(i=>i.message.includes("Mysterious invention"));
  assert.equal(issue?.severity,"warning");
  assert.ok(issue.line>0);
 });
 test("Default is recognized for cultures, without unknown directive warnings",()=>{
- const changed=campaignText.replace(/Primary Culture: High Emeri/, "Primary Culture: High Emeri\nDefault");
- const model=parseCampaign(changed);
- assert.equal(model.cultures.find(c=>c.name==="High Emeri").isDefault,true);
+ const model=parseCampaign("Primary Culture: Test Culture\nDefault\nPrimary Language: Emerspeak\nAssignment: Common\n");
+ assert.equal(model.cultures.find(c=>c.name==="Test Culture").isDefault,true);
  assert.equal(model.issues.some(i=>i.message.includes("Default")),false);
 });
 test("misspelled primary language is a validation error for a playable culture",()=>{
- const changed=campaignText.replace(/(Primary Culture: Low Emeri\s*Barred\s*Allow Human\s*Primary Language: )Emerspeak/i,"$1Emmspeak");
- const issues=validateCampaign(parseCampaign(changed),skills);
+ const changed=parserFixture+"\nPrimary Culture: Misspelled Language\nPrimary Language: Emmspeak\nAssignment: Common\n";
+ const issues=validateCampaign(parseCampaign(changed),minimalSkillList);
  assert.ok(issues.some(i=>i.severity==="error"&&i.message.includes("Emmspeak")),JSON.stringify(issues));
 });
 test("two default cultures cause an error",()=>{
- const changed=campaignText.replace(/Primary Culture: High Emeri/,"Primary Culture: High Emeri\nDefault").replace(/Primary Culture: Revangelism/,"Primary Culture: Revangelism\nDefault");
- assert.ok(validateCampaign(parseCampaign(changed),skills).some(i=>i.severity==="error"&&i.message.includes("More than one default")));
+ const changed="Primary Culture: First\nDefault\nPrimary Language: Emerspeak\nPrimary Culture: Second\nDefault\nPrimary Language: Emerspeak\n";
+ assert.ok(validateCampaign(parseCampaign(changed),minimalSkillList).some(i=>i.severity==="error"&&i.message.includes("More than one default")));
 });
 
 test("campaign defaults are High Emeri and human",()=>{
