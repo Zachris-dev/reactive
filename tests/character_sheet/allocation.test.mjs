@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {parseCampaign} from "../../apps/character_sheet/web/template-parser.js";
-import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet} from "../../apps/character_sheet/web/allocation.js";
+import {allocationsFromCampaign,makeAllocationState,keyFor,remaining,assign,remove,testPalette,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet,bodySubgroupsForRace} from "../../apps/character_sheet/web/allocation.js";
 const text=readFileSync(new URL("../../campaigns/the-eldrich-race/campaign.txt",import.meta.url),"utf8");
 const parsed=parseCampaign(text);
 test("common culture gives category values 1..5 and skill values 1..40",()=>{
@@ -158,4 +158,22 @@ test("Language requirement can be met by another language skill",()=>{
  assert.equal(groupRequirementMet(state,"Language",["Emerspeak","Old Ennis"]),false);
  assert.equal(assign(state,"skill",keyFor("Language","Old Ennis"),30),true);
  assert.equal(groupRequirementMet(state,"Language",["Emerspeak","Old Ennis"]),true);
+});
+
+test("Body placement is race-specific and original template stays unchanged",()=>{
+ const body={name:"Body",subgroups:[
+  {name:"Strength",skills:[{name:"Brawn"},{name:"Speed"}]},
+  {name:"Finesse",skills:[{name:"Balance"},{name:"Agility"}]},
+  {name:"Constitution",skills:[{name:"Health"}]}
+ ]};
+ const locate=(list,name)=>list.find(s=>s.skills.some(k=>k.name===name))?.name;
+ const human=bodySubgroupsForRace(body,"Human"),elf=bodySubgroupsForRace(body,"Elf"),dwarf=bodySubgroupsForRace(body,"Dwarf");
+ assert.equal(locate(human,"Speed"),"Strength");
+ assert.equal(locate(human,"Balance"),"Finesse");
+ assert.equal(locate(elf,"Speed"),"Finesse");
+ assert.equal(locate(elf,"Balance"),"Finesse");
+ assert.equal(locate(dwarf,"Speed"),"Finesse");
+ assert.equal(locate(dwarf,"Balance"),"Strength");
+ assert.equal(locate(body.subgroups,"Speed"),"Strength");
+ for(const moved of [elf,dwarf])assert.equal(moved.reduce((sum,sub)=>sum+sub.skills.length,0),5);
 });
