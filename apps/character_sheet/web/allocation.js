@@ -58,7 +58,9 @@ export function removeAssignment(state,type,target){
  if(type==="skill"&&state.initial[target]!==undefined&&!Object.hasOwn(state.skill,target)&&!state.cleared[target]){
   state.cleared[target]=true;return true;
  }
- return remove(state,type,target);
+ const removed=remove(state,type,target);
+ if(removed&&type==="skill"&&state.initial[target]!==undefined)state.cleared[target]=true;
+ return removed;
 }
 export function allocationRequirements(state,culture,language){
  const issues=[];
