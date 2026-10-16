@@ -1,6 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
-import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove} from "./allocation.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -62,8 +62,10 @@ function skillRows(skills, subgroup="", groupName=""){
   const placed=allocation?.skill[target]??allocation?.fixed[target];
   const selected=allocation?.selected?.type==="skill"&&allocation.selected.target===target;
   const fixed=allocation?.fixed[target]!==undefined;
+  const bodyState=groupName==="Body"&&chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
+  const bodyRank=bodyState?.classification[subgroup];
   return `<div class="skill alloc-target ${fixed?"fixed-skill":""} ${subgroup?"subgroup-skill":""} ${selected?"alloc-selected":""}" tabindex="0" role="button" data-type="skill" data-target="${escapeHtml(target)}" data-subgroup="${escapeHtml(subgroup)}" data-skill="${escapeHtml(cleanName(skill.name))}" title="${escapeHtml([subgroup?"Subcategory "+subgroup:"",skill.description].filter(Boolean).join(" — ")||skill.name)}">
- <span class="skill-name">${escapeHtml(skill.name)}</span><span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
+ <span class="skill-name">${escapeHtml(skill.name)}</span>${bodyRank?`<small class="body-rank" title="${bodyRank} Body subgroup">${bodyRank[0].toUpperCase()}</small>`:""}<span class="skill-value">${placed===undefined?"—":escapeHtml(placed)}</span></div>`;
  }).join("");
 }
 function activeSkills(group){
@@ -241,15 +243,20 @@ function wireAllocation(){
  });
 }
 function render(){
+ const previousSkillScroll=root.querySelector(".creation-skill-scroll")?.scrollTop||0;
+ const previousTokenScroll=root.querySelector(".creation-allocation-scroll")?.scrollTop||0;
  if(screen==="campaign"){renderCampaignScreen();return;}
  if(screen==="setup"){renderSetupScreen();return;}
  const invalid=definitions.filter(g=>activeSkills(g).length!==10);
+ const bodyClassification=chosen.race?.toLowerCase()==="human"&&allocation?humanBodyClassification(allocation,definitions.find(g=>g.name==="Body")):null;
  root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button><header class="top"><div><h1>Character skills</h1><p class="subtitle">The Eldrich Race · Reactive</p></div>
  <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
- <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —</div>
- ${renderAllocationTools()}<div class="skills">${definitions.map(renderGroup).join("")}</div>
- <p class="notes">Mandatory base values are fixed and do not consume floating tokens. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
+ <div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue${invalid.length===1?"":"s"} in source skill list`} · Unassigned values shown as —${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div>
+ <div class="creation-workspace"><div class="creation-skill-scroll"><div class="skills">${definitions.map(renderGroup).join("")}</div></div><aside class="creation-allocation-scroll">${renderAllocationTools()}</aside></div>
+ <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Mandatory base values are fixed and do not consume floating tokens. Tap a token then a matching target, or a target then a token. Drag tokens onto targets. Select an assigned target to remove its value.</p></div>`;
  wireAllocation();
+ if(root.querySelector(".creation-skill-scroll"))root.querySelector(".creation-skill-scroll").scrollTop=previousSkillScroll;
+ if(root.querySelector(".creation-allocation-scroll"))root.querySelector(".creation-allocation-scroll").scrollTop=previousTokenScroll;
  document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
  document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){if(magicChoice!==event.target.value){for(const target of Object.keys(allocation?.skill||{})){if(JSON.parse(target)[0]==="Magic")remove(allocation,"skill",target);}}magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
