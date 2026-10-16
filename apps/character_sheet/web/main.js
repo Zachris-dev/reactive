@@ -119,7 +119,7 @@ const campaigns=[{
  templates:[]
 }];
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
-let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;
+let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;let allocatedCulture=null;
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
 function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
@@ -132,7 +132,7 @@ function renderCampaignScreen(){
  root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${validationReport()}${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
-  campaign=campaigns.find(c=>c.id===b.dataset.campaign);chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{})};expanded={};setupNotice="";screen="setup";render();
+  campaign=campaigns.find(c=>c.id===b.dataset.campaign);allocation=null;allocatedCulture=null;chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{})};expanded={};setupNotice="";screen="setup";render();
  }));
 }
 function renderSetupScreen(){
@@ -174,7 +174,10 @@ function renderSetupScreen(){
    characterContext.culture=chosen.culture||null;
    characterContext.allowedMagic=campaign.selections.find(g=>g.id==="magic")?.options.filter(o=>availableOption({id:"magic"},o)).map(o=>o.id)||null;
    magicChoice=chosen.magic||magicChoice;
-   allocation=makeAllocationState(allocationsFromCampaign(parsedCampaignData,chosen.culture));
+   if(!allocation||allocatedCulture!==chosen.culture){
+    allocation=makeAllocationState(allocationsFromCampaign(parsedCampaignData,chosen.culture));
+    allocatedCulture=chosen.culture;
+   }
    screen="skills";render();
  });
 }
