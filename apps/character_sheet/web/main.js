@@ -84,6 +84,21 @@ function activeSkills(group){
  if(group.subgroups)return group.subgroups.flatMap(s=>s.skills);
  return group.skills;
 }
+function bodySubgroupsForRace(group,race){
+ if(group.name!=="Body"||!group.subgroups)return group.subgroups||[];
+ const subgroups=group.subgroups.map(s=>({...s,skills:[...s.skills]}));
+ const move=(skillName,to)=>{
+  let found=null;
+  for(const subgroup of subgroups){
+   const i=subgroup.skills.findIndex(s=>s.name.toLowerCase()===skillName.toLowerCase());
+   if(i!==-1){found=subgroup.skills.splice(i,1)[0];break;}
+  }
+  if(found)subgroups.find(s=>s.name===to)?.skills.push(found);
+ };
+ if(String(race).toLowerCase()==="elf")move("Speed","Finesse");
+ if(String(race).toLowerCase()==="dwarf"){move("Speed","Finesse");move("Balance","Strength");}
+ return subgroups;
+}
 function renderGroup(group){
  const options=group.alternatives ? selectableMagicChoice(group) : [];
  const list=activeSkills(group);
@@ -93,12 +108,12 @@ function renderGroup(group){
  const requirementInvalid=checkedGroup&&allocation&&!groupRequirementMet(allocation,group.name,list.map(s=>s.name));
  let content="";
 
- if(group.subgroups)content+=group.subgroups.map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name,group.name)}</div>`).join("");
+ if(group.subgroups)content+=bodySubgroupsForRace(group,chosen.race).map((s,i)=>`<div class="subgroup-block subgroup-tone-${i%2}">${skillRows(s.skills,s.name,group.name)}</div>`).join("");
  else content+=skillRows(list,"",group.name);
  const problem=!valid?`<div class="diagnostic" role="status">${escapeHtml(group.name)} contains ${list.length} skills; exactly 10 required.</div>`:"";
  const bonus=allocation?.category[group.name];
  const categorySelected=allocation?.selected?.type==="category"&&allocation.selected.target===group.name;
- const requirementText=checkedGroup&&allocation?`<div class="group-requirement">One total needs to be ${threshold}</div>`:"";
+ const requirementText=requirementInvalid?`<div class="group-requirement">One total needs to be ${threshold}</div>`:"";
  const heading=group.alternatives ? (characterContext.mode==="play" ? `<h2>${escapeHtml(magicChoice)}</h2>` : `<label class="visually-hidden" for="magic-choice">Magic discipline</label><select id="magic-choice" class="magic-heading" aria-label="Magic discipline">${options.map(a=>`<option value="${escapeHtml(a.name)}" ${a.name===magicChoice?"selected":""}>${escapeHtml(a.name)}</option>`).join("")}</select>`) : `<h2>${escapeHtml(group.name)}</h2>`;
  return `<section class="group ${valid&&!requirementInvalid?"":"invalid"}" aria-label="${escapeHtml(group.name)}">
  <div class="group-title alloc-target ${categorySelected?"alloc-selected":""}" tabindex="0" data-type="category" data-target="${escapeHtml(group.name)}"><span class="category-label" ${categorySelected?'style="background:#f5e6a6;color:#1c2531;border-radius:4px;padding:3px 6px"':""}>${heading}</span><span class="category-bonus">${bonus===undefined?"":"+"+bonus}</span><span class="count">${list.length} / 10</span></div>
