@@ -8,7 +8,7 @@
 .subgroup-block+.subgroup-block{border-top:1px solid #607087}
 
 /* Selected Magic discipline occupies the category heading itself. */
-.magic-heading{appearance:none;-webkit-appearance:none;font-size:1.04rem;font-weight:700;line-height:1.3;color:#e8edf5;background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10'%3E%3Cpath fill='%23b7c9dc' d='M1 1h12L7 8z'/%3E%3C/svg%3E") no-repeat right 7px center;border:1px solid transparent;border-radius:5px;min-width:0;max-width:calc(100% - 50px);min-height:30px;padding:2px 25px 2px 0;cursor:pointer}
+.magic-heading{appearance:none;-webkit-appearance:none;font-size:1.04rem;font-weight:700;line-height:1.3;color:var(--category-token,#e6b86a);background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='10'%3E%3Cpath fill='%23b7c9dc' d='M1 1h12L7 8z'/%3E%3C/svg%3E") no-repeat right 7px center;border:1px solid transparent;border-radius:5px;min-width:0;max-width:calc(100% - 50px);min-height:30px;padding:2px 25px 2px 0;cursor:pointer}
 .magic-heading:hover{border-color:#66758a}
 .magic-heading option{background:#253141;color:#e8edf5}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -61,3 +61,5 @@
 .allocation-entry input{color:#f1f5fb;background:#303948;border:1px solid #74869d;border-radius:6px;padding:8px;width:110px;min-height:39px}
 .allocation-entry .hint{margin:0 0 0 auto}
 @media(max-width:760px){.allocation-tools{grid-template-columns:1fr}.allocation-entry{grid-column:auto}.allocation-entry .hint{width:100%;margin:0}}
+
+.fixed-skill .skill-value{border-style:dashed;color:#d7dce5}
