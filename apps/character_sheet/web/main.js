@@ -1,6 +1,6 @@
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues} from "./selection-rules.js";
-import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet} from "./allocation.js";
+import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet,bodySubgroupsForRace} from "./allocation.js";
 // Skill definitions transcribed from The Eldrich Rase Skill list.txt.
 // Descriptions are intentionally optional; never invent missing skills.
 const groups = [
@@ -83,21 +83,6 @@ function activeSkills(group){
  if(group.alternatives)return group.alternatives.find(a=>a.name===magicChoice)?.skills ?? [];
  if(group.subgroups)return group.subgroups.flatMap(s=>s.skills);
  return group.skills;
-}
-function bodySubgroupsForRace(group,race){
- if(group.name!=="Body"||!group.subgroups)return group.subgroups||[];
- const subgroups=group.subgroups.map(s=>({...s,skills:[...s.skills]}));
- const move=(skillName,to)=>{
-  let found=null;
-  for(const subgroup of subgroups){
-   const i=subgroup.skills.findIndex(s=>s.name.toLowerCase()===skillName.toLowerCase());
-   if(i!==-1){found=subgroup.skills.splice(i,1)[0];break;}
-  }
-  if(found)subgroups.find(s=>s.name===to)?.skills.push(found);
- };
- if(String(race).toLowerCase()==="elf")move("Speed","Finesse");
- if(String(race).toLowerCase()==="dwarf"){move("Speed","Finesse");move("Balance","Strength");}
- return subgroups;
 }
 function renderGroup(group){
  const options=group.alternatives ? selectableMagicChoice(group) : [];
