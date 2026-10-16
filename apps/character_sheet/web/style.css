@@ -121,3 +121,12 @@
 .skill{grid-template-columns:minmax(0,1fr) auto auto}
 .skill-total{font-size:.8rem;min-width:37px;text-align:right;color:#b7c9d8;font-variant-numeric:tabular-nums}
 .skill-value.base-loss{color:#ffb5a2;background:#62363c;border-color:#ee947c;font-weight:800}
+
+.character-identity{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.character-identity label{font-size:.86rem;color:#b4c9db}
+.character-identity input{font:inherit;color:#f0f4fc;background:#263547;border:1px solid #71829b;border-radius:7px;padding:9px 11px;min-width:180px;max-width:340px}
+.identity-culture-race{color:#c4d3e5;font-weight:650}
+.testing-information{margin:0 0 12px;color:#9fb1c4;font-size:.8rem}
+.testing-information summary{cursor:pointer;width:max-content}
+.testing-information .summary{margin:7px 0;padding:9px;background:#1e2835;border:1px dashed #52627a;border-radius:6px}
+.group.invalid{border:2px solid #de5864!important}
