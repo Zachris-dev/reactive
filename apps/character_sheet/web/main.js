@@ -176,7 +176,7 @@ function renderSetupScreen(){
    characterContext.culture=chosen.culture||null;
    characterContext.allowedMagic=campaign.selections.find(g=>g.id==="magic")?.options.filter(o=>availableOption({id:"magic"},o)).map(o=>o.id)||null;
    if(allocation&&allocatedCulture===chosen.culture&&magicChoice!==chosen.magic){
-    for(const target of Object.keys(allocation.skill)){if(JSON.parse(target)[0]==="Magic")remove(allocation,"skill",target);}
+    for(const target of Object.keys(allocation.skill)){if(JSON.parse(target)[0]==="magic")remove(allocation,"skill",target);}
    }
    magicChoice=chosen.magic||magicChoice;
    if(!allocation||allocatedCulture!==chosen.culture){
@@ -259,7 +259,7 @@ function render(){
  window.scrollTo(0,previousSkillScroll);
  if(root.querySelector(".creation-allocation-scroll"))root.querySelector(".creation-allocation-scroll").scrollTop=previousTokenScroll;
  document.querySelector("#back-setup").addEventListener("click",()=>{chosen.magic=magicChoice;screen="setup";render();});
- document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){if(magicChoice!==event.target.value){for(const target of Object.keys(allocation?.skill||{})){if(JSON.parse(target)[0]==="Magic")remove(allocation,"skill",target);}}magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
+ document.querySelector("#magic-choice")?.addEventListener("change",event=>{const group=definitions.find(g=>g.name==="Magic"); if(characterContext.mode!=="play" && availableMagicChoices(group).some(a=>a.name===event.target.value)){if(magicChoice!==event.target.value){for(const target of Object.keys(allocation?.skill||{})){if(JSON.parse(target)[0]==="magic")remove(allocation,"skill",target);}}magicChoice=event.target.value;chosen.magic=magicChoice;render();}});
  document.querySelector("#value-format").addEventListener("change",event=>{valueFormat=event.target.value;localStorage.setItem("reactive-sheet-value-format",valueFormat);render();});
 }
 async function loadCampaignFiles(){
