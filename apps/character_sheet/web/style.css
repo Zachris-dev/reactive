@@ -53,8 +53,6 @@
 .alloc-target{cursor:pointer}
 .group-title .category-label,.group-title .category-bonus{color:var(--category-token,#e6b86a)}
 .skill-name{color:var(--skill-token,#83c7ed)}
-.group-title{--category-token:#e6b86a}
-.skill{--skill-token:#83c7ed}
 .category-bonus{font-weight:750;min-width:24px;text-align:center}
 .alloc-selected{outline:2px solid #f8f0c3!important;outline-offset:-2px;background-color:#3e5064!important}
 .alloc-target:hover{background-color:#34495e}
