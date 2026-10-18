@@ -367,6 +367,8 @@ function render(){
   try{
    const documentData=parseCharacterSave(await file.text(),campaign.name);
    applyCharacterDocument(documentData);
+   // JSON imports do not silently overwrite an existing local character.
+   currentLibraryId=null;
    render();
   }catch(error){window.alert("Unable to load character: "+error.message);}
   event.target.value="";
