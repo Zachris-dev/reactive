@@ -3,7 +3,7 @@ import {keyFor,makeAllocationState,remaining} from "./allocation.js";
 export const REACTIVE_VERSION="0.88";
 export const characterHeader=(campaign,date)=>`Character sheet - Reactive ${REACTIVE_VERSION} - ${campaign} - Created ${date}`;
 const plainName=value=>String(value??"").replace(/\s*\([^)]*\)/g,"").trim().toLowerCase();
-const skillList=group=>group.alternatives?group.alternatives.flatMap(a=>a.skills):group.subgroups?group.subgroups.flatMap(s=>s.skills):group.skills||[];
+const skillList=group=>group.alternatives?.length?group.alternatives.flatMap(a=>a.skills):group.subgroups?.length?group.subgroups.flatMap(s=>s.skills):group.skills||[];
 function categoryFor(definitions,name){return definitions.find(g=>plainName(g.name)===plainName(name));}
 function knownSkill(group,name){return skillList(group).find(s=>plainName(s.name)===plainName(name));}
 export function mainCultureFromSkills(state,definitions,fallback=""){
