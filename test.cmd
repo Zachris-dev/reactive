@@ -3,21 +3,21 @@ setlocal
 
 if "%~1"=="" (
   call npm run test:all
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
 if /I "%~1"=="roll" (
   if not "%~2"=="" goto :usage
   call npm run test:roll
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
 if /I "%~1"=="result" (
   if not "%~2"=="" goto :usage
   call npm run test:result
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
@@ -29,7 +29,7 @@ if /I "%~1"=="parser" (
   ) else (
     call npm run test:parser -- %~2
   )
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
@@ -41,7 +41,7 @@ if /I "%~1"=="creation" (
   ) else (
     call npm run test:creation -- %~2
   )
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
@@ -53,21 +53,21 @@ if /I "%~1"=="character" (
   ) else (
     call npm run test:character -- %~2
   )
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
 if /I "%~1"=="all" (
   if not "%~2"=="" goto :usage
   call npm run test:all
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
 if /I "%~1"=="validate" (
   if not "%~2"=="" goto :usage
   call npm run validate:campaign
-  set "TEST_ERROR=%ERRORLEVEL%"
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
 )
 
