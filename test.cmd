@@ -71,12 +71,12 @@ exit /b 0
 :usage
 echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|validate^|all]
 echo.
-echo   no parameter  Run rules engine and parser tests
+echo   no parameter  Run all test suites (grouped character results)
 echo   roll          Run roll engine tests only
 echo   result        Run resolution tests only
 echo   parser        Run campaign parsing and selection tests
-echo   creation      Run character creation tests ^(currently same suite^)
-echo   character     Run character tests ^(currently same suite^)
+echo   creation      Run grouped parser, allocation, and save/load tests
+echo   character     Run grouped parser, allocation, and save/load tests
 echo   validate      Check actual campaign files; fail on errors
-echo   all           Run rules engine and parser tests
+echo   all           Run all test suites
 exit /b 2
