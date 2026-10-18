@@ -182,7 +182,7 @@ function applyCharacterDocument(documentData){
  chosen={culture:selectedCulture,race:newRace,magic:newMagic};
  characterName=documentData.primary.name||"";
  characterPrimaryDetails={...documentData.primary};
- characterCreated=documentData.format.match(/Created (\\d{4}-\\d{2}-\\d{2})$/)?.[1]||null;
+ characterCreated=documentData.format.match(/Created (\d{4}-\d{2}-\d{2})$/)?.[1]||null;
  savedCharacterDocument=documentData;allocation=newState;allocatedCulture=selectedCulture;
  magicChoice=newMagic;characterContext.race=newRace;characterContext.culture=selectedCulture;
  currentLibraryId=documentData.library?.id||null;
