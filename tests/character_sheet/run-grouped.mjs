@@ -7,7 +7,8 @@ const groups={
   creation:[
     ["Campaign parser and selection","tests/character_sheet/parser-and-selection.test.mjs"],
     ["Character creation and allocation","tests/character_sheet/allocation.test.mjs"],
-    ["Character save and load","tests/character_sheet/character-save.test.mjs"]
+    ["Character save and load","tests/character_sheet/character-save.test.mjs"],
+    ["Local character library","tests/character_sheet/character-library.test.mjs"]
   ]
 };
 const args=process.argv.slice(2);
