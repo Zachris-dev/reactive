@@ -10,8 +10,11 @@ const groups={
     ["Character save and load","tests/character_sheet/character-save.test.mjs"]
   ]
 };
-const mode=process.argv[2]||"creation";
-if(!groups[mode]){console.error("Usage: node tests/character_sheet/run-grouped.mjs [parser|creation]");process.exit(2);}
+const args=process.argv.slice(2);
+const verbose=args.includes("-v")||args.includes("--verbose");
+const mode=args.find(arg=>arg!=="-v"&&arg!=="--verbose")||"creation";
+if(args.some(arg=>!["-v","--verbose","parser","creation"].includes(arg))) {console.error("Usage: node tests/character_sheet/run-grouped.mjs [parser|creation] [-v|--verbose]");process.exit(2);}
+if(!groups[mode]){console.error("Usage: node tests/character_sheet/run-grouped.mjs [parser|creation] [-v|--verbose]");process.exit(2);}
 let total=0,passed=0,failed=0;
 console.log("\n=== Reactive character tests ===\n");
 for(const [label,file] of groups[mode]){
@@ -22,6 +25,10 @@ for(const [label,file] of groups[mode]){
  const count=metric("tests"),pass=metric("pass"),fail=metric("fail");
  total+=count;passed+=pass;failed+=fail;
  if(run.status===0){
+  if(verbose){
+   const cases=[...output.matchAll(/^# Subtest: (.+)$/gm)].map(m=>m[1]);
+   for(const name of cases)console.log("  PASS "+name);
+  }
   console.log("PASS: "+pass+" tests");
  }else{
   console.log("FAIL: "+fail+" failed out of "+count+" tests");
