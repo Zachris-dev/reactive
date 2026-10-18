@@ -17,8 +17,8 @@
     "test:result": "npm run build && node dist/tests/rules_engine/run.js result && node dist/tests/rules_engine/cases.js --log quiet --suite result",
     "build:web": "esbuild apps/dice_roller/web/main.ts --bundle --platform=browser --format=iife --target=es2022 --outfile=apps/dice_roller/web/bundle.js",
     "test:parser": "node --test tests/character_sheet/parser-and-selection.test.mjs",
-    "test:creation": "node --test tests/character_sheet/parser-and-selection.test.mjs tests/character_sheet/allocation.test.mjs",
-    "test:character": "node --test tests/character_sheet/parser-and-selection.test.mjs tests/character_sheet/allocation.test.mjs",
+    "test:creation": "node --test tests/character_sheet/parser-and-selection.test.mjs tests/character_sheet/allocation.test.mjs tests/character_sheet/character-save.test.mjs",
+    "test:character": "node --test tests/character_sheet/parser-and-selection.test.mjs tests/character_sheet/allocation.test.mjs tests/character_sheet/character-save.test.mjs",
     "test:all": "npm test && npm run test:creation",
     "validate:campaign": "node tests/character_sheet/validate-campaign.mjs"
   },
