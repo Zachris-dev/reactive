@@ -1,3 +1,4 @@
+import {serializeCharacter,parseCharacterSave,restoreCharacterAllocation} from "./character-save.js";
 import {parseSkillList,parseCampaign,validateCampaign} from "./template-parser.js";
 import {selectionRules,buildCultureOptions,optionAvailable,selectionIssues,optionConflicts,chooseWithOverride} from "./selection-rules.js";
 import {testPalette,keyFor,allocationsFromCampaign,makeAllocationState,remaining,assign,remove,humanBodyClassification,skillBase,removeAssignment,allocationRequirements,effectiveSkillValue,cultureRequirementMet,groupThreshold,groupRequirementMet,bodySubgroupsForRace} from "./allocation.js";
@@ -136,7 +137,7 @@ const campaigns=[{
  templates:[]
 }];
 let screen="campaign",campaign=campaigns[0],chosen={},expanded={},setupNotice="";
-let lastIncompatibleTap=null;let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;let allocatedCulture=null;
+let lastIncompatibleTap=null;let savedCharacterDocument=null;let characterCreated=null;let characterPrimaryDetails={};let templateDiagnostics=[];let loadFailure="";let parsedCampaignData=null;let allocation=null;let allocatedCulture=null;
 const isPhone=()=>window.matchMedia("(max-width: 600px)").matches;
 function availableOption(group,option){return optionAvailable(campaign,chosen,group,option);}
 function readyForSkills(){return selectionIssues(campaign,chosen).length===0;}
@@ -149,7 +150,7 @@ function renderCampaignScreen(){
  root.innerHTML=`<div class="app setup-app"><h1>Select campaign</h1><p class="subtitle">Create a new character</p>${validationReport()}${loadFailure?`<p class="setup-warning">${escapeHtml(loadFailure)}</p>`:""}${templateDiagnostics.length?`<p class="hint">Campaign validation: ${templateDiagnostics.filter(d=>d.severity==="error").length} errors, ${templateDiagnostics.filter(d=>d.severity==="warning").length} warnings, ${templateDiagnostics.filter(d=>d.severity==="info").length} notes.</p><details><summary>Validation details</summary>${templateDiagnostics.map(d=>`<p class="hint">${escapeHtml(d.severity.toUpperCase())} · ${escapeHtml(d.file)} line ${d.line}: ${escapeHtml(d.message)}</p>`).join("")}</details>`:""}
  ${campaigns.map(c=>`<button class="campaign-card" data-campaign="${escapeHtml(c.id)}">${escapeHtml(c.name)} <span>›</span></button>`).join("")}</div>`;
  root.querySelectorAll("[data-campaign]").forEach(b=>b.addEventListener("click",()=>{
-  campaign=campaigns.find(c=>c.id===b.dataset.campaign);allocation=null;allocatedCulture=null;chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{}),...(campaign.defaultRace?{race:campaign.defaultRace}:{})};expanded={};setupNotice="";screen="setup";render();
+  campaign=campaigns.find(c=>c.id===b.dataset.campaign);allocation=null;allocatedCulture=null;savedCharacterDocument=null;characterCreated=null;characterPrimaryDetails={};characterName="";chosen={...(campaign.defaultCulture?{culture:campaign.defaultCulture}:{}),...(campaign.defaultRace?{race:campaign.defaultRace}:{})};expanded={};setupNotice="";screen="setup";render();
  }));
 }
 function renderSetupScreen(){
@@ -280,12 +281,50 @@ function render(){
  const requirementIssues=allocation?allocationRequirements(allocation,chosen.culture,parsedCampaignData?.cultures.find(c=>c.name===chosen.culture)?.primaryLanguage,activeSkills(definitions.find(g=>g.name==="Culture")).map(s=>s.name),activeSkills(definitions.find(g=>g.name==="Language")).map(s=>s.name)):[];
  root.innerHTML=`<div class="app" style="--category-token:${testPalette.category};--skill-token:${testPalette.skill}"><button class="back-button" id="back-setup">‹ Character setup</button>
  <header class="top"><div class="character-identity"><label for="character-name">Character name</label><input id="character-name" type="text" autocomplete="off" placeholder="Name" value="${escapeHtml(characterName)}"><span class="identity-culture-race">(${escapeHtml(chosen.culture||"")}) (${escapeHtml(chosen.race||"")})</span></div>
- <div class="tools"><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
+ <div class="tools"><button type="button" id="save-character">Save JSON</button><button type="button" id="load-character">Load JSON</button><input id="character-file" type="file" accept=".json,application/json" hidden><label for="value-format">Skill display</label><select id="value-format"><option value="integer" ${valueFormat==="integer"?"selected":""}>40</option><option value="decimal" ${valueFormat==="decimal"?"selected":""}>4.0</option></select></div></header>
  <details class="testing-information"><summary>Testing information</summary><div class="summary">12 categories · ${invalid.length===0?"Skill list structurally valid":`${invalid.length} category issue(s) in source skill list`}${requirementIssues.length?` · Invalid: ${requirementIssues.map(escapeHtml).join("; ")}`:""}${bodyClassification?.violations.length?` · Body conflicts: ${bodyClassification.violations.map(v=>`${v.subgroup} ${v.max} exceeds ${v.limit}`).join(", ")}`:""}</div></details>
  <div class="creation-workspace"><div class="creation-skill-scroll"><div class="skills">${definitions.map(renderGroup).join("")}</div></div><aside class="creation-allocation-scroll">${renderAllocationTools()}</aside></div>
  <p class="notes">Body subgroup labels P/S/T indicate provisional primary/secondary/tertiary classifications. Initial Culture and Language tokens can be reassigned. Tap a token then a target, or a target then a token.</p></div>`;
 
  wireAllocation();
+ document.querySelector("#save-character")?.addEventListener("click",()=>{
+  try{
+   if(!characterCreated)characterCreated=new Date().toISOString().slice(0,10);
+   const documentData=serializeCharacter({
+    campaign:campaign.name,created:characterCreated,
+    primary:{...characterPrimaryDetails,name:characterName,race:chosen.race,selectedCulture:chosen.culture,magic:magicChoice},
+    allocation,definitions,previous:savedCharacterDocument||{}
+   });
+   savedCharacterDocument=documentData;
+   const file=new Blob([JSON.stringify(documentData,null,2)+"\\n"],{type:"application/json"});
+   const url=URL.createObjectURL(file),link=document.createElement("a");
+   link.href=url;link.download=(characterName.trim().replace(/[^a-z0-9_-]+/gi,"_")||"character")+".json";
+   document.body.appendChild(link);link.click();link.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(error){window.alert("Unable to save character: "+error.message);}
+ });
+ document.querySelector("#load-character")?.addEventListener("click",()=>document.querySelector("#character-file")?.click());
+ document.querySelector("#character-file")?.addEventListener("change",async event=>{
+  const file=event.target.files?.[0];if(!file)return;
+  try{
+   const documentData=parseCharacterSave(await file.text(),campaign.name);
+   const selectedCulture=documentData.primary.selectedCulture||documentData.primary.mainCulture;
+   if(!parsedCampaignData.cultures.some(c=>c.name===selectedCulture))throw Error("Original culture is missing or not recognized: "+selectedCulture);
+   const newState=restoreCharacterAllocation(documentData,allocationsFromCampaign(parsedCampaignData,selectedCulture),definitions);
+   const newRace=documentData.primary.race||chosen.race;
+   const newMagic=documentData.primary.magic||chosen.magic||"Arcane";
+   if(!campaign.selections.find(g=>g.id==="race").options.some(o=>o.id===newRace))throw Error("Unknown race in save: "+newRace);
+   if(!campaign.selections.find(g=>g.id==="magic").options.some(o=>o.id===newMagic))throw Error("Unknown magic discipline in save: "+newMagic);
+   chosen={culture:selectedCulture,race:newRace,magic:newMagic};
+   characterName=documentData.primary.name||"";
+   characterPrimaryDetails={...documentData.primary};
+   characterCreated=documentData.format.match(/Created (\\d{4}-\\d{2}-\\d{2})$/)?.[1]||null;
+   savedCharacterDocument=documentData;allocation=newState;allocatedCulture=selectedCulture;
+   magicChoice=newMagic;characterContext.race=newRace;characterContext.culture=selectedCulture;
+   render();
+  }catch(error){window.alert("Unable to load character: "+error.message);}
+  event.target.value="";
+ });
  document.querySelector("#character-name")?.addEventListener("input",event=>{characterName=event.target.value;});
  window.scrollTo(0,previousSkillScroll);
  if(root.querySelector(".creation-allocation-scroll"))root.querySelector(".creation-allocation-scroll").scrollTop=previousTokenScroll;
