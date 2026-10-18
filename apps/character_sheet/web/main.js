@@ -354,7 +354,7 @@ function render(){
    if(!characterCreated)characterCreated=new Date().toISOString().slice(0,10);
    const documentData=currentCharacterDocument();
    savedCharacterDocument=documentData;
-   const file=new Blob([JSON.stringify(documentData,null,2)+"\\n"],{type:"application/json"});
+   const file=new Blob([JSON.stringify(documentData,null,2)+"\n"],{type:"application/json"});
    const url=URL.createObjectURL(file),link=document.createElement("a");
    link.href=url;link.download=(characterName.trim().replace(/[^a-z0-9_-]+/gi,"_")||"character")+".json";
    document.body.appendChild(link);link.click();link.remove();
