@@ -29,12 +29,13 @@ export function serializeCharacter({campaign,created=new Date().toISOString().sl
    const old=oldEntries.find(e=>plainName(e.name)===plainName(skill.name));
    return [{...old,name:skill.name,base,xp:old?.xp??0,tp:old?.tp??0}];
   });
-  return {...previousBlock,category:group.name,bonus,skills:entries};
+  const unknown=oldEntries.filter(entry=>!knownSkill(group,entry.name));
+  return {...previousBlock,category:group.name,bonus,skills:[...entries,...unknown]};
  });
  return {
   "format":characterHeader(campaign,created),
   "primary":{...previous.primary,...primary,mainCulture:mainCultureFromSkills(allocation,definitions,primary.mainCulture||primary.selectedCulture||"")},
-  "skills":skills,
+  "skills":[...skills,...(previous.skills||[]).filter(block=>!categoryFor(definitions,block.category))],
   "extra":{
    equipment:[],money:{total:0,coins:[]},contacts:[],notes:[],
    ...previous.extra,...extras
