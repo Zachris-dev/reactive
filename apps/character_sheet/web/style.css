@@ -152,3 +152,9 @@
 .setup-options .setup-option.barred{opacity:.4;cursor:not-allowed}
 .setup-radio{flex:0 0 auto;width:18px;height:18px;border:2px solid #98b3d2;border-radius:50%;display:inline-grid;place-items:center}
 .setup-radio.checked:after{content:"";width:9px;height:9px;border-radius:50%;background:#9bc1fa}
+
+/* Local character library */
+.library-entry{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#222a37;border:1px solid #435268;border-radius:10px;padding:12px;margin:10px 0}
+.library-entry strong{min-width:150px;flex:1}
+.library-entry small{color:#b7c5d8;flex:2}
+.library-entry button{min-width:75px}
