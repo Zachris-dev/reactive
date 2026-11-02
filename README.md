@@ -18,6 +18,8 @@ The intended end-user applications should be usable on phones, tablets, and lapt
 
 See [`docs/project-scope.md`](docs/project-scope.md) for the current architectural scope and design constraints.
 
+For future Character Server operators, see the [step-by-step installation and Cloudflare setup guide](docs/installation.md). The server is still planned; the guide distinguishes preparation from steps that require the forthcoming implementation.
+
 ## Repository layout
 
 - `apps/dice_roller/` — standalone dice-roller application.
