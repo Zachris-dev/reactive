@@ -87,5 +87,5 @@ test("character sheet has twelve named skill groups and four magic disciplines",
 test("player character parser includes an explicit GM origin guard",async()=>{
  const {readFile}=await import("node:fs/promises");
  const source=await readFile(new URL("../../apps/character_sheet/web/character-save.js",import.meta.url),"utf8");
- assert.match(source,/data\\.creationMode===["\x27]gm["\x27]/);
+ assert.ok(source.includes('data.creationMode==="gm"'));
 });
