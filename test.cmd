@@ -57,6 +57,13 @@ if /I "%~1"=="character" (
   goto :check
 )
 
+if /I "%~1"=="gm" (
+  if not "%~2"=="" goto :usage
+  call npm run test:gm
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
+  goto :check
+)
+
 if /I "%~1"=="all" (
   if not "%~2"=="" goto :usage
   call npm run test:all
@@ -84,7 +91,7 @@ echo Tests passed.
 exit /b 0
 
 :usage
-echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|validate^|all] [-v^|--verbose]
+echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|gm^|validate^|all] [-v^|--verbose]
 echo.
 echo   no parameter  Run all test suites (grouped character results)
 echo   roll          Run roll engine tests only
@@ -93,6 +100,7 @@ echo   parser        Run campaign parsing and selection tests
 echo   creation      Run grouped parser, allocation, and save/load tests
 echo   character     Run grouped parser, allocation, and save/load tests
 echo   -v, --verbose List individual tests for parser, creation, and character
+echo   gm            Run GM creature creator tests only
 echo   validate      Check actual campaign files; fail on errors
 echo   all           Run all test suites
 exit /b 2
