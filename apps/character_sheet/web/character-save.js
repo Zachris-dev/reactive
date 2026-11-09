@@ -46,6 +46,7 @@ export function serializeCharacter({campaign,created=new Date().toISOString().sl
 export function parseCharacterSave(text,expectedCampaign){
  const data=JSON.parse(text);
  if(!data||typeof data!=="object"||Array.isArray(data))throw Error("Character save must be a JSON object");
+ if(data.creationMode==="gm")throw Error("GM-created creatures can only be opened in the GM App");
  const header=data.format;
  if(typeof header!=="string"||!header.startsWith("Character sheet - Reactive "))throw Error("Not a Reactive character sheet");
  const match=header.match(/^Character sheet - Reactive (\S+) - (.+) - Created (\d{4}-\d{2}-\d{2})$/);
