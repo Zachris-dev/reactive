@@ -19,8 +19,9 @@
     "test:parser": "node tests/character_sheet/run-grouped.mjs parser",
     "test:creation": "node tests/character_sheet/run-grouped.mjs creation",
     "test:character": "node tests/character_sheet/run-grouped.mjs creation",
-    "test:all": "npm test && npm run test:creation",
-    "validate:campaign": "node tests/character_sheet/validate-campaign.mjs"
+    "test:all": "npm test && npm run test:creation && npm run test:gm",
+    "validate:campaign": "node tests/character_sheet/validate-campaign.mjs",
+    "test:gm": "node --test tests/gm_app/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
