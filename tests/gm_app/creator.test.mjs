@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {test} from "node:test";
 import {VALUES,STORAGE_KEY,newNpc,effectiveSkill,assign,remove,parseLibrary,serializeLibrary,loadLibrary,saveLibrary,skillKey,skillForEngine,validateNpc} from "../../apps/gm_app/web/model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "../../apps/gm_app/web/skills.mjs";
+import {parseCharacterSave} from "../../apps/character_sheet/web/character-save.js";
 const make=()=>newNpc("id-1","Scout");
 test("palette contains 5..95 in increments of five",()=>assert.deepEqual(VALUES,Array.from({length:19},(_,i)=>(i+1)*5)));
 test("unassigned skills resolve to zero and no zero entries are stored",()=>{
@@ -82,4 +83,8 @@ test("character sheet has twelve named skill groups and four magic disciplines",
  for(const group of GROUPS)assert.equal(group.skills.length,10,group.name);
  assert.deepEqual(Object.keys(MAGIC_ALTERNATIVES),["Arcane","Divine","Druidic","Physical Adept"]);
  for(const skills of Object.values(MAGIC_ALTERNATIVES))assert.equal(skills.length,10);
+});
+
+test("player character parser explicitly rejects GM-created creatures",()=>{
+ assert.throws(()=>parseCharacterSave(JSON.stringify(make())),/GM-created creatures/);
 });
