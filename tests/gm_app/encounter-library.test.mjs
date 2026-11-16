@@ -21,7 +21,7 @@ test("encounter plans are named, separate and individually recalled",()=>{
  lib=selectPlan(lib,oldId);
  assert.equal(selectedPlan(lib).name,"Roadside ambush");
  assert.equal(currentEncounter(lib).sides[0].units.length,1);
- assert.equal(currentEncounter(lib).sides.length,3);
+ assert.equal(currentEncounter(lib).sides.length,2);
 });
 test("copy creates independent encounter plan with new ID and same initial composition",()=>{
  let lib=initialEncounterLibrary();
@@ -41,12 +41,12 @@ test("activation makes a separate execution copy and preserves planned sides",()
  assert.ok(lib.execution);
  assert.notStrictEqual(lib.execution.encounter,selectedPlan(lib).encounter);
  lib=updateEncounterInLibrary(lib,e=>addSide(e,"reinforcements"));
- assert.equal(currentEncounter(lib).sides.length,2);
+ assert.equal(currentEncounter(lib).sides.length,3);
  assert.equal(selectedPlan(lib).encounter.sides.length,2);
  assert.throws(()=>activateEncounter(lib),/already executing/);
  lib=endExecution(lib);
  assert.equal(lib.execution,null);
- assert.equal(currentEncounter(lib).sides.length,1);
+ assert.equal(currentEncounter(lib).sides.length,2);
 });
 test("execution and reserve status survive storage reload",()=>{
  const store=storage();
