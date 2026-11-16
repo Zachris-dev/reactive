@@ -3,7 +3,8 @@ import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
 import {newGroup,copyGroup,addMembers,subtractMembers,removeMembers,referencesTo,loadGroups,saveGroups} from "./group-model.mjs";
 import {groupSidebar,groupEditor} from "./group-ui.mjs";
 import {initialEncounter,loadEncounter,saveEncounter,addSide,updateSide,deleteSide,addGroupToSide,addCreatureToSide,removeUnit} from "./encounter-model.mjs";
-import {encounterLayout} from "./encounter-ui.mjs";
+import {encounterLayout,encounterPlanBar} from "./encounter-ui.mjs";
+import {initialEncounterLibrary,loadEncounterLibrary,saveEncounterLibrary,selectedPlan,selectPlan,addPlan,copyPlan,renamePlan,deletePlan,activateEncounter,endExecution,currentEncounter,updateEncounterInLibrary} from "./encounter-library.mjs";
 
 const root=document.querySelector("#app");
 const ICONS=["monster-round","monster-square","monster-point","wolf","bear","horse","human-male","human-female"];
@@ -21,7 +22,7 @@ function icon(id,color){ return '<svg viewBox="0 0 24 26" role="img" aria-label=
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 let npcs=[];
 let encounterGroups=[];
-let encounter=initialEncounter();
+let encounterLibrary=initialEncounterLibrary();
 let groupsCollapsed=false;
 let creaturesCollapsed=false;
 let tab="creatures";
@@ -38,7 +39,7 @@ const selected=()=>npcs.find(n=>n.id===currentId);
 const selectedGroup=()=>encounterGroups.find(g=>g.id===currentGroupId);
 function makeId(prefix){return globalThis.crypto?.randomUUID?.()||prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2);}
 try{encounterGroups=loadGroups(localStorage,npcs);currentGroupId=encounterGroups[0]?.id||null;}catch(e){notice="Could not load groups: "+e.message;error=true;}
-try{encounter=loadEncounter(localStorage,npcs);}catch(e){notice="Could not load encounter: "+e.message;error=true;}
+try{encounterLibrary=loadEncounterLibrary(localStorage,npcs);}catch(e){notice="Could not load encounters: "+e.message;error=true;}
 function persist(){try{saveLibrary(localStorage,npcs);notice="Saved locally";error=false;return true;}catch(e){notice="Local save failed: "+e.message;error=true;return false;}}
 function mutate(fn){const before=JSON.stringify(npcs);fn();if(!persist())npcs=JSON.parse(before);render();}
 function persistGroups(){
@@ -69,15 +70,18 @@ function addToGroup(npcId,count=1){
  selectedMemberId=npcId;
  updateGroup(g=>addMembers(g,npcId,count));
 }
-function mutateEncounter(fn){
- const before=structuredClone(encounter);
+function mutateEncounterLibrary(fn){
  try{
-  const updated=fn(encounter);
-  saveEncounter(localStorage,updated,npcs);
-  encounter=updated;notice="Encounter saved locally";error=false;
- }catch(e){encounter=before;notice="Encounter update failed: "+e.message;error=true;}
+  const updated=fn(encounterLibrary);
+  saveEncounterLibrary(localStorage,updated,npcs);
+  encounterLibrary=updated;notice="Encounters saved locally";error=false;
+ }catch(e){notice="Encounter save failed: "+e.message;error=true;}
  render();
 }
+function mutateEncounter(fn){
+ mutateEncounterLibrary(lib=>updateEncounterInLibrary(lib,fn));
+}
+function encounterEditAllowed(){return !encounterLibrary.execution;}
 function addEncounterSource(sideId,kind,id){
  const source=kind==="group"?encounterGroups.find(g=>g.id===id):npcs.find(n=>n.id===id);
  if(!source)return;
@@ -112,7 +116,7 @@ function render(){
  if(typeFilter && !types.includes(typeFilter))typeFilter="";
  const sections=groupedLibrary(npcs,typeFilter);
  root.innerHTML='<header><div><h1>Reactive · GM App</h1><small>Offline creature and group planning</small></div><nav class="tabs"><button data-action="tab-creatures" class="'+(tab==="creatures"?"active":"")+'">Creature Creator</button><button data-action="tab-groups" class="'+(tab==="groups"?"active":"")+'">Group Planner</button><button data-action="tab-encounter" class="'+(tab==="encounter"?"active":"") +'">Encounter</button></nav><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
- (tab==="encounter"?encounterLayout(encounter,encounterGroups,npcs,icon,esc,{groupsCollapsed,creaturesCollapsed}):'<div class="layout"><aside class="panel sidebar">'+(tab==="groups"?groupSidebar(encounterGroups,currentGroupId,esc,npcs,icon):"")+'<h2>Creatures ('+npcs.length+')</h2><div class="tools">'+(tab==="creatures"?'<button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button>':'<small>Drag or double-click a creature to add it to the active group.</small>')+'</div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
+ (tab==="encounter"?encounterPlanBar(encounterLibrary,esc)+encounterLayout(currentEncounter(encounterLibrary),encounterGroups,npcs,icon,esc,{groupsCollapsed,creaturesCollapsed}):'<div class="layout"><aside class="panel sidebar">'+(tab==="groups"?groupSidebar(encounterGroups,currentGroupId,esc,npcs,icon):"")+'<h2>Creatures ('+npcs.length+')</h2><div class="tools">'+(tab==="creatures"?'<button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button>':'<small>Drag or double-click a creature to add it to the active group.</small>')+'</div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
  '<label class="type-filter-label">Show type <select id="type-filter"><option value="">All types</option>'+types.map(t=>'<option value="'+esc(t)+'" '+(typeFilter===t?'selected':'')+'>'+esc(t)+'</option>').join("")+'</select></label>'+
  '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
  '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
@@ -171,6 +175,21 @@ root.addEventListener("click",e=>{
  const a=el.dataset.action;
  if(a==="tab-creatures"){tab="creatures";render();return;}
  if(a==="tab-encounter"){tab="encounter";render();return;}
+ if(a==="encounter-plan-new"){mutateEncounterLibrary(lib=>addPlan(lib,makeId("encounter")));return;}
+ if(a==="encounter-plan-copy"){mutateEncounterLibrary(lib=>copyPlan(lib,makeId("encounter")));return;}
+ if(a==="encounter-plan-delete"){
+  if(!confirm("Delete this saved encounter plan?"))return;
+  mutateEncounterLibrary(lib=>deletePlan(lib,lib.selectedId));return;
+ }
+ if(a==="encounter-plan-activate"){
+  if(!confirm("Activate this encounter? A separate execution copy will be created; the saved plan will remain unchanged."))return;
+  mutateEncounterLibrary(activateEncounter);return;
+ }
+ if(a==="encounter-execution-end"){
+  if(!confirm("Finish this execution and return to the original plan? Current execution changes will be discarded."))return;
+  mutateEncounterLibrary(endExecution);return;
+ }
+
  if(a==="toggle-groups"){groupsCollapsed=!groupsCollapsed;render();return;}
  if(a==="toggle-creatures"){creaturesCollapsed=!creaturesCollapsed;render();return;}
  if(a==="encounter-new-side"){mutateEncounter(e=>addSide(e,makeId("side")));return;}
@@ -217,7 +236,7 @@ root.addEventListener("click",e=>{
  if(a==="clear")return removeValue(el.dataset.kind,el.dataset.key);
  if(a==="delete"){
   const used=referencesTo(encounterGroups,currentId);
-  const inEncounter=encounter.sides.some(side=>side.units.some(unit=>unit.members.some(m=>m.npcId===currentId)));
+  const inEncounter=[...encounterLibrary.plans.map(p=>p.encounter),...(encounterLibrary.execution?[encounterLibrary.execution.encounter]:[])].some(enc=>enc.sides.some(side=>side.units.some(unit=>unit.members.some(m=>m.npcId===currentId))));
   if(used.length||inEncounter){notice="Cannot delete this creature while referenced by saved groups or the current encounter. Remove those references first.";error=true;render();return;}
   if(confirm("Delete this creature? Export a backup first if needed."))mutate(()=>{npcs=npcs.filter(n=>n.id!==currentId);currentId=npcs[0]?.id||null;});return;
  }
@@ -227,7 +246,10 @@ root.addEventListener("click",e=>{
 });
 root.addEventListener("change",async e=>{
  const el=e.target;
- if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId)))||encounter.sides.some(side=>side.units.some(unit=>unit.members.some(m=>!imported.some(n=>n.id===m.npcId)))))throw Error("Import would break saved group or encounter references. Remove affected entries first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId)))||[...encounterLibrary.plans.map(p=>p.encounter),...(encounterLibrary.execution?[encounterLibrary.execution.encounter]:[])].some(enc=>enc.sides.some(side=>side.units.some(unit=>unit.members.some(m=>!imported.some(n=>n.id===m.npcId))))))throw Error("Import would break saved group or encounter references. Remove affected entries first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.id==="encounter-plan-select"){
+  mutateEncounterLibrary(lib=>selectPlan(lib,el.value));return;
+ }
  if(el.dataset.groupField){return;}
  if(el.dataset.sideStatus){
   mutateEncounter(e=>updateSide(e,el.dataset.sideStatus,{status:el.value}));return;
@@ -241,11 +263,21 @@ root.addEventListener("change",async e=>{
 root.addEventListener("dblclick",e=>{if(tab!=="groups")return;const creature=e.target.closest(".creature");if(creature&&selectedGroup())addToGroup(creature.dataset.id);});
 root.addEventListener("input",e=>{
  const el=e.target;
+ if(el.matches("input[data-encounter-plan-name]")){
+  try{
+   const updated=renamePlan(encounterLibrary,encounterLibrary.selectedId,el.value);
+   saveEncounterLibrary(localStorage,updated,npcs);
+   encounterLibrary=updated;notice="Encounter name saved";error=false;
+   const picker=document.querySelector("#encounter-plan-select option:checked");
+   if(picker)picker.textContent=el.value;
+  }catch(e){notice="Encounter name save failed: "+e.message;error=true;}
+  return;
+ }
  if(el.matches("input[data-side-name]")){
   try{
-   const updated=updateSide(encounter,el.dataset.sideName,{name:el.value});
-   saveEncounter(localStorage,updated,npcs);
-   encounter=updated;notice="Encounter saved locally";error=false;
+   const updated=updateEncounterInLibrary(encounterLibrary,enc=>updateSide(enc,el.dataset.sideName,{name:el.value}));
+   saveEncounterLibrary(localStorage,updated,npcs);
+   encounterLibrary=updated;notice="Encounter saved locally";error=false;
   }catch(e){notice="Encounter save failed: "+e.message;error=true;}
   return;
  }
