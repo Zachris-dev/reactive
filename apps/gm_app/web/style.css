@@ -90,3 +90,15 @@
 .encounter-unit-header button{min-height:27px;padding:2px 8px}
 @media(max-width:850px){.encounter-layout{grid-template-columns:1fr 1fr}.encounter-center{grid-column:1/-1;grid-row:2}.encounter-library{position:static;max-height:35dvh}}
 @media(max-width:500px){.encounter-layout{padding:8px;gap:8px}.encounter-library{padding:6px}.encounter-source{font-size:.78rem;overflow-wrap:anywhere}.encounter-library-head h2{font-size:.88rem}}
+
+/* Reclaim side-panel width when hidden, not merely its height. */
+.encounter-layout.groups-collapsed{grid-template-columns:64px minmax(0,1fr) minmax(180px,235px)}
+.encounter-layout.creatures-collapsed{grid-template-columns:minmax(180px,235px) minmax(0,1fr) 64px}
+.encounter-layout.groups-collapsed.creatures-collapsed{grid-template-columns:64px minmax(0,1fr) 64px}
+.encounter-library.collapsed .encounter-library-head h2{display:none}
+.encounter-library.collapsed .encounter-library-head{justify-content:center}
+.encounter-library.collapsed .encounter-library-head button{font-size:.75rem;padding:5px 3px;min-width:0}
+@media(max-width:850px){
+ .encounter-layout.groups-collapsed,.encounter-layout.creatures-collapsed,.encounter-layout.groups-collapsed.creatures-collapsed{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .encounter-library.collapsed .encounter-library-head h2{display:none}
+}
