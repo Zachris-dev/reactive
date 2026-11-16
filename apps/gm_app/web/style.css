@@ -32,3 +32,11 @@
 .member-tile .mini svg{display:block;width:36px;height:38px}
 .member-tile strong{font-size:.85rem;line-height:1.1;font-variant-numeric:tabular-nums}
 .member-tile.active{background:#345473;border-color:#b1d4ff}
+
+/* Saved-group previews: one compact, horizontally scrollable row per group. */
+.group-option-title{display:block;font-weight:600}
+.group-preview{display:flex;gap:5px;align-items:center;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;white-space:nowrap;margin-top:4px;padding:0 0 3px}
+.group-preview-item{display:inline-flex;flex:0 0 auto;align-items:center;gap:2px;line-height:1;font-size:.72rem;color:#cad7e7}
+.group-preview-icon{display:inline-flex;align-items:center;justify-content:center;width:21px;height:23px}
+.group-preview-icon svg{display:block;width:20px;height:22px}
+.group-preview-count{font-variant-numeric:tabular-nums;font-weight:600}
