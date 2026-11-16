@@ -102,3 +102,15 @@
  .encounter-layout.groups-collapsed,.encounter-layout.creatures-collapsed,.encounter-layout.groups-collapsed.creatures-collapsed{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
  .encounter-library.collapsed .encounter-library-head h2{display:none}
 }
+
+/* Named encounter library with clear planning/execution state. */
+.encounter-plan-bar{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;padding:12px 15px;margin:12px 14px 0;border:1px solid #536783;border-radius:10px;background:#222c3a}
+.encounter-plan-bar label{display:grid;gap:4px;font-size:.83rem;color:#b8cae2;min-width:160px;flex:1 1 190px}
+.encounter-plan-bar label select,.encounter-plan-bar label input{width:100%;min-width:0}
+.encounter-plan-buttons{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.encounter-plan-details{display:flex;align-items:flex-end;gap:12px;flex:1 1 225px;flex-wrap:wrap}
+.encounter-plan-details label{min-width:150px;flex:1}
+.encounter-phase{font-size:.84rem;color:#bad9c0;padding:8px}
+.encounter-phase.executing{color:#ffd796;font-weight:600}
+.encounter-plan-buttons button[data-action="encounter-plan-activate"]{border-color:#8db99a}
+@media(max-width:680px){.encounter-plan-bar{padding:9px;margin:8px}.encounter-plan-buttons{width:100%}.encounter-plan-buttons button{flex:1 1 auto}}
