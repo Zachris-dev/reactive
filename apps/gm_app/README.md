@@ -35,6 +35,7 @@ The first successful load installs an offline cache of the page, scripts, styles
 ## Group Planner tab
 
 - Creature Creator and Group Planner are tabs of the same offline GM app.
+- Group Planner uses three areas on wide screens: saved groups on the left, group editor in the center, and a wider creature library with its filters and jump controls on the right. The layout adapts to smaller screens.
 - Create, copy and delete saved groups, with names and free-text notes.
 - Group members store only creature IDs and counts; the creature library remains authoritative for stats, names and icons.
 - Drag creature icons into the active group, or double-click a creature entry to add one.
