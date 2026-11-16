@@ -162,3 +162,12 @@ test("New Copy rejects reused IDs and invalid player-origin creatures",()=>{
  assert.throws(()=>copyNpc(make(),"id-1"),/new ID/);
  assert.throws(()=>copyNpc({...make(),creationMode:"player"},"id-2"),/invalid/);
 });
+
+test("creature list has viewport-bounded flex scrolling",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const css=await readFile(new URL("../../apps/gm_app/web/style.css",import.meta.url),"utf8");
+ assert.match(css,/\.sidebar\{[^}]*max-height:calc\(100dvh - 20px\)/);
+ assert.match(css,/\.sidebar\{[^}]*display:flex;flex-direction:column;min-height:0;overflow:hidden/);
+ assert.match(css,/\.creature-list\{[^}]*flex:1 1 auto;min-height:0;overflow-y:auto/);
+ assert.match(css,/@media\(max-width:750px\)\{\.creature-list\{flex:none;/);
+});
