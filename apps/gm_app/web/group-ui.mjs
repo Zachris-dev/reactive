@@ -1,6 +1,15 @@
-export function groupSidebar(groups,activeId,esc){
+export function groupSidebar(groups,activeId,esc,npcs=[],icon=()=>"" ){
+ const byId=new Map(npcs.map(n=>[n.id,n]));
  return '<section class="group-picker"><h2>Saved groups ('+groups.length+')</h2><div class="tools"><button data-action="group-new">+ New</button><button data-action="group-copy" '+(activeId?'':'disabled')+'>New Copy</button><button data-action="group-delete" class="warn" '+(activeId?'':'disabled')+'>Delete</button></div>'+
- groups.map(g=>'<button class="group-option '+(g.id===activeId?'active':'')+'" data-action="group-select" data-id="'+esc(g.id)+'">'+esc(g.name||"Unnamed group")+' ('+g.members.reduce((n,m)=>n+m.count,0)+')</button>').join("")+'</section>';
+ groups.map(g=>{
+  const total=g.members.reduce((n,m)=>n+m.count,0);
+  const preview=g.members.map(m=>{
+   const n=byId.get(m.npcId);
+   const name=n?.name||"Missing creature";
+   return '<span class="group-preview-item" title="'+esc(name)+' ×'+m.count+'"><span class="group-preview-icon">'+(n?icon(n.icon,n.color):'?')+'</span><span class="group-preview-count">×'+m.count+'</span></span>';
+  }).join("");
+  return '<button class="group-option '+(g.id===activeId?'active':'')+'" data-action="group-select" data-id="'+esc(g.id)+'"><span class="group-option-title">'+esc(g.name||"Unnamed group")+' ('+total+')</span>'+(preview?'<span class="group-preview" aria-label="Group composition">'+preview+'</span>':'')+'</button>';
+ }).join("")+'</section>';
 }
 export function groupEditor(group,npcs,icon,esc,selectedMemberId){
  if(!group)return '<h2>No active group</h2><p>Create a group using + New, then drag creatures into it.</p>';
