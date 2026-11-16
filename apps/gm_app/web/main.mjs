@@ -1,4 +1,4 @@
-import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine} from "./model.mjs";
+import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine,libraryTypes,groupedLibrary} from "./model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
 
 const root=document.querySelector("#app");
@@ -19,6 +19,7 @@ let npcs=[];
 let currentId=null;
 let selectedValue=20;
 let selectedTarget=null;
+let typeFilter="";
 let notice="";
 let error=false;
 try{npcs=loadLibrary(localStorage);}catch(e){notice="Stored library could not be read. Import a backup or export the damaged browser data before creating new creatures: "+e.message;error=true;}
@@ -28,14 +29,25 @@ function mutate(fn){const before=JSON.stringify(npcs);fn();if(!persist())npcs=JS
 function create(){const id=(globalThis.crypto?.randomUUID?.()||"npc-"+Date.now()+"-"+Math.random().toString(36).slice(2));const npc=newNpc(id);mutate(()=>{npcs.push(npc);currentId=id;});}
 function updateSelected(fn){const npc=selected();if(!npc)return;mutate(()=>{const idx=npcs.findIndex(n=>n.id===npc.id);npcs[idx]=fn(npc);});}
 function targetInfo(el){return {kind:el.dataset.kind,key:el.dataset.key};}
-function applyValue(kind,key,value){updateSelected(n=>assign(n,kind,key,value));}
+function applyValue(kind,key,value){
+ if(kind==="group" && value===0){
+   notice="Zero is an explicit individual skill override. To clear a group default, use ×.";
+   error=false;render();return;
+ }
+ updateSelected(n=>assign(n,kind,key,value));
+}
 function removeValue(kind,key){updateSelected(n=>remove(n,kind,key));}
 function availableGroups(npc){return GROUPS.map(g=>({...g,skills:g.name==="Magic"?(MAGIC_ALTERNATIVES[npc.magicChoice||"Arcane"]):g.skills}));}
 function render(){
  const npc=selected();
+ const types=libraryTypes(npcs);
+ if(typeFilter && !types.includes(typeFilter))typeFilter="";
+ const sections=groupedLibrary(npcs,typeFilter);
  root.innerHTML='<header><div><h1>Reactive · GM Creature Creator</h1><small>Unrestricted NPCs · automatic local saving · no connection required</small></div><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
  '<div class="layout"><aside class="panel sidebar"><h2>Creatures ('+npcs.length+')</h2><div class="tools"><button data-action="new">+ New</button><button data-action="export">Export</button><button data-action="import">Import</button></div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
- npcs.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+
+ '<label class="type-filter-label">Show type <select id="type-filter"><option value="">All types</option>'+types.map(t=>'<option value="'+esc(t)+'" '+(typeFilter===t?'selected':'')+'>'+esc(t)+'</option>').join("")+'</select></label>'+
+ '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
+ '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
  '</aside><section class="panel editor">'+(npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>';
  document.querySelectorAll(".value").forEach(b=>{b.draggable=true;b.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",b.dataset.value);e.dataTransfer.effectAllowed="copy";});});
  document.querySelectorAll(".target").forEach(el=>{el.addEventListener("dragover",e=>e.preventDefault());el.addEventListener("drop",e=>{e.preventDefault();const v=Number(e.dataTransfer.getData("text/plain"));if(VALUES.includes(v))applyValue(el.dataset.kind,el.dataset.key,v);});});
@@ -44,10 +56,11 @@ function renderNpc(npc){
  const groups=availableGroups(npc);
  return '<div class="tools"><button data-action="delete" class="warn">Delete creature</button></div>'+
  '<div class="fields"><label>Name<input data-field="name" value="'+esc(npc.name)+'" maxlength="100"></label>'+
+ '<label>Creature type<input data-field="type" list="creature-types" placeholder="e.g. Goblins" value="'+esc(npc.type||"")+'" maxlength="100"><datalist id="creature-types">'+libraryTypes(npcs).map(t=>'<option value="'+esc(t)+'"></option>').join("")+'</datalist></label>'+
  '<label>Marker color<input data-field="color" type="color" value="'+esc(npc.color)+'"></label>'+
  '<label class="wide">Short description<textarea data-field="description">'+esc(npc.description)+'</textarea></label></div>'+
  '<h2>Marker icon</h2><div class="icons">'+ICONS.map(i=>'<button class="icon-pick '+(npc.icon===i?'active':'')+'" data-action="icon" data-icon="'+i+'" title="'+esc(i)+'">'+icon(i,npc.color)+'</button>').join("")+'</div>'+
- '<div class="palette"><strong>Skill values · unlimited</strong><p class="help">Select a value, then click a group or skill. Or drag a number onto it. Click an assigned value’s × to remove it. Individual assignments always replace group defaults.</p><div class="values">'+VALUES.map(v=>'<button class="value '+(selectedValue===v?'active':'')+'" data-action="value" data-value="'+v+'">'+v+'</button>').join("")+'</div></div>'+
+ '<div class="palette"><strong>Skill values · unlimited</strong><p class="help">Select a value, then click or drag it onto a group or skill. 0 explicitly overrides an individual skill; use × to remove an assignment and restore inheritance. Individual values always replace group defaults.</p><div class="values">'+VALUES.map(v=>'<button class="value '+(selectedValue===v?'active':'')+'" data-action="value" data-value="'+v+'">'+v+'</button>').join("")+'</div></div>'+
  '<div class="groups">'+groups.map(g=>renderGroup(npc,g)).join("")+'</div>';
 }
 function renderGroup(npc,g){
@@ -74,8 +87,10 @@ root.addEventListener("click",e=>{
 root.addEventListener("change",async e=>{
  const el=e.target;
  if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.id==="type-filter"){typeFilter=el.value;render();return;}
+ if(el.id==="type-jump"){const target=document.getElementById("type-section-"+el.value);target?.scrollIntoView({block:"nearest",behavior:"smooth"});el.value="";return;}
  if(el.dataset.field==="magicChoice"){updateSelected(n=>({...n,magicChoice:el.value}));return;}
- if(el.dataset.field){const field=el.dataset.field;updateSelected(n=>({...n,[field]:el.value}));}
+ if(el.dataset.field){const field=el.dataset.field;updateSelected(n=>({...n,[field]:field==="type"?el.value.trim():el.value}));}
 });
 root.addEventListener("input",e=>{const el=e.target;if(el.matches("input[data-field=name],textarea[data-field=description]")){const npc=selected();if(!npc)return;const before=JSON.stringify(npcs);npc[el.dataset.field]=el.value;if(!persist())npcs=JSON.parse(before);const entry=document.querySelector('.creature.selected span:last-child');if(entry)entry.textContent=npc.name||"Unnamed";}});
 if(npcs.length)currentId=npcs[0].id;
