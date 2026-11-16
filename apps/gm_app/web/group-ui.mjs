@@ -1,0 +1,16 @@
+export function groupSidebar(groups,activeId,esc){
+ return '<section class="group-picker"><h2>Saved groups ('+groups.length+')</h2><div class="tools"><button data-action="group-new">+ New</button><button data-action="group-copy" '+(activeId?'':'disabled')+'>New Copy</button><button data-action="group-delete" class="warn" '+(activeId?'':'disabled')+'>Delete</button></div>'+
+ groups.map(g=>'<button class="group-option '+(g.id===activeId?'active':'')+'" data-action="group-select" data-id="'+esc(g.id)+'">'+esc(g.name||"Unnamed group")+' ('+g.members.reduce((n,m)=>n+m.count,0)+')</button>').join("")+'</section>';
+}
+export function groupEditor(group,npcs,icon,esc,selectedMemberId){
+ if(!group)return '<h2>No active group</h2><p>Create a group using + New, then drag creatures into it.</p>';
+ const byId=new Map(npcs.map(n=>[n.id,n]));
+ const count=group.members.reduce((n,m)=>n+m.count,0);
+ return '<div class="fields"><label class="wide">Group name<input data-group-field="name" value="'+esc(group.name)+'"></label><label class="wide">Notes<textarea data-group-field="notes">'+esc(group.notes)+'</textarea></label></div>'+
+ '<section class="group-drop"><h2>Group members ('+count+')</h2><p class="help">Drag a creature from the library here, or double-click its icon. Select a group member to add more copies.</p>'+
+ (group.members.length?group.members.map(m=>{
+   const n=byId.get(m.npcId);
+   return '<button class="member-option '+(selectedMemberId===m.npcId?'active':'')+'" data-action="member-select" data-id="'+esc(m.npcId)+'"><span class="mini">'+(n?icon(n.icon,n.color):'!')+'</span><span>'+esc(n?.name||"Missing creature")+'</span><strong>× '+m.count+'</strong></button>';
+ }).join(""):'<p class="empty-group">Drop creatures here</p>')+'</section>'+
+ '<section class="member-controls"><strong>Selected creature: '+esc(byId.get(selectedMemberId)?.name||"None")+'</strong><div class="tools">'+[1,3,5,9,19].map(v=>'<button data-action="member-add" data-count="'+v+'" '+(selectedMemberId?'':'disabled')+'>+'+v+'</button>').join("")+'<button data-action="member-remove" '+(selectedMemberId?'':'disabled')+'>Remove all</button></div></section>';
+}
