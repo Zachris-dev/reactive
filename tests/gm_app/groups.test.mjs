@@ -132,3 +132,13 @@ test("empty saved group shows its name without an unnecessary preview row",async
  assert.match(html,/Empty \(0\)/);
  assert.doesNotMatch(html,/class="group-preview"/);
 });
+
+test("selected icon-bearing buttons preserve their normal background",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const css=await readFile(new URL("../../apps/gm_app/web/style.css",import.meta.url),"utf8");
+ for(const selector of [".creature:is(.selected,:hover)",".icon-pick:is(.active,:hover)",".member-tile:is(.active,:hover)",".group-option:is(.active,:hover)"]){
+  assert.ok(css.includes(selector),selector);
+ }
+ assert.match(css,/\.group-option:is\(\.active,:hover\)\{background:#29374a\}/);
+ assert.match(css,/\.member-tile\.active,[\s\S]*?\.group-option\.active\{border-color:#bbe1ff;outline:2px solid #bbe1ff/);
+});
