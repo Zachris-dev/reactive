@@ -121,6 +121,19 @@ function render(){
  '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
  '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
  '</aside><section class="panel editor">'+(tab==="groups"?groupEditor(selectedGroup(),npcs,icon,esc,selectedMemberId):npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>');
+ if(tab==="groups"){
+  // Keep saved groups on the left, the editor in the center, and the
+  // full creature library (including filters) in its own wider right panel.
+  const layout=root.querySelector(".layout");
+  const sidebar=layout.querySelector(".sidebar");
+  const library=document.createElement("aside");
+  library.className="panel sidebar group-creature-library";
+  library.setAttribute("aria-label","Creature library");
+  while(sidebar.children.length>1)library.append(sidebar.children[1]);
+  layout.append(library);
+  sidebar.classList.add("group-selection-sidebar");
+  layout.classList.add("group-planner-layout");
+ }
  if(tab==="encounter"){
   document.querySelectorAll(".encounter-source").forEach(el=>{
    el.addEventListener("dragstart",event=>{
