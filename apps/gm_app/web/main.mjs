@@ -1,6 +1,6 @@
 import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine,libraryTypes,groupedLibrary,copyNpc} from "./model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
-import {newGroup,copyGroup,addMembers,removeMembers,referencesTo,loadGroups,saveGroups} from "./group-model.mjs";
+import {newGroup,copyGroup,addMembers,subtractMembers,removeMembers,referencesTo,loadGroups,saveGroups} from "./group-model.mjs";
 import {groupSidebar,groupEditor} from "./group-ui.mjs";
 
 const root=document.querySelector("#app");
@@ -145,6 +145,18 @@ root.addEventListener("click",e=>{
  }
  if(a==="member-select"){selectedMemberId=el.dataset.id;render();return;}
  if(a==="member-add"){if(selectedMemberId)addToGroup(selectedMemberId,Number(el.dataset.count));return;}
+ if(a==="member-subtract"){
+  if(!selectedMemberId)return;
+  const id=selectedMemberId;
+  const count=Number(el.dataset.count);
+  const group=selectedGroup();
+  if(!group)return;
+  const current=group.members.find(m=>m.npcId===id);
+  if(!current)return;
+  if(current.count<=count)selectedMemberId=null;
+  updateGroup(g=>subtractMembers(g,id,count));
+  return;
+ }
  if(a==="member-remove"){if(!selectedMemberId)return;const id=selectedMemberId;selectedMemberId=null;updateGroup(g=>removeMembers(g,id));return;}
  if(a==="new")return create();
  if(a==="copy")return newCopy();
