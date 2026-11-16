@@ -40,3 +40,14 @@
 .group-preview-icon{display:inline-flex;align-items:center;justify-content:center;width:21px;height:23px}
 .group-preview-icon svg{display:block;width:20px;height:22px}
 .group-preview-count{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* Keep colored SVG markers legible: selection changes the outline, not their backdrop.
+   This also overrides generic button.active and button:hover background changes. */
+.creature:is(.selected,:hover),
+.icon-pick:is(.active,:hover),
+.member-tile:is(.active,:hover),
+.group-option:is(.active,:hover){background:#29374a}
+.creature.selected,
+.icon-pick.active,
+.member-tile.active,
+.group-option.active{border-color:#bbe1ff;outline:2px solid #bbe1ff;outline-offset:-2px}
