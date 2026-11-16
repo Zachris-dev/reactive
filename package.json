@@ -21,7 +21,7 @@
     "test:character": "node tests/character_sheet/run-grouped.mjs creation",
     "test:all": "npm test && npm run test:creation && npm run test:gm",
     "validate:campaign": "node tests/character_sheet/validate-campaign.mjs",
-    "test:gm": "node --test tests/gm_app/creator.test.mjs tests/gm_app/groups.test.mjs tests/gm_app/encounter.test.mjs"
+    "test:gm": "node --test tests/gm_app/creator.test.mjs tests/gm_app/groups.test.mjs tests/gm_app/encounter.test.mjs tests/gm_app/encounter-library.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
