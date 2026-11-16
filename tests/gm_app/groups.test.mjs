@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 import {newNpc,assign,skillKey,effectiveSkill} from "../../apps/gm_app/web/model.mjs";
-import {GROUP_STORAGE_KEY,newGroup,copyGroup,addMembers,removeMembers,referencesTo,resolvedMembers,parseGroups,loadGroups,saveGroups,encounterSnapshot} from "../../apps/gm_app/web/group-model.mjs";
+import {GROUP_STORAGE_KEY,newGroup,copyGroup,addMembers,subtractMembers,removeMembers,referencesTo,resolvedMembers,parseGroups,loadGroups,saveGroups,encounterSnapshot} from "../../apps/gm_app/web/group-model.mjs";
 
 const creatures=()=>[newNpc("goblin","Goblin"),newNpc("wolf","Wolf")];
 test("new group has independent name, notes, and empty member references",()=>{
@@ -76,4 +76,32 @@ test("future encounter snapshot is isolated from saved group",()=>{
  snap.members[0].count=2;
  assert.equal(g.members[0].count,9);
  assert.equal(snap.sourceGroupId,"one");
+});
+
+test("decrement by one or ten stops at zero and removes exhausted membership",()=>{
+ let g=addMembers(newGroup("one"),"goblin",19);
+ g=addMembers(g,"wolf",3);
+ g=subtractMembers(g,"goblin",1);
+ assert.equal(g.members.find(m=>m.npcId==="goblin").count,18);
+ g=subtractMembers(g,"goblin",10);
+ assert.equal(g.members.find(m=>m.npcId==="goblin").count,8);
+ g=subtractMembers(g,"goblin",10);
+ assert.deepEqual(g.members,[{npcId:"wolf",count:3}]);
+ assert.deepEqual(subtractMembers(g,"goblin",10),g);
+ assert.throws(()=>subtractMembers(g,"wolf",0),/Invalid/);
+ assert.throws(()=>subtractMembers(g,"wolf",-10),/Invalid/);
+ assert.deepEqual(parseGroups(JSON.stringify([g]),creatures()),[g]);
+});
+test("compact group UI shows marker and quantity without visible member names",async()=>{
+ const {groupEditor}=await import("../../apps/gm_app/web/group-ui.mjs");
+ const g=addMembers(newGroup("one"),"goblin",9);
+ const html=groupEditor(g,creatures(),()=>"<svg></svg>",x=>String(x),"goblin");
+ assert.match(html,/class="member-grid"/);
+ assert.match(html,/class="member-tile active"/);
+ assert.match(html,/title="Goblin"/);
+ assert.match(html,/aria-label="Goblin: 9"/);
+ assert.match(html,/<strong>×9<\/strong>/);
+ assert.doesNotMatch(html,/<span>Goblin<\/span>/);
+ assert.match(html,/data-action="member-subtract" data-count="1"/);
+ assert.match(html,/data-action="member-subtract" data-count="10"/);
 });
