@@ -13,6 +13,18 @@ python -m http.server 8000
 Open `http://localhost:8000/apps/gm_app/web/` in your browser.
 The first successful load installs an offline cache of the page, scripts, styles, and built-in SVG icon definitions. Reopening the same address in that browser can work without a connection after installation. Browsers may evict site data; **export backups** regularly. In particular, `file://` is not supported for offline caching.
 
+## Group Planner tab
+
+- Creature Creator and Group Planner are tabs of the same offline GM app.
+- Create, copy and delete saved groups, with names and free-text notes.
+- Group members store only creature IDs and counts; the creature library remains authoritative for stats, names and icons.
+- Drag creature icons into the active group, or double-click a creature entry to add one.
+- Select a member in the group and use +1, +3, +5, +9 or +19 to increase its count; Remove all removes that creature entry from the group.
+- Group edits save locally immediately. New Copy creates a separate group with the same composition, not copied creature definitions.
+- Creatures referenced by groups display an editing warning; deleting them or importing a creature library that breaks references is blocked.
+- Group Planner state is separate from the future encounter planner; encounter composition will use independent snapshots so play changes cannot modify saved templates.
+- Run `test.cmd gm` for both character and group regression tests.
+
 ## Implemented in v1
 
 - Create, rename, describe, and delete individual GM NPCs/monsters.
