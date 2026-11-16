@@ -114,3 +114,28 @@
 .encounter-phase.executing{color:#ffd796;font-weight:600}
 .encounter-plan-buttons button[data-action="encounter-plan-activate"]{border-color:#8db99a}
 @media(max-width:680px){.encounter-plan-bar{padding:9px;margin:8px}.encounter-plan-buttons{width:100%}.encounter-plan-buttons button{flex:1 1 auto}}
+
+/* Group Planner: saved groups at left, editing area in center, larger creature library at right. */
+.group-planner-layout{grid-template-columns:minmax(180px,230px) minmax(300px,1fr) minmax(300px,390px)}
+.group-planner-layout>.group-selection-sidebar{min-width:0;overflow-y:auto}
+.group-planner-layout>.group-selection-sidebar .group-picker{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.group-planner-layout>.group-selection-sidebar .group-option{min-width:0}
+.group-planner-layout>.group-creature-library{min-width:0}
+.group-planner-layout>.group-creature-library .creature-list{min-height:0;flex:1 1 auto}
+.group-planner-layout>.editor{min-width:0}
+@media(max-width:980px){
+ .group-planner-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .group-planner-layout>.group-selection-sidebar{grid-column:1;grid-row:1}
+ .group-planner-layout>.group-creature-library{grid-column:2;grid-row:1}
+ .group-planner-layout>.editor{grid-column:1/-1;grid-row:2}
+ .group-planner-layout>.sidebar{position:static;max-height:50dvh}
+}
+@media(max-width:620px){
+ .group-planner-layout{display:flex;flex-direction:column}
+ .group-planner-layout>.group-selection-sidebar,
+ .group-planner-layout>.group-creature-library,
+ .group-planner-layout>.editor{width:100%}
+ .group-planner-layout>.group-selection-sidebar{max-height:35dvh}
+ .group-planner-layout>.group-creature-library{max-height:45dvh}
+ .group-planner-layout>.group-creature-library .creature-list{flex:1 1 auto;max-height:none}
+}
