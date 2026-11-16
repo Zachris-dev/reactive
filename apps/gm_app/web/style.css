@@ -23,3 +23,5 @@
 .creature-list .creature{cursor:grab}
 .creature-list .creature:active{cursor:grabbing}
 @media(max-width:750px){.group-drop{min-height:170px}.tabs{width:100%}}
+
+.reference-warning{padding:10px 12px;border:1px solid #b48d4c;border-radius:8px;color:#f1d9ab;background:#3a3128;margin-bottom:12px;font-size:.9rem}
