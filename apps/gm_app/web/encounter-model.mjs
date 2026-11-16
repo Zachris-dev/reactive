@@ -5,7 +5,10 @@ const isUnit=u=>u&&hasId(u.id)&&typeof u.name==="string"&&
  (u.sourceGroupId===null||hasId(u.sourceGroupId))&&Array.isArray(u.members)&&
  u.members.every(isMember)&&new Set(u.members.map(m=>m.npcId)).size===u.members.length;
 export function initialEncounter(){
- return {sides:[{id:"side-1",name:"Side 1 — PCs & allies",status:"active",units:[]}]};
+ return {sides:[
+  {id:"side-1",name:"Side 1 — PCs & allies",status:"active",units:[]},
+  {id:"side-2",name:"Side 2",status:"active",units:[]}
+ ]};
 }
 export function addSide(encounter,id){
  if(!hasId(id)||encounter.sides.some(s=>s.id===id))throw Error("Duplicate or invalid side ID");
