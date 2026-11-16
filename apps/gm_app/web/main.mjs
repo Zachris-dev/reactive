@@ -217,7 +217,8 @@ root.addEventListener("click",e=>{
  if(a==="clear")return removeValue(el.dataset.kind,el.dataset.key);
  if(a==="delete"){
   const used=referencesTo(encounterGroups,currentId);
-  if(used.length){notice="Cannot delete this creature: used by "+used.length+" saved group(s). Remove those references first.";error=true;render();return;}
+  const inEncounter=encounter.sides.some(side=>side.units.some(unit=>unit.members.some(m=>m.npcId===currentId)));
+  if(used.length||inEncounter){notice="Cannot delete this creature while referenced by saved groups or the current encounter. Remove those references first.";error=true;render();return;}
   if(confirm("Delete this creature? Export a backup first if needed."))mutate(()=>{npcs=npcs.filter(n=>n.id!==currentId);currentId=npcs[0]?.id||null;});return;
  }
  if(a==="export"){const blob=new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="reactive-gm-creatures.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
@@ -226,7 +227,7 @@ root.addEventListener("click",e=>{
 });
 root.addEventListener("change",async e=>{
  const el=e.target;
- if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId))))throw Error("Import would break saved group references. Remove affected groups first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId)))||encounter.sides.some(side=>side.units.some(unit=>unit.members.some(m=>!imported.some(n=>n.id===m.npcId)))))throw Error("Import would break saved group or encounter references. Remove affected entries first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
  if(el.dataset.groupField){return;}
  if(el.dataset.sideStatus){
   mutateEncounter(e=>updateSide(e,el.dataset.sideStatus,{status:el.value}));return;
