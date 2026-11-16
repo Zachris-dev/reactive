@@ -1,4 +1,4 @@
-import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine,libraryTypes,groupedLibrary} from "./model.mjs";
+import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine,libraryTypes,groupedLibrary,copyNpc} from "./model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
 
 const root=document.querySelector("#app");
@@ -27,6 +27,13 @@ const selected=()=>npcs.find(n=>n.id===currentId);
 function persist(){try{saveLibrary(localStorage,npcs);notice="Saved locally";error=false;return true;}catch(e){notice="Local save failed: "+e.message;error=true;return false;}}
 function mutate(fn){const before=JSON.stringify(npcs);fn();if(!persist())npcs=JSON.parse(before);render();}
 function create(){const id=(globalThis.crypto?.randomUUID?.()||"npc-"+Date.now()+"-"+Math.random().toString(36).slice(2));const npc=newNpc(id);mutate(()=>{npcs.push(npc);currentId=id;});}
+function newCopy(){
+ const source=selected();
+ if(!source)return;
+ const id=(globalThis.crypto?.randomUUID?.()||"npc-"+Date.now()+"-"+Math.random().toString(36).slice(2));
+ const duplicate=copyNpc(source,id);
+ mutate(()=>{npcs.push(duplicate);currentId=id;typeFilter="";selectedTarget=null;});
+}
 function updateSelected(fn){const npc=selected();if(!npc)return;mutate(()=>{const idx=npcs.findIndex(n=>n.id===npc.id);npcs[idx]=fn(npc);});}
 function targetInfo(el){return {kind:el.dataset.kind,key:el.dataset.key};}
 function applyValue(kind,key,value){
@@ -44,7 +51,7 @@ function render(){
  if(typeFilter && !types.includes(typeFilter))typeFilter="";
  const sections=groupedLibrary(npcs,typeFilter);
  root.innerHTML='<header><div><h1>Reactive · GM Creature Creator</h1><small>Unrestricted NPCs · automatic local saving · no connection required</small></div><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
- '<div class="layout"><aside class="panel sidebar"><h2>Creatures ('+npcs.length+')</h2><div class="tools"><button data-action="new">+ New</button><button data-action="export">Export</button><button data-action="import">Import</button></div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
+ '<div class="layout"><aside class="panel sidebar"><h2>Creatures ('+npcs.length+')</h2><div class="tools"><button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button></div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
  '<label class="type-filter-label">Show type <select id="type-filter"><option value="">All types</option>'+types.map(t=>'<option value="'+esc(t)+'" '+(typeFilter===t?'selected':'')+'>'+esc(t)+'</option>').join("")+'</select></label>'+
  '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
  '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
@@ -75,6 +82,7 @@ root.addEventListener("click",e=>{
  const el=e.target.closest("button");if(!el)return;
  const a=el.dataset.action;
  if(a==="new")return create();
+ if(a==="copy")return newCopy();
  if(a==="select"){currentId=el.dataset.id;selectedTarget=null;return render();}
  if(a==="value"){selectedValue=Number(el.dataset.value);if(selectedTarget){const [kind,...key]=selectedTarget.split("|");applyValue(kind,key.join("|"),selectedValue);}else render();return;}
  if(a==="icon")return updateSelected(n=>({...n,icon:el.dataset.icon}));
