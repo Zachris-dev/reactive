@@ -9,14 +9,17 @@ const group=addMembers(addMembers(newGroup("pack","Wolf Pack"),"wolf",3),"goblin
 const esc=s=>String(s);
 const icon=()=>"<svg></svg>";
 
-test("encounter starts with active Side 1 for PCs and allies",()=>{
- const e=initialEncounter();assert.equal(e.sides.length,1);
+test("new encounter starts with PC Side 1 and an empty active Side 2",()=>{
+ const e=initialEncounter();
+ assert.equal(e.sides.length,2);
  assert.equal(e.sides[0].id,"side-1");assert.equal(e.sides[0].status,"active");
  assert.match(e.sides[0].name,/PCs/);
+ assert.deepEqual(e.sides[0].units,[]);
+ assert.deepEqual(e.sides[1],{id:"side-2",name:"Side 2",status:"active",units:[]});
 });
 test("sides are unlimited and can be active or reserve",()=>{
  let e=initialEncounter();
- for(let i=2;i<=30;i++)e=addSide(e,"side-"+i);
+ for(let i=3;i<=30;i++)e=addSide(e,"side-"+i);
  assert.equal(e.sides.length,30);
  e=updateSide(e,"side-2",{name:"Reinforcements",status:"reserve"});
  assert.equal(e.sides[1].status,"reserve");
@@ -27,7 +30,7 @@ test("sides are unlimited and can be active or reserve",()=>{
  assert.throws(()=>addSide(e,"side-2"),/Duplicate/);
 });
 test("Side 1 cannot be deleted, other sides can",()=>{
- let e=addSide(initialEncounter(),"side-2");
+ let e=initialEncounter();
  assert.throws(()=>deleteSide(e,"side-1"),/reserved/);
  e=deleteSide(e,"side-2");
  assert.equal(e.sides.length,1);
@@ -35,9 +38,9 @@ test("Side 1 cannot be deleted, other sides can",()=>{
 test("adding a saved group copies membership but never edits the group template",()=>{
  let e=addSide(initialEncounter(),"enemy");
  e=addGroupToSide(e,"enemy",group,"unit-a");
- assert.deepEqual(e.sides[1].units[0].members,group.members);
- assert.equal(e.sides[1].units[0].sourceGroupId,"pack");
- e.sides[1].units[0].members[0].count=1;
+ assert.deepEqual(e.sides[2].units[0].members,group.members);
+ assert.equal(e.sides[2].units[0].sourceGroupId,"pack");
+ e.sides[2].units[0].members[0].count=1;
  assert.equal(group.members[0].count,3);
 });
 test("adding individual creature creates a distinct encounter unit",()=>{
