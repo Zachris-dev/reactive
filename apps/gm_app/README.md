@@ -19,7 +19,8 @@ The first successful load installs an offline cache of the page, scripts, styles
 - Create, copy and delete saved groups, with names and free-text notes.
 - Group members store only creature IDs and counts; the creature library remains authoritative for stats, names and icons.
 - Drag creature icons into the active group, or double-click a creature entry to add one.
-- Select a member in the group and use +1, +3, +5, +9 or +19 to increase its count; Remove all removes that creature entry from the group.
+- The group displays each creature type as a compact marker and quantity tile (no visible creature names; names remain in tooltips/accessibility labels).
+- Select a marker and use +1, +3, +5, +9 or +19 to increase the count, or −1 and −10 to decrease it. Decreasing to zero removes the member entry; Remove all also removes that creature entry from the group.
 - Group edits save locally immediately. New Copy creates a separate group with the same composition, not copied creature definitions.
 - Creatures referenced by groups display an editing warning; deleting them or importing a creature library that breaks references is blocked.
 - Group Planner state is separate from the future encounter planner; encounter composition will use independent snapshots so play changes cannot modify saved templates.
