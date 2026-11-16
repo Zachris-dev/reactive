@@ -129,25 +129,47 @@ function renderGroup(npc,g){
 root.addEventListener("click",e=>{
  const el=e.target.closest("button");if(!el)return;
  const a=el.dataset.action;
+ if(a==="tab-creatures"){tab="creatures";render();return;}
+ if(a==="tab-groups"){tab="groups";render();return;}
+ if(a==="group-new")return createGroup();
+ if(a==="group-copy")return duplicateGroup();
+ if(a==="group-select"){currentGroupId=el.dataset.id;selectedMemberId=null;render();return;}
+ if(a==="group-delete"){
+   if(!selectedGroup()||!confirm("Delete this saved group?"))return;
+   mutateGroups(()=>{encounterGroups=encounterGroups.filter(g=>g.id!==currentGroupId);currentGroupId=encounterGroups[0]?.id||null;selectedMemberId=null;});
+   return;
+ }
+ if(a==="member-select"){selectedMemberId=el.dataset.id;render();return;}
+ if(a==="member-add"){if(selectedMemberId)addToGroup(selectedMemberId,Number(el.dataset.count));return;}
+ if(a==="member-remove"){if(!selectedMemberId)return;const id=selectedMemberId;selectedMemberId=null;updateGroup(g=>removeMembers(g,id));return;}
  if(a==="new")return create();
  if(a==="copy")return newCopy();
- if(a==="select"){currentId=el.dataset.id;selectedTarget=null;return render();}
+ if(a==="select"){
+   if(tab==="groups"){selectedMemberId=el.dataset.id;render();return;}
+   currentId=el.dataset.id;selectedTarget=null;return render();
+ }
  if(a==="value"){selectedValue=Number(el.dataset.value);if(selectedTarget){const [kind,...key]=selectedTarget.split("|");applyValue(kind,key.join("|"),selectedValue);}else render();return;}
  if(a==="icon")return updateSelected(n=>({...n,icon:el.dataset.icon}));
  if(a==="clear")return removeValue(el.dataset.kind,el.dataset.key);
- if(a==="delete"){if(confirm("Delete this creature? Export a backup first if needed."))mutate(()=>{npcs=npcs.filter(n=>n.id!==currentId);currentId=npcs[0]?.id||null;});return;}
+ if(a==="delete"){
+  const used=referencesTo(encounterGroups,currentId);
+  if(used.length){notice="Cannot delete this creature: used by "+used.length+" saved group(s). Remove those references first.";error=true;render();return;}
+  if(confirm("Delete this creature? Export a backup first if needed."))mutate(()=>{npcs=npcs.filter(n=>n.id!==currentId);currentId=npcs[0]?.id||null;});return;
+ }
  if(a==="export"){const blob=new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="reactive-gm-creatures.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
  if(a==="import"){document.querySelector("#import-file").click();return;}
  if(el.classList.contains("target")){selectedTarget=el.dataset.kind+"|"+el.dataset.key;applyValue(el.dataset.kind,el.dataset.key,selectedValue);}
 });
 root.addEventListener("change",async e=>{
  const el=e.target;
- if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId))))throw Error("Import would break saved group references. Remove affected groups first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
+ if(el.dataset.groupField){const field=el.dataset.groupField;updateGroup(g=>({...g,[field]:el.value}));return;}
  if(el.id==="type-filter"){typeFilter=el.value;render();return;}
  if(el.id==="type-jump"){const target=document.getElementById("type-section-"+el.value);target?.scrollIntoView({block:"nearest",behavior:"smooth"});el.value="";return;}
  if(el.dataset.field==="magicChoice"){updateSelected(n=>({...n,magicChoice:el.value}));return;}
  if(el.dataset.field){const field=el.dataset.field;updateSelected(n=>({...n,[field]:field==="type"?el.value.trim():el.value}));}
 });
+root.addEventListener("dblclick",e=>{if(tab!=="groups")return;const creature=e.target.closest(".creature");if(creature&&selectedGroup())addToGroup(creature.dataset.id);});
 root.addEventListener("input",e=>{const el=e.target;if(el.matches("input[data-field=name],textarea[data-field=description]")){const npc=selected();if(!npc)return;const before=JSON.stringify(npcs);npc[el.dataset.field]=el.value;if(!persist())npcs=JSON.parse(before);const entry=document.querySelector('.creature.selected span:last-child');if(entry)entry.textContent=npc.name||"Unnamed";}});
 if(npcs.length)currentId=npcs[0].id;
 render();
