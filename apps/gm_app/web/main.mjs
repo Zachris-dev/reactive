@@ -73,8 +73,6 @@ function newCopy(){
 }
 function updateSelected(fn){
  const npc=selected();if(!npc)return;
- const affected=referencesTo(encounterGroups,npc.id);
- if(affected.length && !confirm("This creature is used in "+affected.length+" saved group(s). Your changes will propagate. To preserve the original, use New Copy. Continue?"))return;
  mutate(()=>{const idx=npcs.findIndex(n=>n.id===npc.id);npcs[idx]=fn(npc);});
 }
 function targetInfo(el){return {kind:el.dataset.kind,key:el.dataset.key};}
@@ -114,7 +112,8 @@ function render(){
 }
 function renderNpc(npc){
  const groups=availableGroups(npc);
- return '<div class="tools"><button data-action="delete" class="warn">Delete creature</button></div>'+
+ return (referencesTo(encounterGroups,npc.id).length?'<p class="reference-warning">Used by '+referencesTo(encounterGroups,npc.id).length+' saved group(s). Changes here update all of them. Use <strong>New Copy</strong> to make an independent variant.</p>':'')+
+ '<div class="tools"><button data-action="delete" class="warn">Delete creature</button></div>'+
  '<div class="fields"><label>Name<input data-field="name" value="'+esc(npc.name)+'" maxlength="100"></label>'+
  '<label>Creature type<input data-field="type" list="creature-types" placeholder="e.g. Goblins" value="'+esc(npc.type||"")+'" maxlength="100"><datalist id="creature-types">'+libraryTypes(npcs).map(t=>'<option value="'+esc(t)+'"></option>').join("")+'</datalist></label>'+
  '<label>Marker color<input data-field="color" type="color" value="'+esc(npc.color)+'"></label>'+
@@ -150,7 +149,7 @@ root.addEventListener("click",e=>{
  if(a==="new")return create();
  if(a==="copy")return newCopy();
  if(a==="select"){
-   if(tab==="groups"){selectedMemberId=el.dataset.id;render();return;}
+   if(tab==="groups"){return;}
    currentId=el.dataset.id;selectedTarget=null;return render();
  }
  if(a==="value"){selectedValue=Number(el.dataset.value);if(selectedTarget){const [kind,...key]=selectedTarget.split("|");applyValue(kind,key.join("|"),selectedValue);}else render();return;}
