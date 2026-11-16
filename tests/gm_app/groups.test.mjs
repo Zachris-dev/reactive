@@ -142,3 +142,16 @@ test("selected icon-bearing buttons preserve their normal background",async()=>{
  assert.match(css,/\.group-option:is\(\.active,:hover\)\{background:#29374a\}/);
  assert.match(css,/\.member-tile\.active,[\s\S]*?\.group-option\.active\{border-color:#bbe1ff;outline:2px solid #bbe1ff/);
 });
+
+test("Group Planner places full creature controls on a wider right panel",async()=>{
+ const {readFile}=await import("node:fs/promises");
+ const main=await readFile(new URL("../../apps/gm_app/web/main.mjs",import.meta.url),"utf8");
+ const css=await readFile(new URL("../../apps/gm_app/web/style.css",import.meta.url),"utf8");
+ assert.match(main,/if\(tab==="groups"\)\{[\s\S]*?library\.className="panel sidebar group-creature-library"/);
+ assert.match(main,/while\(sidebar\.children\.length>1\)library\.append\(sidebar\.children\[1\]\)/);
+ assert.match(main,/layout\.append\(library\)/);
+ assert.match(main,/layout\.classList\.add\("group-planner-layout"\)/);
+ assert.match(css,/\.group-planner-layout\{grid-template-columns:minmax\(180px,230px\) minmax\(300px,1fr\) minmax\(300px,390px\)\}/);
+ assert.match(css,/@media\(max-width:980px\)/);
+ assert.match(css,/@media\(max-width:620px\)/);
+});
