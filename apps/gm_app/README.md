@@ -16,9 +16,10 @@ The first successful load installs an offline cache of the page, scripts, styles
 ## Implemented in v1
 
 - Create, rename, describe, and delete individual GM NPCs/monsters.
+- Assign a free-form creature type (such as Goblins, Highland Beasts, High Emeri Humans); the library lists members of each type together, with type filtering and jump-to-section controls. These library types are separate from future encounter groups.
 - Choose from eight bundled, recolorable SVG-style markers.
 - Use the twelve skill groups already present in the character-sheet UI, including selectable Magic disciplines.
-- Select or drag repeatable values 5, 10, ... 95 onto any skill or group.
+- Select or drag repeatable values 5, 10, ... 95 onto skills or groups; assign an explicit **0** to an individual skill to override a higher group default. Group defaults remain 5–95; remove them with × instead of assigning 0.
 - Individual skill assignments always *replace*, never add to, inherited group assignments.
 - Remove or overwrite any assignment; unassigned values resolve to zero without being saved.
 - Autosave the creature library to same-browser local storage.
@@ -33,7 +34,7 @@ test.cmd gm
 test.cmd
 ```
 
-The automated tests cover sparse values, overrides (higher and lower), clearing, round-trip serialization, value validation, duplicate IDs, the skill catalogue, and compatibility markers.
+The automated tests cover sparse values, explicit zero overrides, inheritance, clearing, round-trip serialization, type grouping/filtering, backward compatibility with earlier untyped saves, value validation, duplicate IDs, the skill catalogue, and compatibility markers.
 
 ## Deliberate v1 limitations
 
