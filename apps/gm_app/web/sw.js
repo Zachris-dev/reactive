@@ -1,4 +1,4 @@
-const CACHE="reactive-gm-v2";
+const CACHE="reactive-gm-v3";
 const ASSETS=["./","./index.html","./style.css","./main.mjs","./model.mjs","./skills.mjs"];
 self.addEventListener("install",event=>{
  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
