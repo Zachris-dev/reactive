@@ -105,3 +105,30 @@ test("compact group UI shows marker and quantity without visible member names",a
  assert.match(html,/data-action="member-subtract" data-count="1"/);
  assert.match(html,/data-action="member-subtract" data-count="10"/);
 });
+
+test("saved groups sidebar previews icons and counts, not names of creature members",async()=>{
+ const {groupSidebar}=await import("../../apps/gm_app/web/group-ui.mjs");
+ const goblin=newNpc("goblin","Goblin Archer");
+ const wolf={...newNpc("wolf","Mountain Wolf"),color:"#aabbcc",icon:"wolf"};
+ const g=addMembers(addMembers(newGroup("one","Forest Patrol"),"goblin",9),"wolf",3);
+ const html=groupSidebar([g],"one",x=>String(x),[goblin,wolf],(name,color)=>'<svg data-icon="'+name+'" data-color="'+color+'"></svg>');
+ assert.match(html,/Forest Patrol \(12\)/);
+ assert.match(html,/class="group-preview"/);
+ assert.match(html,/data-icon="monster-round"/);
+ assert.match(html,/data-icon="wolf"/);
+ assert.match(html,/data-color="#aabbcc"/);
+ assert.match(html,/group-preview-count">×9/);
+ assert.match(html,/group-preview-count">×3/);
+ assert.match(html,/title="Goblin Archer ×9"/);
+ assert.doesNotMatch(html,/<span class="group-option-title">Goblin Archer/);
+ const updated={...goblin,name:"Goblin Veteran",icon:"monster-square"};
+ const newer=groupSidebar([g],"one",x=>String(x),[updated,wolf],(name)=>'<svg data-icon="'+name+'"></svg>');
+ assert.match(newer,/Goblin Veteran ×9/);
+ assert.match(newer,/data-icon="monster-square"/);
+});
+test("empty saved group shows its name without an unnecessary preview row",async()=>{
+ const {groupSidebar}=await import("../../apps/gm_app/web/group-ui.mjs");
+ const html=groupSidebar([newGroup("one","Empty")],"one",x=>String(x),[],()=>"<svg></svg>");
+ assert.match(html,/Empty \(0\)/);
+ assert.doesNotMatch(html,/class="group-preview"/);
+});
