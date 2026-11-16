@@ -13,6 +13,15 @@ python -m http.server 8000
 Open `http://localhost:8000/apps/gm_app/web/` in your browser.
 The first successful load installs an offline cache of the page, scripts, styles, and built-in SVG icon definitions. Reopening the same address in that browser can work without a connection after installation. Browsers may evict site data; **export backups** regularly. In particular, `file://` is not supported for offline caching.
 
+## Saved encounters and activation
+
+- The Encounter tab has a library of named plans. **New** starts a fresh plan, **New Copy** duplicates the selected plan, and the selector recalls an older one. Plan changes are automatically saved locally.
+- **Activate Encounter** creates an independent execution copy of the selected plan. During execution, all side changes apply to that copy and **never** overwrite the prepared plan. Execution progress is also automatically stored across reloads.
+- **Finish Execution** explicitly discards the execution copy after confirmation and returns to the unchanged plan. A new activation is then possible.
+- Only one encounter can be executing at a time. Plan switching and creation are disabled during execution.
+- Existing single-encounter storage is imported automatically the first time the encounter library is opened. The older storage key is left untouched until the new library is saved successfully.
+- Creature deletion and library imports check references in **every saved encounter** and the current execution, not only the currently displayed encounter.
+
 ## Encounter tab (initial version)
 
 - A third tab provides an encounter area with unlimited side boxes. Side 1 is reserved for PCs and allies; player-character integration is still pending.
