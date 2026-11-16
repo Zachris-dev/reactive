@@ -7,10 +7,11 @@ export function groupEditor(group,npcs,icon,esc,selectedMemberId){
  const byId=new Map(npcs.map(n=>[n.id,n]));
  const count=group.members.reduce((n,m)=>n+m.count,0);
  return '<div class="fields"><label class="wide">Group name<input data-group-field="name" value="'+esc(group.name)+'"></label><label class="wide">Notes<textarea data-group-field="notes">'+esc(group.notes)+'</textarea></label></div>'+
- '<section class="group-drop"><h2>Group members ('+count+')</h2><p class="help">Drag a creature from the library here, or double-click its icon. Select a group member to add more copies.</p>'+
- (group.members.length?group.members.map(m=>{
+ '<section class="group-drop"><h2>Group members ('+count+')</h2><p class="help">Drag a creature from the library here, or double-click its icon. Select an icon to change its quantity.</p>'+
+ (group.members.length?'<div class="member-grid">'+group.members.map(m=>{
    const n=byId.get(m.npcId);
-   return '<button class="member-option '+(selectedMemberId===m.npcId?'active':'')+'" data-action="member-select" data-id="'+esc(m.npcId)+'"><span class="mini">'+(n?icon(n.icon,n.color):'!')+'</span><span>'+esc(n?.name||"Missing creature")+'</span><strong>× '+m.count+'</strong></button>';
- }).join(""):'<p class="empty-group">Drop creatures here</p>')+'</section>'+
- '<section class="member-controls"><strong>Selected creature: '+esc(byId.get(selectedMemberId)?.name||"None")+'</strong><div class="tools">'+[1,3,5,9,19].map(v=>'<button data-action="member-add" data-count="'+v+'" '+(selectedMemberId?'':'disabled')+'>+'+v+'</button>').join("")+'<button data-action="member-remove" '+(selectedMemberId?'':'disabled')+'>Remove all</button></div></section>';
+   const name=n?.name||"Missing creature";
+   return '<button class="member-tile '+(selectedMemberId===m.npcId?'active':'')+'" data-action="member-select" data-id="'+esc(m.npcId)+'" title="'+esc(name)+'" aria-label="'+esc(name)+': '+m.count+'"><span class="mini">'+(n?icon(n.icon,n.color):'!')+'</span><strong>×'+m.count+'</strong></button>';
+ }).join("")+'</div>':'<p class="empty-group">Drop creatures here</p>')+'</section>'+
+ '<section class="member-controls"><strong>Selected creature: '+esc(byId.get(selectedMemberId)?.name||"None")+'</strong><div class="tools">'+[1,3,5,9,19].map(v=>'<button data-action="member-add" data-count="'+v+'" '+(selectedMemberId?'':'disabled')+'>+'+v+'</button>').join("")+[1,10].map(v=>'<button data-action="member-subtract" data-count="'+v+'" '+(selectedMemberId?'':'disabled')+'>−'+v+'</button>').join("")+'<button data-action="member-remove" '+(selectedMemberId?'':'disabled')+'>Remove all</button></div></section>';
 }
