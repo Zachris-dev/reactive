@@ -21,7 +21,7 @@ test("encounter plans are named, separate and individually recalled",()=>{
  lib=selectPlan(lib,oldId);
  assert.equal(selectedPlan(lib).name,"Roadside ambush");
  assert.equal(currentEncounter(lib).sides[0].units.length,1);
- assert.equal(currentEncounter(lib).sides.length,1);
+ assert.equal(currentEncounter(lib).sides.length,3);
 });
 test("copy creates independent encounter plan with new ID and same initial composition",()=>{
  let lib=initialEncounterLibrary();
@@ -31,8 +31,8 @@ test("copy creates independent encounter plan with new ID and same initial compo
  assert.equal(selectedPlan(lib).name,old.name+" (copy)");
  assert.deepEqual(selectedPlan(lib).encounter,old.encounter);
  lib=updateEncounterInLibrary(lib,e=>addSide(e,"second-side"));
- assert.equal(old.encounter.sides.length,1);
- assert.equal(selectedPlan(lib).encounter.sides.length,2);
+ assert.equal(old.encounter.sides.length,2);
+ assert.equal(selectedPlan(lib).encounter.sides.length,3);
 });
 test("activation makes a separate execution copy and preserves planned sides",()=>{
  let lib=initialEncounterLibrary();
@@ -42,7 +42,7 @@ test("activation makes a separate execution copy and preserves planned sides",()
  assert.notStrictEqual(lib.execution.encounter,selectedPlan(lib).encounter);
  lib=updateEncounterInLibrary(lib,e=>addSide(e,"reinforcements"));
  assert.equal(currentEncounter(lib).sides.length,2);
- assert.equal(selectedPlan(lib).encounter.sides.length,1);
+ assert.equal(selectedPlan(lib).encounter.sides.length,2);
  assert.throws(()=>activateEncounter(lib),/already executing/);
  lib=endExecution(lib);
  assert.equal(lib.execution,null);
@@ -57,8 +57,8 @@ test("execution and reserve status survive storage reload",()=>{
  saveEncounterLibrary(store,lib,npcs);
  const loaded=loadEncounterLibrary(store,npcs);
  assert.deepEqual(loaded,lib);
- assert.equal(loaded.execution.encounter.sides[1].status,"reserve");
- assert.equal(loaded.plans[0].encounter.sides[1].status,"active");
+ assert.equal(loaded.execution.encounter.sides[2].status,"reserve");
+ assert.equal(loaded.plans[0].encounter.sides[2].status,"active");
 });
 test("saving a plan never overwrites any other plan and survives reload",()=>{
  const store=storage();
@@ -113,4 +113,18 @@ test("saved encounter selector and execution controls appear in UI",()=>{
  assert.match(html,/Execution — plan preserved/);
  assert.match(html,/data-action="encounter-execution-end"/);
  assert.doesNotMatch(html,/data-action="encounter-plan-activate"/);
+});
+
+test("new saved encounter plans have both a PC side and empty Side 2",()=>{
+ let library=initialEncounterLibrary();
+ assert.equal(selectedPlan(library).encounter.sides.length,2);
+ library=addPlan(library,"another","Second plan");
+ assert.deepEqual(selectedPlan(library).encounter.sides[1],{id:"side-2",name:"Side 2",status:"active",units:[]});
+});
+test("legacy encounter containing only Side 1 remains readable",()=>{
+ const store=storage();
+ const old={sides:[{id:"side-1",name:"Side 1 — PCs & allies",status:"active",units:[]}]};
+ store.setItem(ENCOUNTER_STORAGE_KEY,JSON.stringify(old));
+ const library=loadEncounterLibrary(store,npcs);
+ assert.deepEqual(library.plans[0].encounter,old);
 });
