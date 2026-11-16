@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {VALUES,STORAGE_KEY,newNpc,effectiveSkill,assign,remove,parseLibrary,serializeLibrary,loadLibrary,saveLibrary,skillKey,skillForEngine,validateNpc,creatureType,libraryTypes,groupedLibrary} from "../../apps/gm_app/web/model.mjs";
+import {VALUES,STORAGE_KEY,newNpc,effectiveSkill,assign,remove,parseLibrary,serializeLibrary,loadLibrary,saveLibrary,skillKey,skillForEngine,validateNpc,creatureType,libraryTypes,groupedLibrary,copyNpc} from "../../apps/gm_app/web/model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "../../apps/gm_app/web/skills.mjs";
 const make=()=>newNpc("id-1","Scout");
 test("palette contains explicit zero and 5..95 in increments of five",()=>assert.deepEqual(VALUES,[0,...Array.from({length:19},(_,i)=>(i+1)*5)]));
@@ -131,4 +131,34 @@ test("player character parser includes an explicit GM origin guard",async()=>{
  const {readFile}=await import("node:fs/promises");
  const source=await readFile(new URL("../../apps/character_sheet/web/character-save.js",import.meta.url),"utf8");
  assert.ok(source.includes('data.creationMode==="gm"'));
+});
+
+test("New Copy duplicates all creature details and skill assignments with a new ID",()=>{
+ let original={...make(),type:"Goblins",name:"Goblin Warrior",description:"Shield fighter",icon:"monster-square",color:"#44aa77",magicChoice:"Divine"};
+ original=assign(original,"group","Social",55);
+ original=assign(original,"skill",skillKey("Social","Smalltalk"),0);
+ original=assign(original,"skill",skillKey("Combat","Sword"),80);
+ const duplicate=copyNpc(original,"id-2");
+ assert.equal(duplicate.id,"id-2");
+ assert.deepEqual({...duplicate,id:original.id},original);
+ assert.equal(effectiveSkill(duplicate,"Social","Smalltalk"),0);
+ assert.deepEqual(parseLibrary(serializeLibrary([original,duplicate])),[original,duplicate]);
+});
+
+test("New Copy does not share mutable objects with its source",()=>{
+ let original=assign(make(),"group","Social",40);
+ original=assign(original,"skill",skillKey("Social","Smalltalk"),10);
+ const duplicate=copyNpc(original,"id-2");
+ duplicate.groups.Social=75;
+ duplicate.skills[skillKey("Social","Smalltalk")]=0;
+ duplicate.name="Different";
+ assert.equal(original.groups.Social,40);
+ assert.equal(original.skills[skillKey("Social","Smalltalk")],10);
+ assert.equal(original.name,"Scout");
+ assert.equal(duplicate.id,"id-2");
+});
+
+test("New Copy rejects reused IDs and invalid player-origin creatures",()=>{
+ assert.throws(()=>copyNpc(make(),"id-1"),/new ID/);
+ assert.throws(()=>copyNpc({...make(),creationMode:"player"},"id-2"),/invalid/);
 });
