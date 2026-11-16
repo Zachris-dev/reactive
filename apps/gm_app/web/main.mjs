@@ -71,7 +71,12 @@ function newCopy(){
  const duplicate=copyNpc(source,id);
  mutate(()=>{npcs.push(duplicate);currentId=id;typeFilter="";selectedTarget=null;});
 }
-function updateSelected(fn){const npc=selected();if(!npc)return;mutate(()=>{const idx=npcs.findIndex(n=>n.id===npc.id);npcs[idx]=fn(npc);});}
+function updateSelected(fn){
+ const npc=selected();if(!npc)return;
+ const affected=referencesTo(encounterGroups,npc.id);
+ if(affected.length && !confirm("This creature is used in "+affected.length+" saved group(s). Your changes will propagate. To preserve the original, use New Copy. Continue?"))return;
+ mutate(()=>{const idx=npcs.findIndex(n=>n.id===npc.id);npcs[idx]=fn(npc);});
+}
 function targetInfo(el){return {kind:el.dataset.kind,key:el.dataset.key};}
 function applyValue(kind,key,value){
  if(kind==="group" && value===0){
@@ -163,14 +168,27 @@ root.addEventListener("click",e=>{
 root.addEventListener("change",async e=>{
  const el=e.target;
  if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId))))throw Error("Import would break saved group references. Remove affected groups first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
- if(el.dataset.groupField){const field=el.dataset.groupField;updateGroup(g=>({...g,[field]:el.value}));return;}
+ if(el.dataset.groupField){return;}
  if(el.id==="type-filter"){typeFilter=el.value;render();return;}
  if(el.id==="type-jump"){const target=document.getElementById("type-section-"+el.value);target?.scrollIntoView({block:"nearest",behavior:"smooth"});el.value="";return;}
  if(el.dataset.field==="magicChoice"){updateSelected(n=>({...n,magicChoice:el.value}));return;}
  if(el.dataset.field){const field=el.dataset.field;updateSelected(n=>({...n,[field]:field==="type"?el.value.trim():el.value}));}
 });
 root.addEventListener("dblclick",e=>{if(tab!=="groups")return;const creature=e.target.closest(".creature");if(creature&&selectedGroup())addToGroup(creature.dataset.id);});
-root.addEventListener("input",e=>{const el=e.target;if(el.matches("input[data-field=name],textarea[data-field=description]")){const npc=selected();if(!npc)return;const before=JSON.stringify(npcs);npc[el.dataset.field]=el.value;if(!persist())npcs=JSON.parse(before);const entry=document.querySelector('.creature.selected span:last-child');if(entry)entry.textContent=npc.name||"Unnamed";}});
+root.addEventListener("input",e=>{
+ const el=e.target;
+ if(el.matches("input[data-group-field=name],textarea[data-group-field=notes]")){
+   const group=selectedGroup();if(!group)return;
+   const before=structuredClone(encounterGroups);
+   group[el.dataset.groupField]=el.value;
+   if(!persistGroups())encounterGroups=before;
+   if(el.dataset.groupField==="name"){
+     const current=document.querySelector(".group-option.active");
+     if(current)current.firstChild.textContent=el.value+" ";
+   }
+   return;
+ }
+ if(el.matches("input[data-field=name],textarea[data-field=description]")){const npc=selected();if(!npc)return;const before=JSON.stringify(npcs);npc[el.dataset.field]=el.value;if(!persist())npcs=JSON.parse(before);const entry=document.querySelector('.creature.selected span:last-child');if(entry)entry.textContent=npc.name||"Unnamed";}});
 if(npcs.length)currentId=npcs[0].id;
 render();
 if("serviceWorker" in navigator && location.protocol!=="file:"){navigator.serviceWorker.register("./sw.js").catch(()=>{});}
