@@ -43,15 +43,31 @@ test("adding a saved group copies membership but never edits the group template"
  e.sides[2].units[0].members[0].count=1;
  assert.equal(group.members[0].count,3);
 });
-test("adding individual creature creates a distinct encounter unit",()=>{
+test("repeated creature drops increase quantity instead of creating new unit",()=>{
  let e=initialEncounter();
  e=addCreatureToSide(e,"side-1",npcs[0],"unit1");
- e=addCreatureToSide(e,"side-1",npcs[0],"unit2");
+ e=addCreatureToSide(e,"side-1",npcs[0],"unused2");
+ e=addCreatureToSide(e,"side-1",npcs[0],"unused3");
+ assert.equal(e.sides[0].units.length,1);
+ assert.equal(e.sides[0].units[0].id,"unit1");
+ assert.deepEqual(e.sides[0].units[0].members,[{npcId:"goblin",count:3}]);
+ assert.equal(initiativeParticipants(e).length,3);
+ e=addCreatureToSide(e,"side-1",npcs[1],"wolf-unit");
  assert.equal(e.sides[0].units.length,2);
- assert.deepEqual(e.sides[0].units[0].members,[{npcId:"goblin",count:1}]);
- assert.throws(()=>addCreatureToSide(e,"side-1",npcs[0],"unit2"),/Duplicate/);
+ assert.throws(()=>addCreatureToSide(e,"side-1",npcs[0],"wolf-unit"),/Duplicate/);
  e=removeUnit(e,"side-1","unit1");
  assert.equal(e.sides[0].units.length,1);
+});
+test("individual creature consolidation is side-local, not merged into group entries",()=>{
+ let e=initialEncounter();
+ e=addGroupToSide(e,"side-2",group,"group-unit");
+ e=addCreatureToSide(e,"side-2",npcs[0],"solo");
+ e=addCreatureToSide(e,"side-2",npcs[0],"another");
+ e=addCreatureToSide(e,"side-1",npcs[0],"ally");
+ assert.equal(e.sides[1].units.length,2);
+ assert.deepEqual(e.sides[1].units[0].members,group.members);
+ assert.equal(e.sides[1].units[1].members[0].count,2);
+ assert.equal(e.sides[0].units[0].members[0].count,1);
 });
 test("reserve sides excluded from initiative until activated",()=>{
  let e=addSide(initialEncounter(),"ambush");
