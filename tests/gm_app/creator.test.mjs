@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {VALUES,STORAGE_KEY,newNpc,effectiveSkill,assign,remove,parseLibrary,serializeLibrary,loadLibrary,saveLibrary,skillKey,skillForEngine,validateNpc} from "../../apps/gm_app/web/model.mjs";
+import {VALUES,STORAGE_KEY,newNpc,effectiveSkill,assign,remove,parseLibrary,serializeLibrary,loadLibrary,saveLibrary,skillKey,skillForEngine,validateNpc,creatureType,libraryTypes,groupedLibrary} from "../../apps/gm_app/web/model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "../../apps/gm_app/web/skills.mjs";
 const make=()=>newNpc("id-1","Scout");
-test("palette contains 5..95 in increments of five",()=>assert.deepEqual(VALUES,Array.from({length:19},(_,i)=>(i+1)*5)));
+test("palette contains explicit zero and 5..95 in increments of five",()=>assert.deepEqual(VALUES,[0,...Array.from({length:19},(_,i)=>(i+1)*5)]));
 test("unassigned skills resolve to zero and no zero entries are stored",()=>{
  const c=make();assert.equal(effectiveSkill(c,"Social","Smalltalk"),0);assert.deepEqual(c.groups,{});assert.deepEqual(c.skills,{});
 });
@@ -53,6 +53,49 @@ test("values are reusable and unsupported values are rejected",()=>{
  assert.throws(()=>assign(c,"skill","Mind::Focus",100));
  assert.throws(()=>assign(c,"skill","Mind::Focus",22));
 });
+test("explicit zero overrides a higher group value, survives save/load, and differs from removing",()=>{
+ let c=assign(make(),"group","Social",65);
+ c=assign(c,"skill",skillKey("Social","Smalltalk"),0);
+ assert.equal(effectiveSkill(c,"Social","Smalltalk"),0);
+ assert.equal(effectiveSkill(c,"Social","Oration"),65);
+ const persisted=parseLibrary(serializeLibrary([c]))[0];
+ assert.equal(persisted.skills[skillKey("Social","Smalltalk")],0);
+ assert.equal(skillForEngine(persisted,"Social","Smalltalk").supplied,0);
+ c=remove(persisted,"skill",skillKey("Social","Smalltalk"));
+ assert.equal(effectiveSkill(c,"Social","Smalltalk"),65);
+});
+
+test("types are optional and group creatures next to each other in sorted order",()=>{
+ const all=[
+  {...newNpc("a","Wolf"),type:"Highland Beasts"},
+  {...newNpc("b","Spear Goblin"),type:"Goblins"},
+  {...newNpc("c","Archer Goblin"),type:"Goblins"},
+  {...newNpc("d","Wanderer"),type:"High Emeri Humans"},
+  newNpc("e","Unsorted")
+ ];
+ assert.deepEqual(libraryTypes(all),["Goblins","High Emeri Humans","Highland Beasts"]);
+ const grouped=groupedLibrary(all);
+ assert.deepEqual(grouped.map(g=>g.type),["Goblins","High Emeri Humans","Highland Beasts",""]);
+ assert.deepEqual(grouped[0].creatures.map(n=>n.name),["Archer Goblin","Spear Goblin"]);
+ assert.deepEqual(groupedLibrary(all,"Goblins").flatMap(g=>g.creatures.map(n=>n.id)),["c","b"]);
+ assert.equal(creatureType({name:"Old NPC"}),"");
+ assert.equal(parseLibrary(serializeLibrary([newNpc("legacy")]))[0].type,"");
+});
+
+test("legacy creature saves without type remain valid and are unclassified",()=>{
+ const c=make();delete c.type;
+ assert.equal(validateNpc(c),true);
+ assert.equal(groupedLibrary(parseLibrary(serializeLibrary([c])))[0].type,"");
+});
+test("type and explicit zero overrides survive serialization together",()=>{
+ let c={...make(),type:"Goblins"};
+ c=assign(c,"group","Social",35);
+ c=assign(c,"skill",skillKey("Social","Smalltalk"),0);
+ const recovered=parseLibrary(serializeLibrary([c]))[0];
+ assert.equal(recovered.type,"Goblins");
+ assert.equal(effectiveSkill(recovered,"Social","Smalltalk"),0);
+});
+
 test("sparse save/load roundtrip retains GM origin and fields",()=>{
  let c=assign(make(),"group","Social",30);
  c=assign(c,"skill",skillKey("Social","Forceful"),5);
