@@ -16,6 +16,7 @@ The first successful load installs an offline cache of the page, scripts, styles
 ## Implemented in v1
 
 - Create, rename, describe, and delete individual GM NPCs/monsters.
+- Use **New Copy** to create a fully independent copy of the currently selected creature with a new ID, retaining the name, type, description, icon, color, Magic choice, group defaults, and individual overrides (including explicit zero). The copy is selected for immediate editing.
 - Assign a free-form creature type (such as Goblins, Highland Beasts, High Emeri Humans); the library lists members of each type together, with type filtering and jump-to-section controls. These library types are separate from future encounter groups.
 - Choose from eight bundled, recolorable SVG-style markers.
 - Use the twelve skill groups already present in the character-sheet UI, including selectable Magic disciplines.
