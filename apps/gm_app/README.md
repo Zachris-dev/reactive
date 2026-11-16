@@ -26,7 +26,7 @@ The first successful load installs an offline cache of the page, scripts, styles
 
 - A third tab provides an encounter area with unlimited side boxes. Every **new encounter starts with two empty, active sides**: Side 1 for PCs and allies, and Side 2 ready for opponents or another faction. Player-character integration is still pending. Existing saved encounters are not modified.
 - Saved groups appear in a collapsible list to the left, and creatures in a collapsible list to the right. Drag either into any side.
-- Adding a saved group copies the current group composition into an independent encounter unit, without editing its saved template. Adding a creature creates a separate one-creature encounter unit.
+- Adding a saved group copies the current group composition into an independent encounter unit, without editing its saved template. Dragging an individual creature onto a side adds one; repeating the drop increases that side's existing individual-creature count instead of creating a duplicate unit. Creatures inside group snapshots remain separate.
 - Every side can be named and set to **Active** or **Reserve**. Only members of active sides are included by the encounter model's initiative participant query; actual initiative rolling and turn handling are not yet implemented.
 - Side entries can be removed; Side 1 cannot be deleted. The encounter automatically saves to local storage.
 - Deleting or importing away creature definitions currently referenced by the encounter is blocked.
