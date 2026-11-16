@@ -21,6 +21,12 @@ export function remove(npc,kind,key){
 export function newNpc(id, name="New creature"){
   return {id,creationMode:"gm",name,type:"",description:"",icon:"monster-round",color:"#80b7db",groups:{},skills:{}};
 }
+/** Duplicate a creature as an independent record, retaining all creator settings. */
+export function copyNpc(source,newId){
+  if(!validateNpc(source)) throw new Error("Cannot copy an invalid GM creature");
+  if(typeof newId!=="string" || !newId || newId===source.id) throw new Error("The copied creature requires a new ID");
+  return {...structuredClone(source),id:newId};
+}
 function validEntries(entries,allowZero=false){
   return entries && typeof entries==="object" && !Array.isArray(entries) &&
     Object.entries(entries).every(([key,value])=>typeof key==="string" && key.length>0 && VALUES.includes(value) && (allowZero || value!==0));
