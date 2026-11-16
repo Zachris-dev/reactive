@@ -35,6 +35,20 @@ export function addGroupToSide(encounter,sideId,group,unitId){
 export function addCreatureToSide(encounter,sideId,creature,unitId){
  if(!hasId(unitId)||!hasId(creature?.id))throw Error("Invalid creature or unit ID");
  if(encounter.sides.some(s=>s.units.some(u=>u.id===unitId)))throw Error("Duplicate encounter unit ID");
+ const side=encounter.sides.find(s=>s.id===sideId);
+ if(!side)throw Error("Unknown side");
+ // Consolidate individually dropped creatures within this side. Saved group
+ // snapshots remain separate encounter units, preserving their composition.
+ const existing=side.units.find(u=>u.sourceGroupId===null &&
+  u.members.length===1 && u.members[0].npcId===creature.id);
+ if(existing){
+  if(!Number.isSafeInteger(existing.members[0].count+1))throw Error("Creature quantity exceeds safe integer range");
+  return {...encounter,sides:encounter.sides.map(s=>s.id!==sideId?s:{
+   ...s,units:s.units.map(u=>u.id!==existing.id?u:{
+    ...u,members:[{...u.members[0],count:u.members[0].count+1}]
+   })
+  })};
+ }
  return applyUnit(encounter,sideId,{id:unitId,sourceGroupId:null,name:creature.name,notes:"",members:[{npcId:creature.id,count:1}]});
 }
 function applyUnit(encounter,sideId,unit){
