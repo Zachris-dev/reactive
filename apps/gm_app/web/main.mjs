@@ -87,12 +87,23 @@ function render(){
  const types=libraryTypes(npcs);
  if(typeFilter && !types.includes(typeFilter))typeFilter="";
  const sections=groupedLibrary(npcs,typeFilter);
- root.innerHTML='<header><div><h1>Reactive · GM Creature Creator</h1><small>Unrestricted NPCs · automatic local saving · no connection required</small></div><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
- '<div class="layout"><aside class="panel sidebar"><h2>Creatures ('+npcs.length+')</h2><div class="tools"><button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button></div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
+ root.innerHTML='<header><div><h1>Reactive · GM App</h1><small>Offline creature and group planning</small></div><nav class="tabs"><button data-action="tab-creatures" class="'+(tab==="creatures"?"active":"")+'">Creature Creator</button><button data-action="tab-groups" class="'+(tab==="groups"?"active":"")+'">Group Planner</button></nav><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
+ '<div class="layout"><aside class="panel sidebar">'+(tab==="groups"?groupSidebar(encounterGroups,currentGroupId,esc):"")+'<h2>Creatures ('+npcs.length+')</h2><div class="tools">'+(tab==="creatures"?'<button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button>':'<small>Drag or double-click a creature to add it to the active group.</small>')+'</div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
  '<label class="type-filter-label">Show type <select id="type-filter"><option value="">All types</option>'+types.map(t=>'<option value="'+esc(t)+'" '+(typeFilter===t?'selected':'')+'>'+esc(t)+'</option>').join("")+'</select></label>'+
  '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
  '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
- '</aside><section class="panel editor">'+(npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>';
+ '</aside><section class="panel editor">'+(tab==="groups"?groupEditor(selectedGroup(),npcs,icon,esc,selectedMemberId):npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>';
+ if(tab==="groups"){
+  document.querySelectorAll(".creature").forEach(el=>{
+   el.draggable=true;
+   el.addEventListener("dragstart",event=>{event.dataTransfer.setData("application/x-reactive-creature",el.dataset.id);event.dataTransfer.effectAllowed="copy";});
+  });
+  const drop=document.querySelector(".group-drop");
+  if(drop){
+   drop.addEventListener("dragover",event=>{if(event.dataTransfer.types.includes("application/x-reactive-creature"))event.preventDefault();});
+   drop.addEventListener("drop",event=>{event.preventDefault();const id=event.dataTransfer.getData("application/x-reactive-creature");if(id)addToGroup(id);});
+  }
+ }
  document.querySelectorAll(".value").forEach(b=>{b.draggable=true;b.addEventListener("dragstart",e=>{e.dataTransfer.setData("text/plain",b.dataset.value);e.dataTransfer.effectAllowed="copy";});});
  document.querySelectorAll(".target").forEach(el=>{el.addEventListener("dragover",e=>e.preventDefault());el.addEventListener("drop",e=>{e.preventDefault();const v=Number(e.dataTransfer.getData("text/plain"));if(VALUES.includes(v))applyValue(el.dataset.kind,el.dataset.key,v);});});
 }
