@@ -2,6 +2,8 @@ import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibr
 import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
 import {newGroup,copyGroup,addMembers,subtractMembers,removeMembers,referencesTo,loadGroups,saveGroups} from "./group-model.mjs";
 import {groupSidebar,groupEditor} from "./group-ui.mjs";
+import {initialEncounter,loadEncounter,saveEncounter,addSide,updateSide,deleteSide,addGroupToSide,addCreatureToSide,removeUnit} from "./encounter-model.mjs";
+import {encounterLayout} from "./encounter-ui.mjs";
 
 const root=document.querySelector("#app");
 const ICONS=["monster-round","monster-square","monster-point","wolf","bear","horse","human-male","human-female"];
@@ -19,6 +21,9 @@ function icon(id,color){ return '<svg viewBox="0 0 24 26" role="img" aria-label=
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 let npcs=[];
 let encounterGroups=[];
+let encounter=initialEncounter();
+let groupsCollapsed=false;
+let creaturesCollapsed=false;
 let tab="creatures";
 let currentGroupId=null;
 let selectedMemberId=null;
@@ -33,6 +38,7 @@ const selected=()=>npcs.find(n=>n.id===currentId);
 const selectedGroup=()=>encounterGroups.find(g=>g.id===currentGroupId);
 function makeId(prefix){return globalThis.crypto?.randomUUID?.()||prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2);}
 try{encounterGroups=loadGroups(localStorage,npcs);currentGroupId=encounterGroups[0]?.id||null;}catch(e){notice="Could not load groups: "+e.message;error=true;}
+try{encounter=loadEncounter(localStorage,npcs);}catch(e){notice="Could not load encounter: "+e.message;error=true;}
 function persist(){try{saveLibrary(localStorage,npcs);notice="Saved locally";error=false;return true;}catch(e){notice="Local save failed: "+e.message;error=true;return false;}}
 function mutate(fn){const before=JSON.stringify(npcs);fn();if(!persist())npcs=JSON.parse(before);render();}
 function persistGroups(){
@@ -63,6 +69,21 @@ function addToGroup(npcId,count=1){
  selectedMemberId=npcId;
  updateGroup(g=>addMembers(g,npcId,count));
 }
+function mutateEncounter(fn){
+ const before=structuredClone(encounter);
+ try{
+  const updated=fn(encounter);
+  saveEncounter(localStorage,updated,npcs);
+  encounter=updated;notice="Encounter saved locally";error=false;
+ }catch(e){encounter=before;notice="Encounter update failed: "+e.message;error=true;}
+ render();
+}
+function addEncounterSource(sideId,kind,id){
+ const source=kind==="group"?encounterGroups.find(g=>g.id===id):npcs.find(n=>n.id===id);
+ if(!source)return;
+ const unitId=makeId("encounter-unit");
+ mutateEncounter(e=>kind==="group"?addGroupToSide(e,sideId,source,unitId):addCreatureToSide(e,sideId,source,unitId));
+}
 function create(){const id=(globalThis.crypto?.randomUUID?.()||"npc-"+Date.now()+"-"+Math.random().toString(36).slice(2));const npc=newNpc(id);mutate(()=>{npcs.push(npc);currentId=id;});}
 function newCopy(){
  const source=selected();
@@ -90,12 +111,27 @@ function render(){
  const types=libraryTypes(npcs);
  if(typeFilter && !types.includes(typeFilter))typeFilter="";
  const sections=groupedLibrary(npcs,typeFilter);
- root.innerHTML='<header><div><h1>Reactive · GM App</h1><small>Offline creature and group planning</small></div><nav class="tabs"><button data-action="tab-creatures" class="'+(tab==="creatures"?"active":"")+'">Creature Creator</button><button data-action="tab-groups" class="'+(tab==="groups"?"active":"")+'">Group Planner</button></nav><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
- '<div class="layout"><aside class="panel sidebar">'+(tab==="groups"?groupSidebar(encounterGroups,currentGroupId,esc,npcs,icon):"")+'<h2>Creatures ('+npcs.length+')</h2><div class="tools">'+(tab==="creatures"?'<button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button>':'<small>Drag or double-click a creature to add it to the active group.</small>')+'</div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
+ root.innerHTML='<header><div><h1>Reactive · GM App</h1><small>Offline creature and group planning</small></div><nav class="tabs"><button data-action="tab-creatures" class="'+(tab==="creatures"?"active":"")+'">Creature Creator</button><button data-action="tab-groups" class="'+(tab==="groups"?"active":"")+'">Group Planner</button><button data-action="tab-encounter" class="'+(tab==="encounter"?"active":"") +'">Encounter</button></nav><span class="status '+(error?'error':'')+'" role="status">'+esc(notice||"Ready")+'</span></header>'+
+ (tab==="encounter"?encounterLayout(encounter,encounterGroups,npcs,icon,esc,{groupsCollapsed,creaturesCollapsed}):'<div class="layout"><aside class="panel sidebar">'+(tab==="groups"?groupSidebar(encounterGroups,currentGroupId,esc,npcs,icon):"")+'<h2>Creatures ('+npcs.length+')</h2><div class="tools">'+(tab==="creatures"?'<button data-action="new">+ New</button><button data-action="copy" '+(npc?'':'disabled title="Select a creature to copy"')+'>New Copy</button><button data-action="export">Export</button><button data-action="import">Import</button>':'<small>Drag or double-click a creature to add it to the active group.</small>')+'</div><input id="import-file" type="file" accept=".json,application/json" hidden />'+
  '<label class="type-filter-label">Show type <select id="type-filter"><option value="">All types</option>'+types.map(t=>'<option value="'+esc(t)+'" '+(typeFilter===t?'selected':'')+'>'+esc(t)+'</option>').join("")+'</select></label>'+
  '<label class="type-filter-label">Jump to <select id="type-jump"><option value="">Choose a section</option>'+sections.map((section,i)=>'<option value="'+i+'">'+esc(section.type||"Unclassified")+'</option>').join("")+'</select></label>'+
  '<div class="creature-list">'+sections.map((section,i)=>'<section class="creature-section" id="type-section-'+i+'"><h3>'+esc(section.type||"Unclassified")+' <small>('+section.creatures.length+')</small></h3>'+section.creatures.map(n=>'<button class="creature '+(currentId===n.id?'selected':'')+'" data-action="select" data-id="'+esc(n.id)+'"><span class="mini">'+icon(n.icon,n.color)+'</span><span>'+esc(n.name||"Unnamed")+'</span></button>').join("")+'</section>').join("")+'</div>'+
- '</aside><section class="panel editor">'+(tab==="groups"?groupEditor(selectedGroup(),npcs,icon,esc,selectedMemberId):npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>';
+ '</aside><section class="panel editor">'+(tab==="groups"?groupEditor(selectedGroup(),npcs,icon,esc,selectedMemberId):npc?renderNpc(npc):'<h2>No creature selected</h2><p class="help">Choose New to create your first NPC or monster. All assigned skill values are optional.</p>')+'</section></div>');
+ if(tab==="encounter"){
+  document.querySelectorAll(".encounter-source").forEach(el=>{
+   el.addEventListener("dragstart",event=>{
+    event.dataTransfer.setData("application/x-reactive-encounter",JSON.stringify({kind:el.dataset.kind,id:el.dataset.id}));
+    event.dataTransfer.effectAllowed="copy";
+   });
+  });
+  document.querySelectorAll(".encounter-side-drop").forEach(el=>{
+   el.addEventListener("dragover",event=>{if(event.dataTransfer.types.includes("application/x-reactive-encounter"))event.preventDefault();});
+   el.addEventListener("drop",event=>{event.preventDefault();try{
+    const source=JSON.parse(event.dataTransfer.getData("application/x-reactive-encounter"));
+    if(["group","creature"].includes(source.kind))addEncounterSource(el.dataset.sideId,source.kind,source.id);
+   }catch(e){notice="Unrecognized dropped item";error=true;render();}});
+  });
+ }
  if(tab==="groups"){
   document.querySelectorAll(".creature").forEach(el=>{
    el.draggable=true;
@@ -134,6 +170,18 @@ root.addEventListener("click",e=>{
  const el=e.target.closest("button");if(!el)return;
  const a=el.dataset.action;
  if(a==="tab-creatures"){tab="creatures";render();return;}
+ if(a==="tab-encounter"){tab="encounter";render();return;}
+ if(a==="toggle-groups"){groupsCollapsed=!groupsCollapsed;render();return;}
+ if(a==="toggle-creatures"){creaturesCollapsed=!creaturesCollapsed;render();return;}
+ if(a==="encounter-new-side"){mutateEncounter(e=>addSide(e,makeId("side")));return;}
+ if(a==="encounter-delete-side"){
+  if(!confirm("Remove this side from the encounter?"))return;
+  mutateEncounter(e=>deleteSide(e,el.dataset.id));return;
+ }
+ if(a==="encounter-remove-unit"){
+  mutateEncounter(e=>removeUnit(e,el.dataset.sideId,el.dataset.id));return;
+ }
+
  if(a==="tab-groups"){tab="groups";render();return;}
  if(a==="group-new")return createGroup();
  if(a==="group-copy")return duplicateGroup();
@@ -180,6 +228,10 @@ root.addEventListener("change",async e=>{
  const el=e.target;
  if(el.id==="import-file"){const file=el.files?.[0];if(!file)return;try{const imported=parseLibrary(await file.text());if(encounterGroups.some(g=>g.members.some(m=>!imported.some(n=>n.id===m.npcId))))throw Error("Import would break saved group references. Remove affected groups first.");if(confirm("Replace current local creature library with "+imported.length+" imported creatures?"))mutate(()=>{npcs=imported;currentId=npcs[0]?.id||null;});}catch(err){notice=err.message;error=true;render();}el.value="";return;}
  if(el.dataset.groupField){return;}
+ if(el.dataset.sideStatus){
+  mutateEncounter(e=>updateSide(e,el.dataset.sideStatus,{status:el.value}));return;
+ }
+ if(el.dataset.sideName){return;}
  if(el.id==="type-filter"){typeFilter=el.value;render();return;}
  if(el.id==="type-jump"){const target=document.getElementById("type-section-"+el.value);target?.scrollIntoView({block:"nearest",behavior:"smooth"});el.value="";return;}
  if(el.dataset.field==="magicChoice"){updateSelected(n=>({...n,magicChoice:el.value}));return;}
@@ -188,6 +240,14 @@ root.addEventListener("change",async e=>{
 root.addEventListener("dblclick",e=>{if(tab!=="groups")return;const creature=e.target.closest(".creature");if(creature&&selectedGroup())addToGroup(creature.dataset.id);});
 root.addEventListener("input",e=>{
  const el=e.target;
+ if(el.matches("input[data-side-name]")){
+  try{
+   const updated=updateSide(encounter,el.dataset.sideName,{name:el.value});
+   saveEncounter(localStorage,updated,npcs);
+   encounter=updated;notice="Encounter saved locally";error=false;
+  }catch(e){notice="Encounter save failed: "+e.message;error=true;}
+  return;
+ }
  if(el.matches("input[data-group-field=name],textarea[data-group-field=notes]")){
    const group=selectedGroup();if(!group)return;
    const before=structuredClone(encounterGroups);
