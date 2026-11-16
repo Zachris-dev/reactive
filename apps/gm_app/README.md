@@ -13,6 +13,16 @@ python -m http.server 8000
 Open `http://localhost:8000/apps/gm_app/web/` in your browser.
 The first successful load installs an offline cache of the page, scripts, styles, and built-in SVG icon definitions. Reopening the same address in that browser can work without a connection after installation. Browsers may evict site data; **export backups** regularly. In particular, `file://` is not supported for offline caching.
 
+## Encounter tab (initial version)
+
+- A third tab provides an encounter area with unlimited side boxes. Side 1 is reserved for PCs and allies; player-character integration is still pending.
+- Saved groups appear in a collapsible list to the left, and creatures in a collapsible list to the right. Drag either into any side.
+- Adding a saved group copies the current group composition into an independent encounter unit, without editing its saved template. Adding a creature creates a separate one-creature encounter unit.
+- Every side can be named and set to **Active** or **Reserve**. Only members of active sides are included by the encounter model's initiative participant query; actual initiative rolling and turn handling are not yet implemented.
+- Side entries can be removed; Side 1 cannot be deleted. The encounter automatically saves to local storage.
+- Deleting or importing away creature definitions currently referenced by the encounter is blocked.
+- No automatic ally/enemy classification is imposed. Relations between sides, player characters, and initiative controls will be added later.
+
 ## Group Planner tab
 
 - Creature Creator and Group Planner are tabs of the same offline GM app.
@@ -52,6 +62,6 @@ The automated tests cover sparse values, explicit zero overrides, inheritance, c
 
 ## Deliberate v1 limitations
 
-This is **creature creation**, not encounter management. Group membership, turns, initiative, live sharing, and NPC use in an opposed roll are subsequent features. It is a separate browser page, not embedded into the player character editor. The group catalogue currently mirrors the existing character sheet's static campaign definitions; extracting those into one shared module is the next integration task. Icons are bundled and available offline rather than downloaded on demand; remote/custom portraits and a larger icon library come later. Browser local storage is appropriate only for this initial small-text NPC library, not image files or larger synchronized campaigns. Image storage should move to IndexedDB.
+This is a first-pass encounter composition interface, not a complete encounter-management engine. Individual turns, initiative rolls, inter-side relations, live sharing, and NPC use in an opposed roll are subsequent features. It is a separate browser page, not embedded into the player character editor. The group catalogue currently mirrors the existing character sheet's static campaign definitions; extracting those into one shared module is the next integration task. Icons are bundled and available offline rather than downloaded on demand; remote/custom portraits and a larger icon library come later. Browser local storage is appropriate only for this initial small-text NPC library, not image files or larger synchronized campaigns. Image storage should move to IndexedDB.
 
 When the GM app is developed further, keep the creationMode discriminator immutable, continue to treat missing skills as zero, and do not conflate GM group defaults with player character group bonuses.
