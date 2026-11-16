@@ -139,3 +139,7 @@
  .group-planner-layout>.group-creature-library{max-height:45dvh}
  .group-planner-layout>.group-creature-library .creature-list{flex:1 1 auto;max-height:none}
 }
+
+@media(min-width:621px) and (max-width:750px){
+ .group-planner-layout{display:grid}
+}
