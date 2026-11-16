@@ -25,3 +25,10 @@
 @media(max-width:750px){.group-drop{min-height:170px}.tabs{width:100%}}
 
 .reference-warning{padding:10px 12px;border:1px solid #b48d4c;border-radius:8px;color:#f1d9ab;background:#3a3128;margin-bottom:12px;font-size:.9rem}
+
+/* Compact group membership: marker and quantity only, with names as tooltips. */
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:8px;align-items:start}
+.member-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:74px;padding:7px 4px;text-align:center}
+.member-tile .mini svg{display:block;width:36px;height:38px}
+.member-tile strong{font-size:.85rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.member-tile.active{background:#345473;border-color:#b1d4ff}
