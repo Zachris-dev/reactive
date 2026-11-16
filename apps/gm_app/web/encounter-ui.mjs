@@ -1,3 +1,12 @@
+export function encounterPlanBar(library,esc){
+ const executing=!!library.execution;
+ const selected=library.plans.find(p=>p.id===library.selectedId);
+ const source=library.plans.find(p=>p.id===library.execution?.sourcePlanId);
+ return '<section class="encounter-plan-bar"><label>Saved encounters <select id="encounter-plan-select" '+(executing?'disabled':'')+'>'+library.plans.map(p=>'<option value="'+esc(p.id)+'" '+(p.id===library.selectedId?'selected':'')+'>'+esc(p.name)+'</option>').join("")+'</select></label>'+
+ '<div class="encounter-plan-buttons"><button data-action="encounter-plan-new" '+(executing?'disabled':'')+'>New</button><button data-action="encounter-plan-copy" '+(executing?'disabled':'')+'>New Copy</button><button data-action="encounter-plan-delete" '+(executing||library.plans.length===1?'disabled':'')+'>Delete</button>'+
+ (executing?'<button data-action="encounter-execution-end">Finish Execution</button>':'<button data-action="encounter-plan-activate">Activate Encounter</button>')+'</div>'+
+ '<div class="encounter-plan-details"><label>Encounter name <input data-encounter-plan-name value="'+esc(executing?source?.name||"Encounter":selected?.name||"")+'" '+(executing?'disabled':'')+'></label><span class="encounter-phase '+(executing?'executing':'')+'">'+(executing?'Execution — plan preserved':'Planning — automatically saved')+'</span></div></section>';
+}
 export function encounterLayout(encounter,groups,npcs,icon,esc,{groupsCollapsed=false,creaturesCollapsed=false}={}){
  const byId=new Map(npcs.map(n=>[n.id,n]));
  const groupPanel='<aside class="encounter-library '+(groupsCollapsed?'collapsed':'')+'"><div class="encounter-library-head"><h2>Saved groups</h2><button data-action="toggle-groups" aria-expanded="'+!groupsCollapsed+'">'+(groupsCollapsed?'Show':'Hide')+'</button></div>'+
