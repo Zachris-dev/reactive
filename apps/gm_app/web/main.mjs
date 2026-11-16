@@ -1,5 +1,7 @@
 import {VALUES,skillKey,effectiveSkill,assign,remove,newNpc,loadLibrary,saveLibrary,parseLibrary,skillForEngine,libraryTypes,groupedLibrary,copyNpc} from "./model.mjs";
 import {GROUPS,MAGIC_ALTERNATIVES} from "./skills.mjs";
+import {newGroup,copyGroup,addMembers,removeMembers,referencesTo,loadGroups,saveGroups} from "./group-model.mjs";
+import {groupSidebar,groupEditor} from "./group-ui.mjs";
 
 const root=document.querySelector("#app");
 const ICONS=["monster-round","monster-square","monster-point","wolf","bear","horse","human-male","human-female"];
@@ -16,6 +18,10 @@ const paths={
 function icon(id,color){ return '<svg viewBox="0 0 24 26" role="img" aria-label="'+esc(id)+'" fill="none" stroke="'+esc(color)+'" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round">'+(paths[id]||paths["monster-round"])+'</svg>'; }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 let npcs=[];
+let encounterGroups=[];
+let tab="creatures";
+let currentGroupId=null;
+let selectedMemberId=null;
 let currentId=null;
 let selectedValue=20;
 let selectedTarget=null;
@@ -24,8 +30,39 @@ let notice="";
 let error=false;
 try{npcs=loadLibrary(localStorage);}catch(e){notice="Stored library could not be read. Import a backup or export the damaged browser data before creating new creatures: "+e.message;error=true;}
 const selected=()=>npcs.find(n=>n.id===currentId);
+const selectedGroup=()=>encounterGroups.find(g=>g.id===currentGroupId);
+function makeId(prefix){return globalThis.crypto?.randomUUID?.()||prefix+"-"+Date.now()+"-"+Math.random().toString(36).slice(2);}
+try{encounterGroups=loadGroups(localStorage,npcs);currentGroupId=encounterGroups[0]?.id||null;}catch(e){notice="Could not load groups: "+e.message;error=true;}
 function persist(){try{saveLibrary(localStorage,npcs);notice="Saved locally";error=false;return true;}catch(e){notice="Local save failed: "+e.message;error=true;return false;}}
 function mutate(fn){const before=JSON.stringify(npcs);fn();if(!persist())npcs=JSON.parse(before);render();}
+function persistGroups(){
+ try{saveGroups(localStorage,encounterGroups,npcs);notice="Groups saved locally";error=false;return true;}
+ catch(e){notice="Group save failed: "+e.message;error=true;return false;}
+}
+function mutateGroups(fn){
+ const before=structuredClone(encounterGroups);
+ fn();
+ if(!persistGroups())encounterGroups=before;
+ render();
+}
+function createGroup(){
+ const id=makeId("group");
+ mutateGroups(()=>{encounterGroups.push(newGroup(id));currentGroupId=id;selectedMemberId=null;});
+}
+function duplicateGroup(){
+ const source=selectedGroup();if(!source)return;
+ const duplicate=copyGroup(source,makeId("group"));
+ mutateGroups(()=>{encounterGroups.push(duplicate);currentGroupId=duplicate.id;selectedMemberId=null;});
+}
+function updateGroup(fn){
+ const current=selectedGroup();if(!current)return;
+ mutateGroups(()=>{encounterGroups=encounterGroups.map(g=>g.id===current.id?fn(g):g);});
+}
+function addToGroup(npcId,count=1){
+ if(!selectedGroup()||!npcs.some(n=>n.id===npcId))return;
+ selectedMemberId=npcId;
+ updateGroup(g=>addMembers(g,npcId,count));
+}
 function create(){const id=(globalThis.crypto?.randomUUID?.()||"npc-"+Date.now()+"-"+Math.random().toString(36).slice(2));const npc=newNpc(id);mutate(()=>{npcs.push(npc);currentId=id;});}
 function newCopy(){
  const source=selected();
