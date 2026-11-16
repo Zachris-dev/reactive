@@ -21,6 +21,16 @@ export function addMembers(g,npcId,count=1){
  else members.push({npcId,count});
  return {...g,members};
 }
+/** Reduce a creature count without ever storing zero or negative quantities. */
+export function subtractMembers(g,npcId,count){
+ if(!validGroup(g)||!validId(npcId)||!Number.isSafeInteger(count)||count<1)throw Error("Invalid group subtraction");
+ const members=g.members.flatMap(m=>{
+  if(m.npcId!==npcId)return [{...m}];
+  const remaining=m.count-count;
+  return remaining>0?[{...m,count:remaining}]:[];
+ });
+ return {...g,members};
+}
 export function removeMembers(g,npcId){
  if(!validGroup(g))throw Error("Invalid group");
  return {...g,members:g.members.filter(m=>m.npcId!==npcId)};
