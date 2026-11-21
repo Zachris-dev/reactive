@@ -1,0 +1,13 @@
+{
+  "name": "@reactive/character-server",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --ip 127.0.0.1 --config wrangler.local.jsonc",
+    "db:init": "wrangler d1 migrations apply reactive-character-server-local --local --config wrangler.local.jsonc",
+    "db:seed": "wrangler d1 execute reactive-character-server-local --local --config wrangler.local.jsonc --file fixtures/seed.sql",
+    "test": "node --test ../../tests/character_server/*.test.mjs"
+  },
+  "devDependencies": { "wrangler": "^4.164.0" }
+}
