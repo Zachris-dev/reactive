@@ -134,7 +134,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     }
     // Every campaign member may upload unlimited characters; the uploader
     // becomes an assigned player, except a GM upload starts unassigned.
-    const campaignCharacters=path.match(/^\\/api\\/campaigns\\/([^/]+)\\/characters$/);
+    const campaignCharacters=path.match(/^\/api\/campaigns\/([^/]+)\/characters$/);
     if (campaignCharacters && ["GET","POST"].includes(method)) {
       const campaignId=decodeURIComponent(campaignCharacters[1]);
       const campaign=await dbRow(env.DB,"SELECT id,is_test_data FROM campaigns WHERE id=?",campaignId);
@@ -162,7 +162,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       return json({id,name,version:1,players:membership.is_gm?[]:[actor.id]},201);
     }
 
-    const characterMatch=path.match(/^\\/api\\/characters\\/([^/]+)$/);
+    const characterMatch=path.match(/^\/api\/characters\/([^/]+)$/);
     if (characterMatch && method==="GET") {
       const access=await characterAccess(env.DB,decodeURIComponent(characterMatch[1]),actor,fixtures);
       if (!access) return fail(404,"Character not found");
@@ -172,7 +172,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       return json({character:publicCharacter(access.ch,players.map(p=>p.user_id))});
     }
 
-    const characterAssignment=path.match(/^\\/api\\/characters\\/([^/]+)\\/assign$/);
+    const characterAssignment=path.match(/^\/api\/characters\/([^/]+)\/assign$/);
     if (characterAssignment && method==="POST") {
       const access=await characterAccess(env.DB,decodeURIComponent(characterAssignment[1]),actor,fixtures);
       if (!access) return fail(404,"Character not found");
@@ -188,7 +188,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       return json({ok:true,players:players.map(p=>p.user_id)});
     }
 
-    const notesMatch=path.match(/^\\/api\\/characters\\/([^/]+)\\/notes$/);
+    const notesMatch=path.match(/^\/api\/characters\/([^/]+)\/notes$/);
     if (notesMatch && ["GET","POST"].includes(method)) {
       const access=await characterAccess(env.DB,decodeURIComponent(notesMatch[1]),actor,fixtures);
       if (!access) return fail(404,"Character not found");
