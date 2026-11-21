@@ -2,8 +2,22 @@
 -- Deliberately targets is_test_data=1, never a campaign name prefix.
 -- Baseline campaigns are restored to canonical state by the subsequent seed step.
 -- KEEP IN SYNC with seed.sql; add deletion for new test-only dependent tables as needed.
--- Remove all test-campaign character records in FK-safe order. Never touch
--- normal campaign characters, even if their names contain test_.
+-- Delete only audit entries whose targets belong to a test campaign.
+-- Do this before removing the referenced notes and characters, so normal
+-- campaign audit history survives even when the actor is a simulated user.
+DELETE FROM audit_events WHERE
+ (action IN ('character.upload','character.assign')
+  AND target_id IN (
+   SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
+   WHERE ca.is_test_data=1
+  ))
+ OR (action='note.create' AND target_id IN (
+   SELECT n.id FROM character_notes n JOIN characters c ON c.id=n.character_id
+   JOIN campaigns ca ON ca.id=c.campaign_id WHERE ca.is_test_data=1
+  ));
+
+-- Delete dependent records first, then character rows. Normal campaigns and
+-- their characters remain untouched.
 DELETE FROM character_notes WHERE character_id IN (
  SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
  WHERE ca.is_test_data=1
@@ -15,14 +29,6 @@ DELETE FROM character_players WHERE character_id IN (
 DELETE FROM characters WHERE campaign_id IN (
  SELECT id FROM campaigns WHERE is_test_data=1
 );
--- Character and note audit entries are test data too; clear them before
--- keeping only baseline campaigns.
-DELETE FROM audit_events WHERE action IN ('character.upload','character.assign','note.create')
- AND (
-  actor_id IN (SELECT id FROM users WHERE is_test_data=1)
-  OR target_id IN (SELECT id FROM characters WHERE campaign_id IN (
-    SELECT id FROM campaigns WHERE is_test_data=1))
- );
 
 -- Remove audit events referencing test invitations BEFORE removing the invitations.
 DELETE FROM audit_events
