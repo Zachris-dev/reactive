@@ -70,10 +70,12 @@ const el=id=>document.getElementById(id);
 let campaigns=[];
 let memberCampaigns=[];
 let characterCampaignTypes=new Map();
+let characterCampaignIds=new Map();
 const actor=()=>el("identity").value;
 const campaignById=(id)=>memberCampaigns.find(c=>c.id===id);
 function clearCharacterView(){
  characterCampaignTypes.clear();
+ characterCampaignIds.clear();
  el("characterSelect").replaceChildren();
  el("characterDetails").textContent="";
  el("characterNotes").replaceChildren();
@@ -150,7 +152,7 @@ el("inviteForm").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
 })});
 el("accept").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  let token=el("token").value.trim();if(token.includes("invite="))token=new URL(token).searchParams.get("invite");
- const accepted=await request("/api/invites/accept","POST",{token},true);
+ const accepted=await request("/api/invites/accept","POST",{token});
  await refresh();if(accepted.campaign_id)el("campaignSelect").value=accepted.campaign_id;
 })});
 el("users").addEventListener("click",()=>run(async()=>{
@@ -171,11 +173,13 @@ async function loadCharacters(){
   : await request("/api/characters");
  const rows=selected?data.characters.map(c=>({...c,campaign_id:selected.id,campaign_name:selected.name,is_test_data:selected.is_test_data})):data.characters;
  characterCampaignTypes=new Map(rows.map(c=>[c.id,!!c.is_test_data]));
+ characterCampaignIds=new Map(rows.map(c=>[c.id,c.campaign_id]));
  el("characterSelect").replaceChildren(...rows.map(c=>new Option(
    c.name+" — "+c.campaign_name+" ("+c.players+" players)",c.id)));
  el("characterDetails").textContent=rows.length+" accessible characters"+(selected?" in "+selected.name:" across all my campaigns")+".";
  el("characterNotes").replaceChildren();
- if(selected)await loadAssignablePlayers(selected);
+ const currently=campaignById(characterCampaignIds.get(el("characterSelect").value));
+ if(currently)await loadAssignablePlayers(currently);
  else el("assignedPlayer").replaceChildren();
 }
 async function loadAssignablePlayers(selected){
@@ -183,6 +187,13 @@ async function loadAssignablePlayers(selected){
  el("assignedPlayer").replaceChildren(...d.members.map(m=>new Option(m.display_name,m.id)));
 }
 el("campaignSelect").addEventListener("change",clearCharacterView);
+el("characterSelect").addEventListener("change",()=>run(async()=>{
+ el("characterNotes").replaceChildren();
+ const id=el("characterSelect").value;
+ const campaign=campaignById(characterCampaignIds.get(id));
+ if(campaign)await loadAssignablePlayers(campaign);
+ else el("assignedPlayer").replaceChildren();
+}));
 el("loadCharacters").addEventListener("click",()=>run(loadCharacters));
 el("uploadCharacter").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  let tokens;
