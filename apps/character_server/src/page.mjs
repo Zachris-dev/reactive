@@ -21,7 +21,17 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 <label>List <select id="scope"><option value="mine">My campaigns</option><option value="all">All campaigns (administrator)</option></select></label></div>
 <div id="campaigns"></div></section>
 <section><h2>Create campaign</h2><form id="create"><label>Campaign name (Unicode accepted) <input id="campaignName" required maxlength="100" placeholder="Víkingaöld – Þórsheimr"></label>
-<label><input type="checkbox" id="testCampaign"> Create as test campaign (administrator; test_ prefix added automatically)</label><button>Create</button><p class="muted" id="createHint">Normal campaign: visible only to members and to administrators in their storage view.</p></form></section>
+<label><input type="checkbox" id="testCampaign"> Create as test campaign (test_ prefix added automatically)</label><button>Create</button><p class="muted" id="createHint">Normal campaign: visible only to members and to administrators in their storage view.</p></form></section>
+<section><h2>Invitation test walkthrough</h2>
+<p class="muted">The development database provides unassigned users specifically for testing the three invitation routes. No server administrator is needed to create the campaign or send invitations.</p>
+<ol><li>Choose <strong>test_Campaign Creator (player, no admin rights)</strong> from the account selector.</li>
+<li>Enter <strong>Invitation Playground</strong>, check <strong>Create as test campaign</strong>, and create it. The creator automatically becomes that campaign's GM.</li>
+<li>Select the new campaign below and generate a <strong>Single player</strong> invitation. Copy the link, switch to <strong>test_Personal Invite Recipient</strong>, paste the link into <strong>Accept invitation</strong>, and accept it.</li>
+<li>Switch back to the creator. Generate a <strong>Group players</strong> invitation with a limit of 2. Use it with <strong>test_Group Invite Recipient A</strong> and <strong>B</strong>. Try a third acceptance as <strong>test_Group Invite Overflow</strong>: it must be rejected.</li>
+<li>Switch back to the creator, generate a <strong>Single GM</strong> invitation, and accept it as <strong>test_GM Invite Recipient</strong>. That user can now invite others but is not a server administrator.</li>
+<li>Switch to <strong>test_Uninvited Outsider</strong> and verify that the campaign is not visible and that the outsider cannot generate invitations.</li></ol>
+<p class="muted">Keep the generated invite link copied before switching users. The responses below report when an invitation is exhausted or permission is denied. Re-running the walkthrough requires fresh invitations or a newly named campaign.</p>
+</section>
 <section><h2>Campaign members and invitations</h2>
 <label>Campaign <select id="campaignSelect"></select></label><button id="members">Show members</button>
 <div id="memberList"></div>
@@ -65,7 +75,7 @@ el("refresh").addEventListener("click",()=>run(refresh));
 for(const id of ["campaignType","scope"])el(id).addEventListener("change",()=>run(refresh));
 el("testCampaign").addEventListener("change",()=>{
  el("createHint").textContent=el("testCampaign").checked
- ? "Test campaign: the server adds test_ to its name. Select Test campaigns above to see it. Only the developer administrator can create test campaigns."
+ ? "Test campaign: the server adds test_ to its name and displays it under Test campaigns. Any simulated local account can create one, and becomes its first GM."
  : "Normal campaign: visible only to members and to administrators in their storage view.";
 });
 el("create").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
