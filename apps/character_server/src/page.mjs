@@ -16,11 +16,12 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 </style></head>
 <body><header><div><h1>Reactive Character Server</h1><div class="muted">Local alpha · Developer simulation only</div></div>
 <div><label for="identity">Act as test account</label><select id="identity"></select></div></header>
-<section><h2>Campaigns</h2><p class="muted">The developer switcher enables test fixtures explicitly; ordinary campaign listings hide them.</p>
-<div class="row"><button id="refresh">Refresh</button><label><input type="checkbox" id="fixtures" checked> Developer fixture view</label><label><input type="checkbox" id="adminView"> Administrator view</label></div>
+<section><h2>Campaigns</h2><p class="muted">Test campaigns are separate from ordinary campaigns. Only the local developer console can access test data.</p>
+<div class="row"><button id="refresh">Refresh</button><label>Campaign type <select id="campaignType"><option value="normal">Normal campaigns</option><option value="test">Test campaigns</option></select></label>
+<label>List <select id="scope"><option value="mine">My campaigns</option><option value="all">All campaigns (administrator)</option></select></label></div>
 <div id="campaigns"></div></section>
 <section><h2>Create campaign</h2><form id="create"><label>Campaign name (Unicode accepted) <input id="campaignName" required maxlength="100" placeholder="Víkingaöld – Þórsheimr"></label>
-<label><input type="checkbox" id="testCampaign" checked> Mark test campaign (requires test_ prefix and administrator)</label><button>Create</button></form></section>
+<label><input type="checkbox" id="testCampaign"> Create as test campaign (administrator; test_ prefix added automatically)</label><button>Create</button><p class="muted" id="createHint">Normal campaign: visible only to members and to administrators in their storage view.</p></form></section>
 <section><h2>Campaign members and invitations</h2>
 <label>Campaign <select id="campaignSelect"></select></label><button id="members">Show members</button>
 <div id="memberList"></div>
@@ -36,7 +37,7 @@ const el=id=>document.getElementById(id);
 let campaigns=[];
 const actor=()=>el("identity").value;
 async function request(path,method="GET",payload){
- const headers={"x-dev-user":actor(),"x-dev-fixtures":el("fixtures").checked?"1":"0"};
+ const headers={"x-dev-user":actor(),"x-dev-fixtures":el("campaignType").value==="test"?"1":"0"};
  if(payload!==undefined)headers["content-type"]="application/json";
  const res=await fetch(path,{method,headers,body:payload===undefined?undefined:JSON.stringify(payload)});
  const data=await res.json();
@@ -50,17 +51,38 @@ async function init(){
  el("identity").value="test_admin";await refresh();
 }
 async function refresh(){
- const q=el("adminView").checked?"?admin=1":"";
+ const q=el("scope").value==="all"?"?admin=1":"";
  const data=await request("/api/campaigns"+q);campaigns=data.campaigns;
  const tbody=document.createElement("table");const head=tbody.insertRow();
  ["Campaign","Access","Members"].forEach(x=>{const th=document.createElement("th");th.textContent=x;head.append(th)});
  for(const c of campaigns){const row=tbody.insertRow();[c.name,c.is_gm?"GM":c.is_gm===0?"Player":c.is_test_data?"Test":"Admin view",c.members??""].forEach(x=>{const td=row.insertCell();td.textContent=String(x)})}
  el("campaigns").replaceChildren(tbody);
  el("campaignSelect").replaceChildren(...campaigns.map(c=>new Option(c.name,c.id)));
+ if(!campaigns.length) el("campaigns").insertAdjacentText("beforeend",el("campaignType").value==="test"?" No test campaigns available for this account.":" No normal campaigns available for this account.");
 }
 el("identity").addEventListener("change",()=>run(refresh));
-for(const id of ["refresh","fixtures","adminView"])el(id).addEventListener("click",()=>run(refresh));
-el("create").addEventListener("submit",e=>{e.preventDefault();run(async()=>{await request("/api/campaigns","POST",{name:el("campaignName").value,is_test_data:el("testCampaign").checked});await refresh()})});
+el("refresh").addEventListener("click",()=>run(refresh));
+for(const id of ["campaignType","scope"])el(id).addEventListener("change",()=>run(refresh));
+el("testCampaign").addEventListener("change",()=>{
+ el("createHint").textContent=el("testCampaign").checked
+ ? "Test campaign: the server adds test_ to its name. Select Test campaigns above to see it. Only the developer administrator can create test campaigns."
+ : "Normal campaign: visible only to members and to administrators in their storage view.";
+});
+el("create").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
+ const isTest=el("testCampaign").checked;
+ // The developer checkbox controls what is created, independently of the
+ // current campaign list filter. Select the corresponding list after saving.
+ const headers={"x-dev-user":actor(),"x-dev-fixtures":isTest?"1":"0","content-type":"application/json"};
+ const res=await fetch("/api/campaigns",{method:"POST",headers,body:JSON.stringify({name:el("campaignName").value,is_test_data:isTest})});
+ const data=await res.json();
+ if(!res.ok)throw Error(data.error||"Could not create campaign");
+ el("campaignType").value=isTest?"test":"normal";
+ el("scope").value="mine";
+ await refresh();
+ el("output").textContent="Created campaign: "+data.name+"\\n"+JSON.stringify(data,null,2);
+ el("campaignName").value="";
+ el("error").textContent="";
+})});
 el("members").addEventListener("click",()=>run(async()=>{
  const d=await request("/api/campaigns/"+encodeURIComponent(el("campaignSelect").value)+"/members");
  el("memberList").textContent=d.members.map(m=>m.display_name+(m.is_gm?" (GM)":"")+" — "+m.last_active_at).join("\n");
