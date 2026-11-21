@@ -2,7 +2,9 @@
 
 The Character Server uses the same testing approach as the other Reactive apps:
 tests are committed alongside the implementation and can be run from the
-repository root with `test.cmd server` or `test.cmd server -v`.
+repository root with `test.cmd server` or `test.cmd server -v`. After installing
+Wrangler, run `test.cmd server integration` for an isolated local-D1 smoke
+suite; this runner is newly written and awaits validation on a local machine.
 
 ## Layers
 
@@ -10,8 +12,8 @@ repository root with `test.cmd server` or `test.cmd server -v`.
    invitation expiry and exact time boundaries.
 2. **HTTP boundary tests:** local development authentication is disabled for
    remote hosts and absent config, without accessing D1.
-3. **D1/API integration tests (next milestone):** real Worker + local D1
-   with isolated persistence and fixture creation. Required before cloud alpha.
+3. **D1/API integration tests:** an initial real Worker + local D1 runner
+   with isolated persistence and fixture creation, to be validated and expanded.
 4. **Browser workflows (next milestone):** admin/GM/player interface flows,
    invited users, and regressions.
 
