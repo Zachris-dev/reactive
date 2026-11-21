@@ -109,9 +109,41 @@ type the prefix yourself unless it is already part of the name. Test campaigns
 remain hidden in the Normal campaigns view. Ordinary GMs and players cannot
 browse developer-only records outside the local simulator.
 
-Try generating a single-use player invitation, a group player invitation,
-and a single-use GM invitation; switch identity to accept one. This is a
-development simulation, **not a real login**.
+### Test a campaign created by a non-administrator
+
+After updating this branch, run `server.cmd seed` **again** to add the new
+test users. Seeding is additive and does not reset your existing campaigns.
+If the server is running, stop it with Ctrl+C before seeding, then restart it.
+
+The test identities shown in the application's **Act as test account** list
+include:
+
+| Test account | Initial status | Intended scenario |
+| --- | --- | --- |
+| `test_Campaign Creator (player, no admin rights)` | Not an admin, no memberships | Creates `test_Invitation Playground`, automatically becomes its first GM |
+| `test_Personal Invite Recipient` | No memberships | Accepts one-use player invitation |
+| `test_Group Invite Recipient A` | No memberships | Accepts shared player invitation |
+| `test_Group Invite Recipient B` | No memberships | Accepts same invitation |
+| `test_Group Invite Overflow (rejected)` | No memberships | Verifies that a two-use group link rejects a third user |
+| `test_GM Invite Recipient` | No memberships | Accepts one-use GM invitation, may then invite others |
+| `test_Uninvited Outsider` | No memberships | Checks that invitations and campaign membership cannot be bypassed |
+
+The application itself includes an **Invitation test walkthrough**. Start
+by selecting the creator account and choosing **Create as test campaign**.
+A non-administrator is allowed to create a campaign: the creator becomes its
+first campaign GM, **not** a server administrator. Generate a personal player
+invitation, switch identity and accept it. Repeat with group and GM invitations.
+
+Group invitations may be accepted by several different people, up to the
+specified maximum; opening or accepting again as an existing member must not
+consume another use. A GM invitation can be accepted by only one person.
+A user who accepted a player invitation cannot issue invitations until they
+have GM rights. The creator and later GMs do not receive server-admin rights.
+
+Copy each generated link before switching identities; the local simulator
+does not send email or Discord messages. This is a development simulation,
+**not a real login**. When retesting, generate fresh invitations or use a
+different campaign name; previous invitation usage is intentionally persistent.
 
 Commands are also available through npm from `apps/character_server`:
 `npm.cmd run db:init`, `npm.cmd run db:seed`, and `npm.cmd run dev`.
@@ -145,8 +177,9 @@ does not imply production authentication has been implemented.
 ## Fixture design and safe cleanup
 
 Versioned SQL fixtures live in `apps/character_server/fixtures/seed.sql`.
-Their names and IDs start with `test_`. They include two campaign GMs, two
-players, one administrator, and campaigns named with Latin and Japanese text.
+Their names and IDs start with `test_`. They include two initial campaign GMs, ordinary players,
+one administrator, and additional unassigned accounts for all three invitation
+workflows. The fixtures also include campaigns named with Latin and Japanese text.
 The seed uses `INSERT OR IGNORE`, so repeating `server.cmd seed` does not
 delete your locally edited data.
 
