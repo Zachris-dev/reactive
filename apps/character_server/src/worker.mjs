@@ -64,24 +64,32 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
         "SELECT id,display_name,is_admin,last_active_at FROM users WHERE is_test_data=1 ORDER BY id")});
     const actor = await actorFor(req,env,now);
     if (!actor) return fail(401,"Choose a local test account");
-    const fixtures = req.headers.get("x-dev-fixtures") === "1";
-    // Test data can ONLY be seen through the explicit localhost developer simulator.
-    const testClause = fixtures ? "" : " AND is_test_data=0";
+    const fixtureView = req.headers.get("x-dev-fixtures") === "1";
+    // Test content is visible only through the explicit localhost developer
+    // console when the operator is a server administrator. This is not GM access.
+    const fixtures = fixtureView && !!actor.is_admin;
+    const campaignFilter = fixtures ? " AND c.is_test_data=1" : " AND c.is_test_data=0";
+    const userFilter = fixtures ? " AND is_test_data=1" : " AND is_test_data=0";
     if (path === "/api/me" && method === "GET")
       return json({user:{id:actor.id,name:actor.display_name,is_admin:!!actor.is_admin},developer:true});
     if (path === "/api/campaigns" && method === "GET") {
       if (actor.is_admin && url.searchParams.get("admin") === "1") {
         return json({campaigns:await dbAll(env.DB,
-          "SELECT c.id,c.name,c.is_test_data,COUNT(m.user_id) AS members FROM campaigns c LEFT JOIN memberships m ON m.campaign_id=c.id WHERE 1=1"+testClause+" GROUP BY c.id ORDER BY c.name")});
+          "SELECT c.id,c.name,c.is_test_data,COUNT(m.user_id) AS members FROM campaigns c LEFT JOIN memberships m ON m.campaign_id=c.id WHERE 1=1"+campaignFilter+" GROUP BY c.id ORDER BY c.name")});
       }
       return json({campaigns:await dbAll(env.DB,
-        "SELECT c.id,c.name,m.is_gm FROM campaigns c JOIN memberships m ON m.campaign_id=c.id WHERE m.user_id=?"+testClause+" ORDER BY c.name",actor.id)});
+        "SELECT c.id,c.name,m.is_gm,c.is_test_data FROM campaigns c JOIN memberships m ON m.campaign_id=c.id WHERE m.user_id=?"+campaignFilter+" ORDER BY c.name",actor.id)});
     }
     if (path === "/api/campaigns" && method === "POST") {
-      const input=await body(req),name=normalizeCampaignName(input.name);
+      const input=await body(req);
       const isTest=!!input.is_test_data;
-      if (isTest && (!fixtures || !actor.is_admin || !name.startsWith("test_")))
-        return fail(403,"Test campaigns require developer admin access and test_ names");
+      if (isTest && !fixtures)
+        return fail(403,"Select the administrator test-data view to create test campaigns");
+      const requestedName=normalizeCampaignName(input.name);
+      // The developer chooses a human-readable name; the server adds test_.
+      const name=isTest ? normalizeCampaignName(
+        requestedName.startsWith("test_") ? requestedName : "test_"+requestedName
+      ) : requestedName;
       const id=uuid();
       await env.DB.batch([
         env.DB.prepare("INSERT INTO campaigns(id,name,created_by,is_test_data) VALUES(?,?,?,?)").bind(id,name,actor.id,isTest?1:0),
@@ -93,7 +101,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     if (path === "/api/admin/users" && method === "GET") {
       if (!actor.is_admin) return fail(403,"Server administrator required");
       return json({users:await dbAll(env.DB,
-        "SELECT id,display_name,is_admin,last_active_at FROM users WHERE 1=1"+testClause+" ORDER BY display_name")});
+        "SELECT id,display_name,is_admin,last_active_at FROM users WHERE 1=1"+userFilter+" ORDER BY display_name")});
     }
     const promote=path.match(/^\/api\/admin\/users\/([^/]+)\/promote$/);
     if (promote && method === "POST") {
