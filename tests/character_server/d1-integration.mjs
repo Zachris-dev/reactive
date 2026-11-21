@@ -63,6 +63,14 @@ try{
  const dev=await api("/api/campaigns?admin=1","test_admin","GET",undefined,true);
  // explicit fixture view is enabled above; check the fixtures are present.
  check(dev.campaigns.length,3,"developer fixtures loaded");
+ const seededShared=await api("/api/characters/test_shared_hero","test_player_a");
+ check(seededShared.status,200,"seeded shared character is accessible to assigned player");
+ check(seededShared.character.players.length,2,"seeded shared character has two assigned players");
+ const seededBNotes=await api("/api/characters/test_shared_hero/notes","test_player_b");
+ check(seededBNotes.notes.some(n=>n.id==="test_shared_note"),true,"seeded shared note visible to second player");
+ check(seededBNotes.notes.some(n=>n.id==="test_private_a"),false,"seeded player A private note hidden from player B");
+ const seededGmNotes=await api("/api/characters/test_shared_hero/notes","test_gm_a");
+ check(seededGmNotes.notes.some(n=>n.id==="test_private_a"),false,"seeded player private note hidden from GM");
  const createdNormal=await api("/api/campaigns","test_admin","POST",{name:"The Eldrich Race",is_test_data:false},false);
  check(createdNormal.status,201,"ordinary campaign creation succeeds");
  const normalWithPrefix=await api("/api/campaigns","test_creator","POST",{name:"test_Actually Normal",is_test_data:false},false);
@@ -165,6 +173,12 @@ try{
  check(foreignCharacter.status,403,"unassigned member cannot read other player's character");
  const foreignListing=await api("/api/campaigns/"+campaignId+"/characters","test_group_invitee_b");
  check(foreignListing.characters.some(c=>c.id===one.id),false,"unassigned member cannot discover another character");
+ const shareUploaded=await api("/api/characters/"+one.id+"/assign","test_creator","POST",{user_id:"test_group_invitee_b"});
+ check(shareUploaded.players.length,2,"GM can add a player to a character already assigned to its uploader");
+ const nowShared=await api("/api/characters/"+one.id,"test_group_invitee_b");
+ check(nowShared.status,200,"second assigned player now accesses existing player-uploaded character");
+ const nonGMAdmin=await api("/api/characters/"+one.id,"test_admin");
+ check(nonGMAdmin.status,403,"server administrator cannot read characters without campaign access");
  const gmCharacter=await api("/api/campaigns/"+campaignId+"/characters","test_creator","POST",
   {name:"Shared hero",character_sheet_tokens:{race:"High Emeri"}});
  check(gmCharacter.status,201,"GM may upload character");
@@ -279,6 +293,11 @@ try{
  check(postResetCreator.campaigns.some(c=>c.id===creatorCampaign.id),false,"non-admin creator no longer belongs to removed test campaign");
  const reseeded=await api("/api/campaigns","test_gm_a");
  check(reseeded.campaigns.some(c=>c.id==="test_viking"),true,"baseline campaign remains usable");
+ const restoredShared=await api("/api/characters/test_shared_hero","test_player_a");
+ check(restoredShared.status,200,"selective reset restores baseline shared character");
+ check(restoredShared.character.players.length,2,"reset restores shared character assignments");
+ const restoredPrivate=await api("/api/characters/test_shared_hero/notes","test_player_b");
+ check(restoredPrivate.notes.some(n=>n.id==="test_private_a"),false,"reset keeps player A private notes hidden from player B");
 
  process.stdout.write("D1 integration: "+checks+" checks passed.\n");
 }catch(error){console.error("FAIL local D1 integration:",error);process.exitCode=1;}
