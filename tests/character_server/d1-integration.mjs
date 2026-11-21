@@ -66,6 +66,19 @@ try{
  const seededShared=await api("/api/characters/test_shared_hero","test_player_a");
  check(seededShared.status,200,"seeded shared character is accessible to assigned player");
  check(seededShared.character.players.length,2,"seeded shared character has two assigned players");
+ const playerACampaigns=await api("/api/my-campaigns","test_player_a","GET",undefined,false);
+ check(playerACampaigns.campaigns.length,2,"player A can select both of their campaigns regardless of list filter");
+ check(playerACampaigns.campaigns.some(c=>c.id==="test_viking"),true,"campaign selector includes Viking Saga");
+ check(playerACampaigns.campaigns.some(c=>c.id==="test_eldrich"),true,"campaign selector includes The Eldrich Race");
+ const playerAAllChars=await api("/api/characters","test_player_a","GET",undefined,false);
+ check(playerAAllChars.characters.some(c=>c.id==="test_hero_a"),true,"no campaign selection loads first accessible character");
+ check(playerAAllChars.characters.some(c=>c.id==="test_shared_hero"),true,"no campaign selection loads shared character");
+ check(playerAAllChars.characters.some(c=>c.id==="test_npc"),false,"all-campaign listing excludes unassigned GM character");
+ check(playerAAllChars.characters.every(c=>!!c.campaign_name),true,"cross-campaign character rows identify campaign");
+ const outsiderAll=await api("/api/characters","test_uninvited","GET",undefined,true);
+ check(outsiderAll.characters.length,0,"uninvited user sees no cross-campaign characters");
+ const adminAll=await api("/api/characters","test_admin","GET",undefined,true);
+ check(adminAll.characters.length,0,"server administrator cannot inspect cross-campaign character contents");
  const seededBNotes=await api("/api/characters/test_shared_hero/notes","test_player_b");
  check(seededBNotes.notes.some(n=>n.id==="test_shared_note"),true,"seeded shared note visible to second player");
  check(seededBNotes.notes.some(n=>n.id==="test_private_a"),false,"seeded player A private note hidden from player B");
@@ -230,6 +243,14 @@ try{
  const normalCharacter=await api("/api/campaigns/"+normalWithPrefix.id+"/characters","test_creator","POST",
   {name:"Keep me",character_sheet_tokens:{test:true}},false);
  check(normalCharacter.status,201,"normal campaign character uploaded");
+ const mixedCampaigns=await api("/api/my-campaigns","test_creator","GET",undefined,true);
+ check(mixedCampaigns.campaigns.some(c=>c.id===campaignId),true,"user sees test campaign in selector");
+ check(mixedCampaigns.campaigns.some(c=>c.id===normalWithPrefix.id),true,"user sees normal campaign in same selector");
+ const mixedCharacters=await api("/api/characters","test_creator","GET",undefined,true);
+ check(mixedCharacters.characters.some(c=>c.id===normalCharacter.id),true,"all-campaign list includes normal character");
+ check(mixedCharacters.characters.some(c=>c.id===gmCharacter.id),true,"all-campaign list includes test character");
+ check(mixedCharacters.characters.find(c=>c.id===normalCharacter.id).is_test_data,0,"normal character type identified for detail requests");
+ check(mixedCharacters.characters.find(c=>c.id===gmCharacter.id).is_test_data,1,"test character type identified for detail requests");
  const normalNote=await api("/api/characters/"+normalCharacter.id+"/notes","test_creator","POST",
   {visibility:"private",body:"Normal campaign stays intact"},false);
  check(normalNote.status,201,"normal campaign private note uploaded");
