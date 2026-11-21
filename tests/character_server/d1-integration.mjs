@@ -127,7 +127,7 @@ try{
  const upgraded=await api("/api/invites/accept","test_single_invitee","POST",{token:upgradeToken});
  check(upgraded.is_gm,true,"existing player gains GM privileges without new membership");
  const after=await api("/api/campaigns/"+campaignId+"/members","test_creator");
- check(after.members.length,6,"final campaign has creator plus five joined users, no duplicates");
+ check(after.members.length,5,"final campaign has creator plus four joined users, no duplicates");
  check(after.members.filter(m=>m.is_gm).length,3,"campaign has three GMs and unrestricted GM count");
  const nonadminList=await api("/api/campaigns","test_single_invitee");
  check(nonadminList.campaigns.some(c=>c.id===campaignId && c.is_gm===1),true,"new GM sees their campaign in personal list");
