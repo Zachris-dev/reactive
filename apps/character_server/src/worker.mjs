@@ -58,6 +58,10 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
   if (!localDevelopment(req, env)) return fail(503,"This alpha has no production authentication. Local development only.");
   if (!env.DB) return fail(503,"D1 database not configured");
   try {
+    // The localhost-only identity picker must load before any account is selected.
+    if (path === "/api/dev/users" && method === "GET")
+      return json({users:await dbAll(env.DB,
+        "SELECT id,display_name,is_admin,last_active_at FROM users WHERE is_test_data=1 ORDER BY id")});
     const actor = await actorFor(req,env,now);
     if (!actor) return fail(401,"Choose a local test account");
     const fixtures = req.headers.get("x-dev-fixtures") === "1";
@@ -65,10 +69,6 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     const testClause = fixtures ? "" : " AND is_test_data=0";
     if (path === "/api/me" && method === "GET")
       return json({user:{id:actor.id,name:actor.display_name,is_admin:!!actor.is_admin},developer:true});
-    if (path === "/api/dev/users" && method === "GET") {
-      // Dedicated developer-only test identity switcher.
-      return json({users:await dbAll(env.DB,"SELECT id,display_name,is_admin,last_active_at FROM users WHERE is_test_data=1 ORDER BY id")});
-    }
     if (path === "/api/campaigns" && method === "GET") {
       if (actor.is_admin && url.searchParams.get("admin") === "1") {
         return json({campaigns:await dbAll(env.DB,
