@@ -96,11 +96,22 @@ a permission to deploy anything.
 6. Open **http://127.0.0.1:8787/** in your browser.
 
 Use the account switcher to simulate the test administrator, two GMs, or two
-players. The **Developer fixture view** control exposes the `test_` campaigns
-to this localhost-only simulator. The same test data is excluded from ordinary
-non-developer campaign lists. Try generating a single-use player invitation,
-a group player invitation, and a single-use GM invitation; switch identity to
-accept one. This is a development simulation, **not a real login**.
+players. The **Campaign type** selector switches between **Normal campaigns**
+and **Test campaigns** (the lists do not mix). The separate **List** selector
+switches between **My campaigns** and **All campaigns (administrator)**.
+Only administrators can use the latter to see all campaigns.
+
+To create a new test campaign, select **test_Server Admin**, type its ordinary
+name (for example, `Heart of Isolation`), check **Create as test campaign**,
+and click **Create**. The server automatically saves the name as
+`test_Heart of Isolation` and switches to the Test campaigns list. Do not
+type the prefix yourself unless it is already part of the name. Test campaigns
+remain hidden in the Normal campaigns view. Ordinary GMs and players cannot
+browse developer-only records outside the local simulator.
+
+Try generating a single-use player invitation, a group player invitation,
+and a single-use GM invitation; switch identity to accept one. This is a
+development simulation, **not a real login**.
 
 Commands are also available through npm from `apps/character_server`:
 `npm.cmd run db:init`, `npm.cmd run db:seed`, and `npm.cmd run dev`.
