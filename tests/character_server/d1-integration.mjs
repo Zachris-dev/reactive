@@ -149,6 +149,77 @@ try{
  const nonadminList=await api("/api/campaigns","test_single_invitee");
  check(nonadminList.campaigns.some(c=>c.id===campaignId && c.is_gm===1),true,"new GM sees their campaign in personal list");
 
+ // Character ownership: a player uploads multiple characters, while GMs
+ // can create an unassigned character then share it among different players.
+ const one=await api("/api/campaigns/"+campaignId+"/characters","test_group_invitee_a","POST",
+  {name:"First hero",character_sheet_tokens:{skill:"4.3",inventory:["rope"]}});
+ check(one.status,201,"ordinary player uploads a character");
+ check(one.players.includes("test_group_invitee_a"),true,"player uploader is assigned automatically");
+ const two=await api("/api/campaigns/"+campaignId+"/characters","test_group_invitee_a","POST",
+  {name:"Second hero",character_sheet_tokens:{skill:"5.1"}});
+ check(two.status,201,"player may upload more than one character");
+ const playerCharacters=await api("/api/campaigns/"+campaignId+"/characters","test_group_invitee_a");
+ check(playerCharacters.characters.some(c=>c.id===one.id),true,"player sees first uploaded character");
+ check(playerCharacters.characters.some(c=>c.id===two.id),true,"player sees second uploaded character");
+ const foreignCharacter=await api("/api/characters/"+one.id,"test_group_invitee_b");
+ check(foreignCharacter.status,403,"unassigned member cannot read other player's character");
+ const foreignListing=await api("/api/campaigns/"+campaignId+"/characters","test_group_invitee_b");
+ check(foreignListing.characters.some(c=>c.id===one.id),false,"unassigned member cannot discover another character");
+ const gmCharacter=await api("/api/campaigns/"+campaignId+"/characters","test_creator","POST",
+  {name:"Shared hero",character_sheet_tokens:{race:"High Emeri"}});
+ check(gmCharacter.status,201,"GM may upload character");
+ check(gmCharacter.players.length,0,"GM-uploaded character initially unassigned");
+ const assignA=await api("/api/characters/"+gmCharacter.id+"/assign","test_creator","POST",{user_id:"test_group_invitee_a"});
+ check(assignA.players.includes("test_group_invitee_a"),true,"GM assigns first player");
+ const assignB=await api("/api/characters/"+gmCharacter.id+"/assign","test_creator","POST",{user_id:"test_group_invitee_b"});
+ check(assignB.players.length,2,"GM adds second player to already-assigned character");
+ const assignAgain=await api("/api/characters/"+gmCharacter.id+"/assign","test_creator","POST",{user_id:"test_group_invitee_b"});
+ check(assignAgain.players.length,2,"reassigning same player does not duplicate assignment");
+ const playerAssignmentAttempt=await api("/api/characters/"+gmCharacter.id+"/assign","test_group_invitee_a","POST",{user_id:"test_uninvited"});
+ check(playerAssignmentAttempt.status,403,"players cannot assign characters to other users");
+ const outsiderAssignmentAttempt=await api("/api/characters/"+gmCharacter.id+"/assign","test_creator","POST",{user_id:"test_uninvited"});
+ check(outsiderAssignmentAttempt.status,400,"GM cannot assign characters to non-members");
+
+ const privateNote=await api("/api/characters/"+gmCharacter.id+"/notes","test_group_invitee_a","POST",
+  {visibility:"private",body:"Only player A knows"});
+ check(privateNote.status,201,"assigned player creates private note");
+ const sharedNote=await api("/api/characters/"+gmCharacter.id+"/notes","test_group_invitee_a","POST",
+  {visibility:"shared",body:"Both players and GM know"});
+ check(sharedNote.status,201,"assigned player creates shared note");
+ const gmPrivate=await api("/api/characters/"+gmCharacter.id+"/notes","test_creator","POST",
+  {visibility:"private",body:"GM private clue"});
+ check(gmPrivate.status,201,"GM can also keep personal notes");
+ const privateB=await api("/api/characters/"+gmCharacter.id+"/notes","test_group_invitee_b","POST",
+  {visibility:"private",body:"Player B secret"});
+ check(privateB.status,201,"second player keeps their own private note");
+ const notesA=await api("/api/characters/"+gmCharacter.id+"/notes","test_group_invitee_a");
+ check(notesA.notes.some(n=>n.id===privateNote.id),true,"player A sees their own private note");
+ check(notesA.notes.some(n=>n.id===sharedNote.id),true,"player A sees shared note");
+ check(notesA.notes.some(n=>n.id===privateB.id),false,"player A cannot see player B private note");
+ check(notesA.notes.some(n=>n.id===gmPrivate.id),false,"player A cannot see GM private note");
+ const notesB=await api("/api/characters/"+gmCharacter.id+"/notes","test_group_invitee_b");
+ check(notesB.notes.some(n=>n.id===sharedNote.id),true,"player B sees player A shared note");
+ check(notesB.notes.some(n=>n.id===privateNote.id),false,"player B cannot see player A private note");
+ const notesGM=await api("/api/characters/"+gmCharacter.id+"/notes","test_creator");
+ check(notesGM.notes.some(n=>n.id===sharedNote.id),true,"GM sees shared note");
+ check(notesGM.notes.some(n=>n.id===privateNote.id),false,"GM cannot see player private note");
+ check(notesGM.notes.some(n=>n.id===gmPrivate.id),true,"GM sees only their own private note");
+ const notesOutsider=await api("/api/characters/"+gmCharacter.id+"/notes","test_uninvited");
+ check(notesOutsider.status,403,"outsider cannot access any character notes");
+ const nonMemberCharacter=await api("/api/campaigns/"+campaignId+"/characters","test_uninvited");
+ check(nonMemberCharacter.status,403,"outsider cannot list characters");
+ const charDetailsB=await api("/api/characters/"+gmCharacter.id,"test_group_invitee_b");
+ check(charDetailsB.character.players.length,2,"shared character lists both assigned players");
+ check(charDetailsB.character.character_sheet_tokens.race,"High Emeri","placeholder sheet tokens round-trip");
+
+ // Normal campaign character must survive developer reset.
+ const normalCharacter=await api("/api/campaigns/"+normalWithPrefix.id+"/characters","test_creator","POST",
+  {name:"Keep me",character_sheet_tokens:{test:true}},false);
+ check(normalCharacter.status,201,"normal campaign character uploaded");
+ const normalNote=await api("/api/characters/"+normalCharacter.id+"/notes","test_creator","POST",
+  {visibility:"private",body:"Normal campaign stays intact"},false);
+ check(normalNote.status,201,"normal campaign private note uploaded");
+
  const outsider=await api("/api/campaigns/test_kanji/invites","test_gm_b","POST",{kind:"gm"});
  check(outsider.status,403,"GM from another campaign cannot invite");
  const single=await api("/api/campaigns/test_kanji/invites","test_gm_a","POST",{kind:"gm"});
@@ -188,6 +259,12 @@ try{
  check(normalCreatorAfterReset.campaigns.some(c=>c.id===normalWithPrefix.id),true,"reset preserves normal campaign even with test_ prefix");
  const normalInviteAfterReset=await api("/api/invites/accept","test_uninvited","POST",{token:normalInviteToken},false);
  check(normalInviteAfterReset.status,200,"normal campaign invitation remains valid after test reset");
+ const normalCharAfter=await api("/api/characters/"+normalCharacter.id,"test_creator","GET",undefined,false);
+ check(normalCharAfter.status,200,"reset preserves normal character");
+ const normalNotesAfter=await api("/api/characters/"+normalCharacter.id+"/notes","test_creator","GET",undefined,false);
+ check(normalNotesAfter.notes.some(n=>n.id===normalNote.id),true,"reset preserves normal private notes");
+ const removedChar=await api("/api/characters/"+gmCharacter.id,"test_creator");
+ check(removedChar.status,404,"reset deletes test-campaign characters");
  const baselineAfterReset=await api("/api/campaigns?admin=1","test_admin");
  check(baselineAfterReset.campaigns.length,3,"reset leaves exactly three seeded test campaigns");
  check(baselineAfterReset.campaigns.some(c=>c.id===createdTest.id),false,"reset removes ad-hoc test campaign");
