@@ -98,14 +98,14 @@ try{
  const groupInvite=await api("/api/campaigns/"+campaignId+"/invites","test_creator","POST",{kind:"group",max_uses:2});
  check(groupInvite.status,201,"campaign GM creates two-use player group invitation");
  check(groupInvite.max_uses,2,"group invitation has configured capacity");
- const groupToken=new URL(groupInvite.link).searchParams.get("invite");
- const joinedGroupA=await api("/api/invites/accept","test_group_invitee_a","POST",{token:groupToken});
+ const walkthroughGroupToken=new URL(groupInvite.link).searchParams.get("invite");
+ const joinedGroupA=await api("/api/invites/accept","test_group_invitee_a","POST",{token:walkthroughGroupToken});
  check(joinedGroupA.is_gm,false,"first group recipient receives player permissions");
- const repeatedGroup=await api("/api/invites/accept","test_group_invitee_a","POST",{token:groupToken});
+ const repeatedGroup=await api("/api/invites/accept","test_group_invitee_a","POST",{token:walkthroughGroupToken});
  check(repeatedGroup.already_member,true,"repeat acceptance by a member does not consume another use");
- const joinedGroupB=await api("/api/invites/accept","test_group_invitee_b","POST",{token:groupToken});
+ const joinedGroupB=await api("/api/invites/accept","test_group_invitee_b","POST",{token:walkthroughGroupToken});
  check(joinedGroupB.status,200,"second group recipient joins");
- const groupOverflow=await api("/api/invites/accept","test_group_overflow","POST",{token:groupToken});
+ const groupOverflow=await api("/api/invites/accept","test_group_overflow","POST",{token:walkthroughGroupToken});
  check(groupOverflow.status,400,"group invitation rejects excess member");
  const groupAInvite=await api("/api/campaigns/"+campaignId+"/invites","test_group_invitee_a","POST",{kind:"gm"});
  check(groupAInvite.status,403,"group-invited player still cannot issue GM invitations");
@@ -144,7 +144,7 @@ try{
  const group=await api("/api/campaigns/test_kanji/invites","test_gm_a","POST",{kind:"group",max_uses:2});
  check(group.status,201,"GM can issue bounded group invite");
  const groupToken=new URL(group.link).searchParams.get("invite");
- const groupAccepted=await api("/api/invites/accept","test_player_b","POST",{token:groupToken});
+ const groupAccepted=await api("/api/invites/accept","test_player_b","POST",{token:walkthroughGroupToken});
  check(groupAccepted.status,200,"player accepts group invite");
  const before=await api("/api/admin/users","test_player_b");
  check(before.status,403,"players cannot list admins");
