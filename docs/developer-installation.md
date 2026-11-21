@@ -152,8 +152,9 @@ Commands are also available through npm from `apps/character_server`:
 
 After pulling the latest `feature/campaign-server`, **stop the running
 server**, then run `server.cmd init` to apply migration
-`0002_characters.sql`. **Do not delete the existing database**. Then start
-it with `server.cmd start`. Existing campaigns remain intact.
+`0002_characters.sql`, followed by `server.cmd seed` to add the new
+baseline characters and notes. **Do not delete the existing database**.
+Then start with `server.cmd start`. Existing campaigns remain intact.
 
 The **Characters** section of the browser console uses the currently
 selected campaign. Use the account switcher to test these roles:
@@ -173,6 +174,13 @@ selected campaign. Use the account switcher to test these roles:
 5. A player assigned to one character cannot list or access a different
    character unless also assigned to it. A server administrator who is not
    a campaign GM or assigned player cannot read character contents.
+
+The `test_Viking Saga` fixture now contains `test_Auðun` assigned to
+player A and `test_Shared Wanderer` assigned to players A and B. The latter
+has one shared note and separate private notes for player A, player B and
+the GM. `test_The Eldrich Race` also has an unassigned GM character
+(`test_Watch Captain`). These baseline characters reappear after
+`server.cmd reset`; ad-hoc test characters are removed.
 
 **Placeholder token format:** `character_sheet_tokens` is currently a
 small JSON object, such as `{"skill":"4.3","inventory":["rope"]}`.
@@ -265,7 +273,8 @@ campaigns, the predefined test user identities, and the three baseline test
 campaigns `test_Viking Saga`, `test_The Eldrich Race` and
 `test_霧の王国`. It restores the predefined test users' administrator
 status and seeded memberships, so invitation recipients start unassigned
-again. It also restores their seeded inactivity timestamps.
+again. It also restores their seeded inactivity timestamps. Baseline sample characters,
+player assignments and their example notes are restored by the seed step.
 
 The command runs `fixtures/reset.sql` then `fixtures/seed.sql`. Its
 deletion criteria use the database's `is_test_data` marker, **not**
