@@ -18,12 +18,13 @@ The intended end-user applications should be usable on phones, tablets, and lapt
 
 See [`docs/project-scope.md`](docs/project-scope.md) for the current architectural scope and design constraints.
 
-For future Character Server operators, see the [step-by-step installation and Cloudflare setup guide](docs/installation.md). The server is still planned; the guide distinguishes preparation from steps that require the forthcoming implementation.
+The **local-only Character Server foundation alpha** is now under [`apps/character_server/`](apps/character_server/). It supports developer test identities, campaign membership, GM/player invitations, administrator promotion, and time-based recovery checks. It does **not** yet provide production login, character storage, notes, or public hosting. See [local developer installation](docs/developer-installation.md) and [server testing](docs/testing-server.md). For the planned Cloudflare deployment, see the [installation guide](docs/installation.md).
 
 ## Repository layout
 
 - `apps/dice_roller/` — standalone dice-roller application.
 - `apps/character_sheet/` — digital character-sheet application.
+- `apps/character_server/` — local-only Character Server foundation alpha (Worker/D1).
 - `packages/` — shared code such as the rules engine and character/template models.
 - `docs/` — architecture, project scope, and software design documentation.
 - `RULES/` — Reactive system rules, explanations, examples, and designer's notes.
