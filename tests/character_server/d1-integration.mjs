@@ -11,6 +11,21 @@ const config="wrangler.local.jsonc", database="reactive-character-server-local";
 const cli=process.platform==="win32"?"npx.cmd":"npx", win=process.platform==="win32";
 const port=8799,base="http://127.0.0.1:"+port;
 let child,output="",checks=0;
+async function stopWorker(){
+ if(!child)return;
+ const prior=child;
+ if(win && prior.pid)spawnSync("taskkill",["/PID",String(prior.pid),"/T","/F"],{stdio:"ignore"});
+ else prior.kill();
+ child=null;
+ await new Promise(resolve=>setTimeout(resolve,500));
+}
+function startWorker(){
+ output="";
+ child=spawn(cli,["wrangler","dev","--local","--ip","127.0.0.1","--port",String(port),
+  "--persist-to",persistence,"--config",config],{cwd:root,shell:win,stdio:["ignore","pipe","pipe"]});
+ child.stdout.on("data",x=>{output+=String(x).slice(-3000)});
+ child.stderr.on("data",x=>{output+=String(x).slice(-3000)});
+}
 const persistence=await mkdtemp(join(tmpdir(),"reactive-server-test-"));
 function command(args){
  const r=spawnSync(cli,["wrangler",...args],{cwd:root,encoding:"utf8",shell:win,timeout:60000});
@@ -39,10 +54,7 @@ try{
  const common=["--local","--persist-to",persistence,"--config",config];
  command(["d1","migrations","apply",database,...common]);
  command(["d1","execute",database,...common,"--file","fixtures/seed.sql","--yes"]);
- child=spawn(cli,["wrangler","dev","--local","--ip","127.0.0.1","--port",String(port),
-  "--persist-to",persistence,"--config",config],{cwd:root,shell:win,stdio:["ignore","pipe","pipe"]});
- child.stdout.on("data",x=>{output+=String(x).slice(-3000)});
- child.stderr.on("data",x=>{output+=String(x).slice(-3000)});
+ startWorker();
  await ready();
  const gmCampaigns=await api("/api/campaigns","test_gm_a","GET",undefined,false);
  check(gmCampaigns.campaigns.length,0,"test campaigns hidden in normal member view");
@@ -144,7 +156,7 @@ try{
  const group=await api("/api/campaigns/test_kanji/invites","test_gm_a","POST",{kind:"group",max_uses:2});
  check(group.status,201,"GM can issue bounded group invite");
  const groupToken=new URL(group.link).searchParams.get("invite");
- const groupAccepted=await api("/api/invites/accept","test_player_b","POST",{token:walkthroughGroupToken});
+ const groupAccepted=await api("/api/invites/accept","test_player_b","POST",{token:groupToken});
  check(groupAccepted.status,200,"player accepts group invite");
  const before=await api("/api/admin/users","test_player_b");
  check(before.status,403,"players cannot list admins");
@@ -157,13 +169,34 @@ try{
  const remote=await fetch("http://localhost:"+port+"/api/me",{headers:{"x-dev-user":"test_admin"}});
  // Localhost is deliberately allowed; remote-host security is checked in HTTP boundary tests.
  check(remote.status,200,"localhost simulator accepts development identity");
+ // Verify selective reset against the same isolated D1 persistence.
+ // The Worker is stopped before D1 is modified; production data is impossible
+ // to access because the test uses a newly created temporary persistence path.
+ await stopWorker();
+ command(["d1","execute",database,...common,"--file","fixtures/reset.sql","--yes"]);
+ command(["d1","execute",database,...common,"--file","fixtures/seed.sql","--yes"]);
+ startWorker();
+ await ready();
+ const normalAfterReset=await api("/api/campaigns","test_admin","GET",undefined,false);
+ check(normalAfterReset.campaigns.some(c=>c.id===createdNormal.id),true,"reset preserves the ordinary campaign");
+ const baselineAfterReset=await api("/api/campaigns?admin=1","test_admin");
+ check(baselineAfterReset.campaigns.length,3,"reset leaves exactly three seeded test campaigns");
+ check(baselineAfterReset.campaigns.some(c=>c.id===createdTest.id),false,"reset removes ad-hoc test campaign");
+ check(baselineAfterReset.campaigns.some(c=>c.id===creatorCampaign.id),false,"reset removes non-admin-created test campaign");
+ const restoredMembers=await api("/api/campaigns/test_kanji/members","test_gm_a");
+ check(restoredMembers.members.length,1,"reset restores original test campaign membership");
+ check(restoredMembers.members[0].id,"test_gm_a","original seeded GM remains");
+ const restoredUsers=await api("/api/admin/users","test_admin");
+ check(restoredUsers.users.find(u=>u.id==="test_player_b").is_admin,0,"reset undoes test administrator promotion");
+ check(restoredUsers.users.find(u=>u.id==="test_creator").is_admin,0,"non-admin test creator remains non-admin");
+ const postResetCreator=await api("/api/campaigns","test_creator");
+ check(postResetCreator.campaigns.length,0,"non-admin creator starts with no campaign memberships");
+ const reseeded=await api("/api/campaigns","test_gm_a");
+ check(reseeded.campaigns.some(c=>c.id==="test_viking"),true,"baseline campaign remains usable");
+
  process.stdout.write("D1 integration: "+checks+" checks passed.\n");
 }catch(error){console.error("FAIL local D1 integration:",error);process.exitCode=1;}
 finally{
- if(child){
-  if(win && child.pid)spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});
-  else child.kill();
-  await new Promise(resolve=>setTimeout(resolve,300));
- }
+ await stopWorker();
  await rm(persistence,{recursive:true,force:true,maxRetries:5,retryDelay:200});
 }
