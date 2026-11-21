@@ -9,7 +9,7 @@ The alpha currently covers the server foundation: local developer identities,
 Unicode campaign names, campaign membership and multiple GMs, three invitation
 types, administrator promotion and inactivity revocation, and GM inactivity
 recovery. It does **not** yet implement production authentication, accounts,
-character storage, notes, backup import/export, or live opposed rolls.
+character-sheet application synchronization, backup import/export, or live opposed rolls.
 Do not expose this developer server to the internet or use it as a production
 campaign host yet.
 
@@ -148,6 +148,53 @@ campaigns and invitations without affecting normal campaigns.
 Commands are also available through npm from `apps/character_server`:
 `npm.cmd run db:init`, `npm.cmd run db:seed`, and `npm.cmd run dev`.
 
+## Character uploads, assignments, and notes (alpha)
+
+After pulling the latest `feature/campaign-server`, **stop the running
+server**, then run `server.cmd init` to apply migration
+`0002_characters.sql`. **Do not delete the existing database**. Then start
+it with `server.cmd start`. Existing campaigns remain intact.
+
+The **Characters** section of the browser console uses the currently
+selected campaign. Use the account switcher to test these roles:
+
+1. As a player with campaign membership, upload two characters with different
+   names. Every upload automatically assigns that player to the new character.
+2. As a GM, upload another character. It starts with **no assigned players**,
+   but remains visible to campaign GMs.
+3. Choose the GM-uploaded character, select a campaign member and choose
+   **Add player to character**. Repeat with another player. Both players can
+   now see the same character and its placeholder sheet token object.
+   Assignment is additive, not an ownership transfer.
+4. As player A, create a **Private** note and a **Shared** note on that
+   character. As player B, **View accessible notes**. Player B sees the shared
+   note, but not player A's private note. The campaign GM can also see the
+   shared note, but cannot see player A's private note.
+5. A player assigned to one character cannot list or access a different
+   character unless also assigned to it. A server administrator who is not
+   a campaign GM or assigned player cannot read character contents.
+
+**Placeholder token format:** `character_sheet_tokens` is currently a
+small JSON object, such as `{"skill":"4.3","inventory":["rope"]}`.
+It is deliberately **not** the existing character-sheet application's save
+format yet. Uploading is through the local server console, not from the
+player/GM applications. Characters currently have a 100-character name
+limit and an 8,000-character serialized token limit. Notes are limited to
+4,000 characters each.
+
+**Visibility model:** Private notes belong to their author account alone.
+A shared note is visible to every currently assigned player and to all
+campaign GMs. Sharing a character does not automatically share its
+private notes. Notes are **server-authorized**, not merely hidden by the
+browser. Notes do not yet have editing, change history, annotations,
+owner-key encryption for export, or recovery functionality.
+
+There is no single-character-per-player restriction. Campaign GMs may
+assign a character to any number of current campaign members, even when
+the character already has assigned players. Revoking assignments and
+transferring characters between campaigns are not implemented in this
+alpha.
+
 ## Automated tests
 
 From the repository root:
@@ -225,9 +272,10 @@ deletion criteria use the database's `is_test_data` marker, **not**
 campaign name prefixes. For example, a normal campaign containing
 `test_` in its name is not targeted.
 
-The reset only handles the **currently implemented** D1 tables. New
-character, note, or resource tables will need their test-data cleanup
-rules included before those features are exposed in the developer build.
+The reset now includes characters, character-player assignments and notes
+belonging to test campaigns. Normal campaign characters and notes survive.
+As new resource tables are added, their test-data cleanup rules must also
+be added and tested before exposing those features in the developer build.
 
 **Full local database deletion is different:** removing
 `apps/character_server/.wrangler/` destroys *all* local database content,
