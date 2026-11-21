@@ -44,9 +44,9 @@ try{
  child.stdout.on("data",x=>{output+=String(x).slice(-3000)});
  child.stderr.on("data",x=>{output+=String(x).slice(-3000)});
  await ready();
- const gmCampaigns=await api("/api/campaigns","test_gm_a");
+ const gmCampaigns=await api("/api/campaigns","test_gm_a","GET",undefined,false);
  check(gmCampaigns.campaigns.length,0,"test campaigns hidden in normal member view");
- const all=await api("/api/campaigns?admin=1","test_admin");
+ const all=await api("/api/campaigns?admin=1","test_admin","GET",undefined,false);
  check(all.campaigns.length,0,"test campaigns hidden in normal admin view");
  const dev=await api("/api/campaigns?admin=1","test_admin","GET",undefined,true);
  // explicit fixture view is enabled above; check the fixtures are present.
@@ -79,6 +79,10 @@ try{
  process.stdout.write("D1 integration: "+checks+" checks passed.\n");
 }catch(error){console.error("FAIL local D1 integration:",error);process.exitCode=1;}
 finally{
- if(child){child.kill();await new Promise(resolve=>setTimeout(resolve,300));}
+ if(child){
+  if(win && child.pid)spawnSync("taskkill",["/PID",String(child.pid),"/T","/F"],{stdio:"ignore"});
+  else child.kill();
+  await new Promise(resolve=>setTimeout(resolve,300));
+ }
  await rm(persistence,{recursive:true,force:true,maxRetries:5,retryDelay:200});
 }
