@@ -1,5 +1,5 @@
 // Self-contained localhost development console. Not a production login page.
-export const PAGE = `<!doctype html>
+export const PAGE = String.raw`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Reactive — Character Server (local alpha)</title>
 <style>
