@@ -62,6 +62,7 @@ From the repository root:
 ```bat
 test.cmd server
 test.cmd server -v
+test.cmd server integration
 ```
 
 Or from `apps/character_server`: `npm.cmd test`.
@@ -69,10 +70,16 @@ The tests currently run the pure permission/invitation logic and local API
 security checks without modifying your persistent D1 database. The suite uses
 a controlled clock and tests exact 90-day boundaries.
 
-**Testing limitation:** This first suite does not yet execute full D1-backed
-API integration tests, Cloudflare deployment tests, or real OAuth flows. Those
-must be added before a production release. Do not treat a green unit-test
-suite as proof that production login is implemented.
+The optional `test.cmd server integration` command starts an actual local
+Wrangler Worker backed by an **isolated temporary D1 database**, loads the
+fixture SQL, exercises campaign permissions and invitation workflows, then
+deletes that temporary database. It requires `server.cmd install` first.
+
+**Testing limitation:** The D1 integration runner has not yet been validated
+against a working Wrangler installation in this coding environment. It may
+need adjustments after the first local run. Cloudflare deployment, full
+browser automation, and real OAuth flows remain future work. A green suite
+does not imply production authentication has been implemented.
 
 ## Fixture design and safe cleanup
 
