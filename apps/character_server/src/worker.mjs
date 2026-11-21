@@ -65,9 +65,9 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     const actor = await actorFor(req,env,now);
     if (!actor) return fail(401,"Choose a local test account");
     const fixtureView = req.headers.get("x-dev-fixtures") === "1";
-    // Test content is visible only through the explicit localhost developer
-    // console when the operator is a server administrator. This is not GM access.
-    const fixtures = fixtureView && !!actor.is_admin;
+    // Fixture view exists only for simulated test identities on localhost.
+    // Ordinary accounts never receive this header-based capability.
+    const fixtures = fixtureView;
     const campaignFilter = fixtures ? " AND c.is_test_data=1" : " AND c.is_test_data=0";
     const userFilter = fixtures ? " AND is_test_data=1" : " AND is_test_data=0";
     if (path === "/api/me" && method === "GET")
