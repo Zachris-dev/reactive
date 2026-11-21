@@ -31,6 +31,7 @@ export function canReadResource(user, member, resource) {
 
 export function normalizeCampaignName(value) {
   if (typeof value !== "string") throw new Error("Campaign name is required");
+  if (/[\\u0000-\\u001f\\u007f]/u.test(value)) throw new Error("Campaign name cannot contain control characters");
   const name = value.trim().normalize("NFC");
   if (!name || Array.from(name).length > 100 || /[\u0000-\u001f\u007f]/u.test(name))
     throw new Error("Campaign name must be 1–100 Unicode characters without control characters");
