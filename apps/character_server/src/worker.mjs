@@ -104,6 +104,23 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     const fixtures = fixtureView;
     const campaignFilter = fixtures ? " AND c.is_test_data=1" : " AND c.is_test_data=0";
     const userFilter = fixtures ? " AND is_test_data=1" : " AND is_test_data=0";
+    // Developer character selector lists all campaigns this identity belongs to,
+    // regardless of the normal/test filter used by the admin campaign browser.
+    // Never include campaigns merely because the identity is a server admin.
+    if (path === "/api/my-campaigns" && method === "GET") {
+      const rows=await dbAll(env.DB,
+        "SELECT c.id,c.name,c.is_test_data,m.is_gm FROM campaigns c JOIN memberships m ON m.campaign_id=c.id WHERE m.user_id=? ORDER BY c.name,c.id",actor.id);
+      return json({campaigns:rows});
+    }
+    if (path === "/api/characters" && method === "GET") {
+      // Same authorization as each campaign's character list. A user sees
+      // assigned PCs and, for campaigns where they are a GM, every character.
+      // Test fixtures may be included only by the localhost developer console.
+      const rows=await dbAll(env.DB,
+        "SELECT c.id,c.campaign_id,ca.name AS campaign_name,ca.is_test_data,c.name,c.version,c.uploaded_by,COUNT(cp.user_id) AS players FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id JOIN memberships m ON m.campaign_id=c.campaign_id AND m.user_id=? LEFT JOIN character_players cp ON cp.character_id=c.id WHERE (m.is_gm=1 OR EXISTS(SELECT 1 FROM character_players mine WHERE mine.character_id=c.id AND mine.user_id=?)) GROUP BY c.id ORDER BY ca.name,c.name,c.id",
+        actor.id,actor.id);
+      return json({characters:rows});
+    }
     if (path === "/api/me" && method === "GET")
       return json({user:{id:actor.id,name:actor.display_name,is_admin:!!actor.is_admin},developer:true});
     if (path === "/api/campaigns" && method === "GET") {
