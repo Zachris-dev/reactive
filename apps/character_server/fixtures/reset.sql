@@ -2,6 +2,28 @@
 -- Deliberately targets is_test_data=1, never a campaign name prefix.
 -- Baseline campaigns are restored to canonical state by the subsequent seed step.
 -- KEEP IN SYNC with seed.sql; add deletion for new test-only dependent tables as needed.
+-- Remove all test-campaign character records in FK-safe order. Never touch
+-- normal campaign characters, even if their names contain test_.
+DELETE FROM character_notes WHERE character_id IN (
+ SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
+ WHERE ca.is_test_data=1
+);
+DELETE FROM character_players WHERE character_id IN (
+ SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
+ WHERE ca.is_test_data=1
+);
+DELETE FROM characters WHERE campaign_id IN (
+ SELECT id FROM campaigns WHERE is_test_data=1
+);
+-- Character and note audit entries are test data too; clear them before
+-- keeping only baseline campaigns.
+DELETE FROM audit_events WHERE action IN ('character.upload','character.assign','note.create')
+ AND (
+  actor_id IN (SELECT id FROM users WHERE is_test_data=1)
+  OR target_id IN (SELECT id FROM characters WHERE campaign_id IN (
+    SELECT id FROM campaigns WHERE is_test_data=1))
+ );
+
 -- Remove audit events referencing test invitations BEFORE removing the invitations.
 DELETE FROM audit_events
  WHERE target_id IN (
