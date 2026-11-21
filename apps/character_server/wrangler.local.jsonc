@@ -1,0 +1,13 @@
+{
+  // Local development ONLY. This config intentionally has no remote D1 ID.
+  "name": "reactive-character-server-local",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-01",
+  "vars": { "DEV_AUTH": "local-only" },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "reactive-character-server-local",
+    "database_id": "00000000-0000-4000-8000-000000000001",
+    "migrations_dir": "migrations"
+  }]
+}
