@@ -25,6 +25,56 @@ execution policy, use the supplied `.cmd` scripts; they invoke `npm.cmd`.
    server.cmd install
    ```
 
+### npm install-script approvals (expected on recent npm versions)
+
+Modern npm versions check dependencies that run programs during installation.
+Reactive's local Cloudflare tooling uses two such dependencies:
+
+| Dependency | Expected post-install purpose |
+| --- | --- |
+| `esbuild` | Prepares/checks the native build executable |
+| `workerd` | Prepares/checks the local Cloudflare Worker runtime executable |
+
+The server's `package.json` contains **version-specific** approvals for
+`esbuild@0.28.2` and `workerd@1.20261119.1`. This is intentional:
+the install process should not blindly approve unknown programs. The
+`server.cmd install` command checks for unapproved scripts and stops if
+the dependency versions have changed and need review.
+
+**If you already installed dependencies and saw a warning** like
+`2 packages have install scripts not yet covered by allowScripts`, first
+update your local checkout (`git pull`) to get the reviewed approvals,
+then run:
+
+```bat
+server.cmd install
+```
+
+If npm continues reporting unapproved scripts, open a terminal in
+`apps/character_server` and inspect the list:
+
+```bat
+npm.cmd install-scripts ls
+```
+
+Do **not** use `approve --all` or disable install-script checking.
+If the reported versions are different from the versions in this guide,
+review those exact packages before approving them:
+
+```bat
+npm.cmd install-scripts approve esbuild workerd
+npm.cmd rebuild esbuild workerd
+```
+
+The approval command updates the local `package.json` with the installed
+versions. Contributors should review and commit that change so subsequent
+installations get the same documented behavior. `npm.cmd rebuild` makes
+sure approved scripts actually run even if they were skipped by the initial
+installation.
+
+This is a **local Node.js dependency approval**, not a Cloudflare login or
+a permission to deploy anything.
+
 3. Initialize the local D1 database (repeatable migrations):
 
    ```bat
