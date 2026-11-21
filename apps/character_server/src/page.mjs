@@ -22,6 +22,25 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 <div id="campaigns"></div></section>
 <section><h2>Create campaign</h2><form id="create"><label>Campaign name (Unicode accepted) <input id="campaignName" required maxlength="100" placeholder="Víkingaöld – Þórsheimr"></label>
 <label><input type="checkbox" id="testCampaign"> Create as test campaign (test_ prefix added automatically)</label><button>Create</button><p class="muted" id="createHint">Normal campaign: visible only to members and to administrators in their storage view.</p></form></section>
+<section><h2>Characters</h2>
+<p class="muted">This alpha stores placeholder character_sheet_tokens as JSON. Players may upload any number of characters. GMs may upload and assign characters to one or more campaign members.</p>
+<form id="uploadCharacter">
+<label>Character name <input id="characterName" required maxlength="100" placeholder="Auðun"></label>
+<label>Placeholder character_sheet_tokens (JSON object) <textarea id="characterTokens" rows="3" cols="65">{}</textarea></label>
+<button>Upload character to selected campaign</button></form>
+<div class="row"><button id="loadCharacters">Load my accessible characters</button>
+<label>Character <select id="characterSelect"></select></label><button id="viewCharacter">View character details</button></div>
+<div id="characterDetails" class="muted"></div>
+<form id="assignCharacter"><label>Assign selected character to campaign member (GM only)
+<select id="assignedPlayer"></select></label><button>Add player to character</button></form>
+<h3>Character notes</h3><div class="row"><button id="loadNotes">View accessible notes</button></div>
+<div id="characterNotes"></div>
+<form id="addNote"><label>Note <textarea id="noteText" rows="3" cols="65" required maxlength="4000"></textarea></label>
+<label>Visibility <select id="noteVisibility">
+<option value="private">Private (only my account)</option>
+<option value="shared">Shared with all assigned players and campaign GMs</option>
+</select></label><button>Create note</button></form>
+</section>
 <section><h2>Invitation test walkthrough</h2>
 <p class="muted">The development database provides unassigned users specifically for testing the three invitation routes. No server administrator is needed to create the campaign or send invitations.</p>
 <ol><li>Choose <strong>test_Campaign Creator (player, no admin rights)</strong> from the account selector.</li>
@@ -116,6 +135,59 @@ el("users").addEventListener("click",()=>run(async()=>{
  });actions.append(b)}
  el("userList").replaceChildren(table);
 }));
+// Character tools use ordinary API authorization; no UI-only permission checks.
+async function loadCharacters(){
+ const campaignId=el("campaignSelect").value;
+ if(!campaignId)throw Error("Select a campaign first");
+ const d=await request("/api/campaigns/"+encodeURIComponent(campaignId)+"/characters");
+ el("characterSelect").replaceChildren(...d.characters.map(c=>new Option(c.name+" ("+c.players+" players)",c.id)));
+ el("characterDetails").textContent=d.characters.length+" accessible characters in selected campaign.";
+ await loadAssignablePlayers(campaignId);
+}
+async function loadAssignablePlayers(campaignId){
+ const d=await request("/api/campaigns/"+encodeURIComponent(campaignId)+"/members");
+ el("assignedPlayer").replaceChildren(...d.members.map(m=>new Option(m.display_name,m.id)));
+}
+el("campaignSelect").addEventListener("change",()=>{
+ el("characterSelect").replaceChildren();el("characterDetails").textContent="";
+ el("characterNotes").replaceChildren();el("assignedPlayer").replaceChildren();
+});
+el("loadCharacters").addEventListener("click",()=>run(loadCharacters));
+el("uploadCharacter").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
+ let tokens;
+ try{tokens=JSON.parse(el("characterTokens").value)}catch{throw Error("Character sheet tokens must be valid JSON")}
+ const id=el("campaignSelect").value;
+ if(!id)throw Error("Choose a campaign first");
+ const d=await request("/api/campaigns/"+encodeURIComponent(id)+"/characters","POST",
+ {name:el("characterName").value,character_sheet_tokens:tokens});
+ await loadCharacters();el("characterSelect").value=d.id;el("characterName").value="";
+})});
+el("viewCharacter").addEventListener("click",()=>run(async()=>{
+ const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
+ const d=await request("/api/characters/"+encodeURIComponent(id));
+ el("characterDetails").textContent=JSON.stringify(d.character,null,2);
+ el("characterDetails").style.whiteSpace="pre-wrap";
+}));
+el("assignCharacter").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
+ const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
+ const user=el("assignedPlayer").value;if(!user)throw Error("Choose a campaign member");
+ await request("/api/characters/"+encodeURIComponent(id)+"/assign","POST",{user_id:user});
+ await loadCharacters();el("characterSelect").value=id;
+})});
+el("loadNotes").addEventListener("click",()=>run(async()=>{
+ const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
+ const d=await request("/api/characters/"+encodeURIComponent(id)+"/notes");
+ const nodes=d.notes.map(n=>{const p=document.createElement("p");
+ p.textContent=n.visibility+" · "+n.author_id+": "+n.body;return p});
+ el("characterNotes").replaceChildren(...nodes);
+ if(!nodes.length)el("characterNotes").textContent="No accessible notes.";
+}));
+el("addNote").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
+ const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
+ await request("/api/characters/"+encodeURIComponent(id)+"/notes","POST",
+ {visibility:el("noteVisibility").value,body:el("noteText").value});
+ el("noteText").value="";el("loadNotes").click();
+})});
 const urlToken=new URL(location.href).searchParams.get("invite");if(urlToken)el("token").value=urlToken;
 run(init);
 </script></body></html>`;
