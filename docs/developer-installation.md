@@ -142,8 +142,8 @@ have GM rights. The creator and later GMs do not receive server-admin rights.
 
 Copy each generated link before switching identities; the local simulator
 does not send email or Discord messages. This is a development simulation,
-**not a real login**. When retesting, generate fresh invitations or use a
-different campaign name; previous invitation usage is intentionally persistent.
+**not a real login**. When retesting, use `server.cmd reset` to clear developer-created test
+campaigns and invitations without affecting normal campaigns.
 
 Commands are also available through npm from `apps/character_server`:
 `npm.cmd run db:init`, `npm.cmd run db:seed`, and `npm.cmd run dev`.
@@ -193,10 +193,47 @@ inactivity behavior; ordinary requests refresh the selected account's activity
 time. The test suite itself uses a frozen clock and does not depend on the
 fixture timestamps or any persistent local database state.
 
-To start over, stop the local server and remove the **local** Wrangler state
-directory under `apps/character_server/.wrangler/`, then run `server.cmd init`
-and `server.cmd seed` again. **Do not do this if you have data you want to
-keep.** Never run reset operations against a Cloudflare remote database.
+### Selective reset of test data
+
+To repeat the invitation walkthrough, stop the local server with Ctrl+C and run:
+
+```bat
+server.cmd reset
+server.cmd start
+```
+
+The reset command prints what it will do and **requires you to type
+`RESET`** before proceeding. It uses the fixed local-only D1 configuration;
+it never contacts a remote Cloudflare database.
+
+**What reset removes:** developer-created test campaigns such as
+`test_Heart of Isolation` and `test_Invitation Playground`, their
+memberships, invitation links, and invitation-use counters. It clears
+changed membership and invitation history in the three seeded test
+campaigns too. Old invite links should no longer be usable.
+
+**What reset preserves:** every **normal campaign** (including the normal
+`The Eldrich Race`), all memberships and invitations belonging to normal
+campaigns, the predefined test user identities, and the three baseline test
+campaigns `test_Viking Saga`, `test_The Eldrich Race` and
+`test_霧の王国`. It restores the predefined test users' administrator
+status and seeded memberships, so invitation recipients start unassigned
+again. It also restores their seeded inactivity timestamps.
+
+The command runs `fixtures/reset.sql` then `fixtures/seed.sql`. Its
+deletion criteria use the database's `is_test_data` marker, **not**
+campaign name prefixes. For example, a normal campaign containing
+`test_` in its name is not targeted.
+
+The reset only handles the **currently implemented** D1 tables. New
+character, note, or resource tables will need their test-data cleanup
+rules included before those features are exposed in the developer build.
+
+**Full local database deletion is different:** removing
+`apps/character_server/.wrangler/` destroys *all* local database content,
+including normal campaigns. Do not do that to reset test scenarios.
+
+Never run developer reset operations against a Cloudflare remote database.
 
 ## Security boundaries and scope
 
