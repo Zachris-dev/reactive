@@ -71,6 +71,13 @@ if /I "%~1"=="validate" (
   goto :check
 )
 
+if /I "%~1"=="server" if /I "%~2"=="integration" (
+  if not "%~3"=="" goto :usage
+  call node tests/character_server/d1-integration.mjs
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
+  goto :check
+)
+
 if /I "%~1"=="server" (
   if not "%~2"=="" if /I not "%~2"=="-v" if /I not "%~2"=="--verbose" goto :usage
   if not "%~3"=="" goto :usage
@@ -106,6 +113,7 @@ echo   creation      Run grouped parser, allocation, and save/load tests
 echo   character     Run grouped parser, allocation, and save/load tests
 echo   -v, --verbose List individual tests for parser, creation, and character
 echo   server        Run local Character Server unit and HTTP boundary tests
+echo   server integration  Run isolated Wrangler/D1 end-to-end tests (after server.cmd install)
 echo   validate      Check actual campaign files; fail on errors
 echo   all           Run all test suites
 exit /b 2
