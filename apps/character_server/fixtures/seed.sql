@@ -22,3 +22,19 @@ INSERT OR IGNORE INTO memberships(campaign_id,user_id,is_gm) VALUES
  ('test_viking','test_player_a',0), ('test_viking','test_player_b',0),
  ('test_eldrich','test_gm_b',1), ('test_eldrich','test_player_a',0),
  ('test_kanji','test_gm_a',1);
+
+-- Baseline character fixtures: the reset command removes temporary test
+-- characters and restores these exact IDs with their canonical assignments.
+INSERT OR IGNORE INTO characters(id,campaign_id,name,character_sheet_tokens,uploaded_by) VALUES
+ ('test_hero_a','test_viking','test_Auðun','{"skill":"4.3","culture":"Norse"}','test_player_a'),
+ ('test_shared_hero','test_viking','test_Shared Wanderer','{"skill":"3.5","role":"shared PC"}','test_gm_a'),
+ ('test_npc','test_eldrich','test_Watch Captain','{"skill":"5.0","role":"GM character"}','test_gm_b');
+INSERT OR IGNORE INTO character_players(character_id,user_id,assigned_by) VALUES
+ ('test_hero_a','test_player_a','test_player_a'),
+ ('test_shared_hero','test_player_a','test_gm_a'),
+ ('test_shared_hero','test_player_b','test_gm_a');
+INSERT OR IGNORE INTO character_notes(id,character_id,author_id,visibility,body) VALUES
+ ('test_shared_note','test_shared_hero','test_player_a','shared','Shared clue: the old road leads north.'),
+ ('test_private_a','test_shared_hero','test_player_a','private','Private clue for player A only.'),
+ ('test_private_b','test_shared_hero','test_player_b','private','Private clue for player B only.'),
+ ('test_private_gm','test_shared_hero','test_gm_a','private','GM-only personal reminder.');
