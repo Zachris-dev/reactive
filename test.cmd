@@ -71,6 +71,18 @@ if /I "%~1"=="validate" (
   goto :check
 )
 
+if /I "%~1"=="server" (
+  if not "%~2"=="" if /I not "%~2"=="-v" if /I not "%~2"=="--verbose" goto :usage
+  if not "%~3"=="" goto :usage
+  if "%~2"=="" (
+    call node --test tests/character_server/*.test.mjs
+  ) else (
+    call node --test --test-reporter spec tests/character_server/*.test.mjs
+  )
+  call set "TEST_ERROR=%%ERRORLEVEL%%"
+  goto :check
+)
+
 goto :usage
 
 :check
@@ -84,7 +96,7 @@ echo Tests passed.
 exit /b 0
 
 :usage
-echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|validate^|all] [-v^|--verbose]
+echo Usage: test.cmd [roll^|result^|parser^|creation^|character^|server^|validate^|all] [-v^|--verbose]
 echo.
 echo   no parameter  Run all test suites (grouped character results)
 echo   roll          Run roll engine tests only
@@ -93,6 +105,7 @@ echo   parser        Run campaign parsing and selection tests
 echo   creation      Run grouped parser, allocation, and save/load tests
 echo   character     Run grouped parser, allocation, and save/load tests
 echo   -v, --verbose List individual tests for parser, creation, and character
+echo   server        Run local Character Server unit and HTTP boundary tests
 echo   validate      Check actual campaign files; fail on errors
 echo   all           Run all test suites
 exit /b 2
