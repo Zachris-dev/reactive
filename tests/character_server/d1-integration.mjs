@@ -65,6 +65,11 @@ try{
  check(dev.campaigns.length,3,"developer fixtures loaded");
  const createdNormal=await api("/api/campaigns","test_admin","POST",{name:"The Eldrich Race",is_test_data:false},false);
  check(createdNormal.status,201,"ordinary campaign creation succeeds");
+ const normalWithPrefix=await api("/api/campaigns","test_creator","POST",{name:"test_Actually Normal",is_test_data:false},false);
+ check(normalWithPrefix.status,201,"normal campaign can contain test_ in its display name");
+ const normalInvite=await api("/api/campaigns/"+normalWithPrefix.id+"/invites","test_creator","POST",{kind:"player"},false);
+ check(normalInvite.status,201,"ordinary campaign invitation is created before test reset");
+ const normalInviteToken=new URL(normalInvite.link).searchParams.get("invite");
  const createdTest=await api("/api/campaigns","test_admin","POST",{name:"Heart of Isolation",is_test_data:true},true);
  check(createdTest.name,"test_Heart of Isolation","test campaign name receives prefix automatically");
  const testList=await api("/api/campaigns","test_admin");
@@ -179,6 +184,10 @@ try{
  await ready();
  const normalAfterReset=await api("/api/campaigns","test_admin","GET",undefined,false);
  check(normalAfterReset.campaigns.some(c=>c.id===createdNormal.id),true,"reset preserves the ordinary campaign");
+ const normalCreatorAfterReset=await api("/api/campaigns","test_creator","GET",undefined,false);
+ check(normalCreatorAfterReset.campaigns.some(c=>c.id===normalWithPrefix.id),true,"reset preserves normal campaign even with test_ prefix");
+ const normalInviteAfterReset=await api("/api/invites/accept","test_uninvited","POST",{token:normalInviteToken},false);
+ check(normalInviteAfterReset.status,200,"normal campaign invitation remains valid after test reset");
  const baselineAfterReset=await api("/api/campaigns?admin=1","test_admin");
  check(baselineAfterReset.campaigns.length,3,"reset leaves exactly three seeded test campaigns");
  check(baselineAfterReset.campaigns.some(c=>c.id===createdTest.id),false,"reset removes ad-hoc test campaign");
@@ -190,7 +199,7 @@ try{
  check(restoredUsers.users.find(u=>u.id==="test_player_b").is_admin,0,"reset undoes test administrator promotion");
  check(restoredUsers.users.find(u=>u.id==="test_creator").is_admin,0,"non-admin test creator remains non-admin");
  const postResetCreator=await api("/api/campaigns","test_creator");
- check(postResetCreator.campaigns.length,0,"non-admin creator starts with no campaign memberships");
+ check(postResetCreator.campaigns.some(c=>c.id===creatorCampaign.id),false,"non-admin creator no longer belongs to removed test campaign");
  const reseeded=await api("/api/campaigns","test_gm_a");
  check(reseeded.campaigns.some(c=>c.id==="test_viking"),true,"baseline campaign remains usable");
 
