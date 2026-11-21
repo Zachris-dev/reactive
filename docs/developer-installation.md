@@ -156,8 +156,25 @@ server**, then run `server.cmd init` to apply migration
 baseline characters and notes. **Do not delete the existing database**.
 Then start with `server.cmd start`. Existing campaigns remain intact.
 
-The **Characters** section of the browser console uses the currently
-selected campaign. Use the account switcher to test these roles:
+The **My campaign selection** section now sits **above Characters** and
+shows all campaigns to which the selected test account belongs, regardless
+of the separate Normal/Test filter in the Campaigns administration view.
+Its default is **All my campaigns**. Choose `test_Player A`, for example:
+both `test_Viking Saga` and `test_The Eldrich Race` are available.
+
+With **All my campaigns** selected, **Load characters** lists every
+character the current identity can access, grouped by its displayed
+campaign name (GM-accessible characters, or characters assigned to the
+player). Unassigned characters belonging only to another campaign GM are
+not exposed. Selecting a specific campaign narrows the list to that
+campaign. The character selector and assignment controls use the
+character's actual campaign, including when loading across campaigns.
+
+**Uploading a character or creating invitations requires selecting a
+specific campaign.** The all-campaigns choice is for browsing, not for
+uploading into an unspecified destination.
+
+Use the account switcher to test these roles:
 
 1. As a player with campaign membership, upload two characters with different
    names. Every upload automatically assigns that player to the new character.
