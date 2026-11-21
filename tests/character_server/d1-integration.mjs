@@ -51,6 +51,16 @@ try{
  const dev=await api("/api/campaigns?admin=1","test_admin","GET",undefined,true);
  // explicit fixture view is enabled above; check the fixtures are present.
  check(dev.campaigns.length,3,"developer fixtures loaded");
+ const createdNormal=await api("/api/campaigns","test_admin","POST",{name:"The Eldrich Race",is_test_data:false},false);
+ check(createdNormal.status,201,"ordinary campaign creation succeeds");
+ const createdTest=await api("/api/campaigns","test_admin","POST",{name:"Heart of Isolation",is_test_data:true},true);
+ check(createdTest.name,"test_Heart of Isolation","test campaign name receives prefix automatically");
+ const testList=await api("/api/campaigns","test_admin");
+ check(testList.campaigns.some(c=>c.id===createdTest.id),true,"created test campaign appears in developer test list");
+ check(testList.campaigns.some(c=>c.id===createdNormal.id),false,"ordinary campaigns are absent from test list");
+ const normalList=await api("/api/campaigns","test_admin","GET",undefined,false);
+ check(normalList.campaigns.some(c=>c.id===createdNormal.id),true,"created ordinary campaign appears in normal list");
+ check(normalList.campaigns.some(c=>c.id===createdTest.id),false,"test campaigns are absent from ordinary list");
  const outsider=await api("/api/campaigns/test_kanji/invites","test_gm_b","POST",{kind:"gm"});
  check(outsider.status,403,"GM from another campaign cannot invite");
  const single=await api("/api/campaigns/test_kanji/invites","test_gm_a","POST",{kind:"gm"});
