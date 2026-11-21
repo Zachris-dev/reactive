@@ -1,0 +1,116 @@
+# Reactive Character Server — local developer installation (alpha 0.1)
+
+This is the **developer** installation, not the Cloudflare production server.
+It runs the real Character Server Worker locally with a local D1 database.
+**Nothing here deploys to Cloudflare.** No Cloudflare account, remote database,
+Discord application, or Google OAuth credentials are needed.
+
+The alpha currently covers the server foundation: local developer identities,
+Unicode campaign names, campaign membership and multiple GMs, three invitation
+types, administrator promotion and inactivity revocation, and GM inactivity
+recovery. It does **not** yet implement production authentication, accounts,
+character storage, notes, backup import/export, or live opposed rolls.
+Do not expose this developer server to the internet or use it as a production
+campaign host yet.
+
+## Windows quick start
+
+Prerequisites: Node.js 20+ and npm. On PowerShell, if `npm.ps1` is blocked by
+execution policy, use the supplied `.cmd` scripts; they invoke `npm.cmd`.
+
+1. Fetch the current Reactive branch from GitHub, then open a terminal **in the repository root**.
+2. Install the local server's tools:
+
+   ```bat
+   server.cmd install
+   ```
+
+3. Initialize the local D1 database (repeatable migrations):
+
+   ```bat
+   server.cmd init
+   ```
+
+4. Populate developer fixtures:
+
+   ```bat
+   server.cmd seed
+   ```
+
+5. Start the development server:
+
+   ```bat
+   server.cmd start
+   ```
+
+6. Open **http://127.0.0.1:8787/** in your browser.
+
+Use the account switcher to simulate the test administrator, two GMs, or two
+players. The **Developer fixture view** control exposes the `test_` campaigns
+to this localhost-only simulator. The same test data is excluded from ordinary
+non-developer campaign lists. Try generating a single-use player invitation,
+a group player invitation, and a single-use GM invitation; switch identity to
+accept one. This is a development simulation, **not a real login**.
+
+Commands are also available through npm from `apps/character_server`:
+`npm.cmd run db:init`, `npm.cmd run db:seed`, and `npm.cmd run dev`.
+
+## Automated tests
+
+From the repository root:
+
+```bat
+test.cmd server
+test.cmd server -v
+```
+
+Or from `apps/character_server`: `npm.cmd test`.
+The tests currently run the pure permission/invitation logic and local API
+security checks without modifying your persistent D1 database. The suite uses
+a controlled clock and tests exact 90-day boundaries.
+
+**Testing limitation:** This first suite does not yet execute full D1-backed
+API integration tests, Cloudflare deployment tests, or real OAuth flows. Those
+must be added before a production release. Do not treat a green unit-test
+suite as proof that production login is implemented.
+
+## Fixture design and safe cleanup
+
+Versioned SQL fixtures live in `apps/character_server/fixtures/seed.sql`.
+Their names and IDs start with `test_`. They include two campaign GMs, two
+players, one administrator, and campaigns named with Latin and Japanese text.
+The seed uses `INSERT OR IGNORE`, so repeating `server.cmd seed` does not
+delete your locally edited data.
+
+Fixtures are **not** ordinary player or GM records: the database also marks
+them as `is_test_data=1`. The developer identity switcher is available only
+on loopback and when the local-only configuration is in use. Developer
+authentication is never an acceptable production setting.
+
+The initial seed has historical activity timestamps, useful when exploring
+inactivity behavior; ordinary requests refresh the selected account's activity
+time. The test suite itself uses a frozen clock and does not depend on the
+fixture timestamps or any persistent local database state.
+
+To start over, stop the local server and remove the **local** Wrangler state
+directory under `apps/character_server/.wrangler/`, then run `server.cmd init`
+and `server.cmd seed` again. **Do not do this if you have data you want to
+keep.** Never run reset operations against a Cloudflare remote database.
+
+## Security boundaries and scope
+
+- The development test-user header is accepted **only when the configured
+  value is `DEV_AUTH=local-only` and the request's URL host is localhost or
+  127.0.0.1**. The developer command binds to 127.0.0.1.
+- This is a convenience feature for local development, not authentication
+  suitable for production or for exposure behind a public proxy.
+- There is deliberately no `wrangler deploy` command or production Wrangler
+  configuration in this alpha.
+- Accounts and fixture data are intentionally synthetic.
+- There is no automatic account provisioning from Google or Discord yet.
+- Backend authorization checks are mandatory. Hiding an item in the UI is not
+  considered sufficient protection.
+
+Future developer installation stages will add full API integration tests with
+isolated D1 instances, character/notes fixtures, authenticated import/export
+and a local campaign-server mode **without** developer impersonation.
