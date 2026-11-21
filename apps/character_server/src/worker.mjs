@@ -41,6 +41,40 @@ async function actorFor(req, env, now) {
   return actor;
 }
 
+// Limit placeholder payloads until the shared character-sheet serializer is integrated.
+function characterName(value) {
+  if (typeof value !== "string" || !value.trim() || Array.from(value.trim()).length > 100)
+    throw new Error("Character name must contain 1–100 characters");
+  if (/[\u0000-\u001f\u007f]/u.test(value)) throw new Error("Character name cannot contain control characters");
+  return value.trim().normalize("NFC");
+}
+function characterTokens(value) {
+  if (value === undefined) return "{}";
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Character sheet tokens must be a JSON object");
+  const encoded=JSON.stringify(value);
+  if (encoded.length > 8000) throw new Error("Character sheet tokens exceed 8000 characters");
+  return encoded;
+}
+function noteText(value) {
+  if (typeof value !== "string" || !value.trim() || value.length > 4000)
+    throw new Error("Note text must contain 1–4000 characters");
+  return value;
+}
+async function characterAccess(db, id, actor, fixtures) {
+  const ch=await dbRow(db, "SELECT c.*,ca.is_test_data FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id WHERE c.id=?",id);
+  if (!ch || (!!ch.is_test_data)!==fixtures) return null;
+  const membership=await dbRow(db,"SELECT is_gm FROM memberships WHERE campaign_id=? AND user_id=?",ch.campaign_id,actor.id);
+  if (!membership) return {ch,membership:null,assigned:false,allowed:false};
+  const assigned=!!(await dbRow(db,"SELECT user_id FROM character_players WHERE character_id=? AND user_id=?",id,actor.id));
+  return {ch,membership,assigned,allowed:!!membership.is_gm || assigned};
+}
+const publicCharacter = (ch, players) => ({
+ id:ch.id,campaign_id:ch.campaign_id,name:ch.name,
+ character_sheet_tokens:JSON.parse(ch.character_sheet_tokens),
+ uploaded_by:ch.uploaded_by,version:ch.version,players
+});
+
 async function body(req) {
   const text = await req.text();
   if (text.length > 10000) throw new Error("Request too large");
@@ -98,6 +132,85 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       await audit(env.DB,actor.id,"campaign.create",id);
       return json({id,name,is_gm:true},201);
     }
+    // Every campaign member may upload unlimited characters; the uploader
+    // becomes an assigned player, except a GM upload starts unassigned.
+    const campaignCharacters=path.match(/^\\/api\\/campaigns\\/([^/]+)\\/characters$/);
+    if (campaignCharacters && ["GET","POST"].includes(method)) {
+      const campaignId=decodeURIComponent(campaignCharacters[1]);
+      const campaign=await dbRow(env.DB,"SELECT id,is_test_data FROM campaigns WHERE id=?",campaignId);
+      if (!campaign || (!!campaign.is_test_data)!==fixtures) return fail(404,"Campaign not found");
+      const membership=await dbRow(env.DB,"SELECT is_gm FROM memberships WHERE campaign_id=? AND user_id=?",campaignId,actor.id);
+      if (!membership) return fail(403,"Campaign membership required");
+      if (method==="GET") {
+        const rows=await dbAll(env.DB,
+          "SELECT c.id,c.name,c.version,c.uploaded_by,COUNT(cp.user_id) AS players FROM characters c LEFT JOIN character_players cp ON cp.character_id=c.id WHERE c.campaign_id=? AND (?=1 OR EXISTS(SELECT 1 FROM character_players mine WHERE mine.character_id=c.id AND mine.user_id=?)) GROUP BY c.id ORDER BY c.created_at,c.name",
+          campaignId,membership.is_gm,actor.id);
+        return json({characters:rows});
+      }
+      const input=await body(req), name=characterName(input.name),
+        tokens=characterTokens(input.character_sheet_tokens);
+      const id=uuid(),nowIso=iso(now);
+      const statements=[
+        env.DB.prepare("INSERT INTO characters(id,campaign_id,name,character_sheet_tokens,uploaded_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+          .bind(id,campaignId,name,tokens,actor.id,nowIso,nowIso)
+      ];
+      if (!membership.is_gm) statements.push(
+        env.DB.prepare("INSERT INTO character_players(character_id,user_id,assigned_by,assigned_at) VALUES(?,?,?,?)")
+          .bind(id,actor.id,actor.id,nowIso));
+      await env.DB.batch(statements);
+      await audit(env.DB,actor.id,"character.upload",id,{campaign_id:campaignId});
+      return json({id,name,version:1,players:membership.is_gm?[]:[actor.id]},201);
+    }
+
+    const characterMatch=path.match(/^\\/api\\/characters\\/([^/]+)$/);
+    if (characterMatch && method==="GET") {
+      const access=await characterAccess(env.DB,decodeURIComponent(characterMatch[1]),actor,fixtures);
+      if (!access) return fail(404,"Character not found");
+      if (!access.allowed) return fail(403,"Character access denied");
+      const players=await dbAll(env.DB,
+        "SELECT user_id FROM character_players WHERE character_id=? ORDER BY assigned_at,user_id",access.ch.id);
+      return json({character:publicCharacter(access.ch,players.map(p=>p.user_id))});
+    }
+
+    const characterAssignment=path.match(/^\\/api\\/characters\\/([^/]+)\\/assign$/);
+    if (characterAssignment && method==="POST") {
+      const access=await characterAccess(env.DB,decodeURIComponent(characterAssignment[1]),actor,fixtures);
+      if (!access) return fail(404,"Character not found");
+      if (!access.membership?.is_gm) return fail(403,"Campaign GM required");
+      const input=await body(req);
+      if (typeof input.user_id!=="string") return fail(400,"Choose a member account");
+      const member=await dbRow(env.DB,"SELECT user_id FROM memberships WHERE campaign_id=? AND user_id=?",access.ch.campaign_id,input.user_id);
+      if (!member) return fail(400,"Target must be a member of this campaign");
+      await dbRun(env.DB,"INSERT OR IGNORE INTO character_players(character_id,user_id,assigned_by,assigned_at) VALUES(?,?,?,?)",
+        access.ch.id,input.user_id,actor.id,iso(now));
+      await audit(env.DB,actor.id,"character.assign",access.ch.id,{user_id:input.user_id});
+      const players=await dbAll(env.DB,"SELECT user_id FROM character_players WHERE character_id=? ORDER BY assigned_at,user_id",access.ch.id);
+      return json({ok:true,players:players.map(p=>p.user_id)});
+    }
+
+    const notesMatch=path.match(/^\\/api\\/characters\\/([^/]+)\\/notes$/);
+    if (notesMatch && ["GET","POST"].includes(method)) {
+      const access=await characterAccess(env.DB,decodeURIComponent(notesMatch[1]),actor,fixtures);
+      if (!access) return fail(404,"Character not found");
+      if (!access.allowed) return fail(403,"Character access denied");
+      if (method==="GET") {
+        // A GM sees shared notes, but not the author's private notes. Players
+        // sharing a character see each other's shared notes, never private ones.
+        const rows=await dbAll(env.DB,
+          "SELECT id,character_id,author_id,visibility,body,version,created_at,updated_at FROM character_notes WHERE character_id=? AND (visibility='shared' OR author_id=?) ORDER BY created_at,id",
+          access.ch.id,actor.id);
+        return json({notes:rows});
+      }
+      const input=await body(req);
+      if (input.visibility!=="private" && input.visibility!=="shared")
+        return fail(400,"Note visibility must be private or shared");
+      const note=noteText(input.body), id=uuid(),created=iso(now);
+      await dbRun(env.DB,"INSERT INTO character_notes(id,character_id,author_id,visibility,body,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+        id,access.ch.id,actor.id,input.visibility,note,created,created);
+      await audit(env.DB,actor.id,"note.create",id,{character_id:access.ch.id,visibility:input.visibility});
+      return json({id,author_id:actor.id,visibility:input.visibility,body:note,version:1},201);
+    }
+
     if (path === "/api/admin/users" && method === "GET") {
       if (!actor.is_admin) return fail(403,"Server administrator required");
       return json({users:await dbAll(env.DB,
@@ -190,7 +303,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
     return fail(404,"API route not found");
   } catch (error) {
     if (error instanceof SyntaxError) return fail(400,"Invalid JSON");
-    if (error instanceof Error && /^(Campaign name|Unknown invitation|Expiration|Group invitation|Request too large|Expected JSON)/.test(error.message))
+    if (error instanceof Error && /^(Campaign name|Character name|Character sheet|Note text|Unknown invitation|Expiration|Group invitation|Request too large|Expected JSON)/.test(error.message))
       return fail(400,error.message);
     console.error("Character Server request failed",error);
     return fail(500,"Server error");
