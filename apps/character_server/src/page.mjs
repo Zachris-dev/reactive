@@ -22,13 +22,17 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 <div id="campaigns"></div></section>
 <section><h2>Create campaign</h2><form id="create"><label>Campaign name (Unicode accepted) <input id="campaignName" required maxlength="100" placeholder="Víkingaöld – Þórsheimr"></label>
 <label><input type="checkbox" id="testCampaign"> Create as test campaign (test_ prefix added automatically)</label><button>Create</button><p class="muted" id="createHint">Normal campaign: visible only to members and to administrators in their storage view.</p></form></section>
+<section><h2>My campaign selection</h2>
+<p class="muted">Choose a campaign for uploads, invitations and member management, or leave <strong>All my campaigns</strong> selected to load characters from every campaign you belong to.</p>
+<label>Campaign <select id="campaignSelect"><option value="">All my campaigns</option></select></label>
+</section>
 <section><h2>Characters</h2>
 <p class="muted">This alpha stores placeholder character_sheet_tokens as JSON. Players may upload any number of characters. GMs may upload and assign characters to one or more campaign members.</p>
 <form id="uploadCharacter">
 <label>Character name <input id="characterName" required maxlength="100" placeholder="Auðun"></label>
 <label>Placeholder character_sheet_tokens (JSON object) <textarea id="characterTokens" rows="3" cols="65">{}</textarea></label>
 <button>Upload character to selected campaign</button></form>
-<div class="row"><button id="loadCharacters">Load my accessible characters</button>
+<div class="row"><button id="loadCharacters">Load characters</button>
 <label>Character <select id="characterSelect"></select></label><button id="viewCharacter">View character details</button></div>
 <div id="characterDetails" class="muted"></div>
 <form id="assignCharacter"><label>Assign selected character to campaign member (GM only)
@@ -52,7 +56,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 <p class="muted">Keep the generated invite link copied before switching users. The responses below report when an invitation is exhausted or permission is denied. Re-running the walkthrough requires fresh invitations or a newly named campaign.</p>
 </section>
 <section><h2>Campaign members and invitations</h2>
-<label>Campaign <select id="campaignSelect"></select></label><button id="members">Show members</button>
+<p class="muted">Uses the selected campaign above. Choose a specific campaign before inviting or managing members.</p><button id="members">Show members</button>
 <div id="memberList"></div>
 <form id="inviteForm"><div class="row"><label>Type <select id="kind"><option value="player">Single player</option><option value="group">Group players</option><option value="gm">Single GM</option></select></label>
 <label>Expires in days <input type="number" id="expires" value="7" min="1" max="30"></label>
@@ -64,9 +68,19 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 <script>
 const el=id=>document.getElementById(id);
 let campaigns=[];
+let memberCampaigns=[];
+let characterCampaignTypes=new Map();
 const actor=()=>el("identity").value;
-async function request(path,method="GET",payload){
- const headers={"x-dev-user":actor(),"x-dev-fixtures":el("campaignType").value==="test"?"1":"0"};
+const campaignById=(id)=>memberCampaigns.find(c=>c.id===id);
+function clearCharacterView(){
+ characterCampaignTypes.clear();
+ el("characterSelect").replaceChildren();
+ el("characterDetails").textContent="";
+ el("characterNotes").replaceChildren();
+ el("assignedPlayer").replaceChildren();
+}
+async function request(path,method="GET",payload,fixtureOverride){
+ const headers={"x-dev-user":actor(),"x-dev-fixtures":(fixtureOverride===undefined?el("campaignType").value==="test":fixtureOverride)?"1":"0"};
  if(payload!==undefined)headers["content-type"]="application/json";
  const res=await fetch(path,{method,headers,body:payload===undefined?undefined:JSON.stringify(payload)});
  const data=await res.json();
@@ -79,6 +93,13 @@ async function init(){
  el("identity").replaceChildren(...data.users.map(u=>new Option(u.display_name+(u.is_admin?" [admin]":""),u.id)));
  el("identity").value="test_admin";await refresh();
 }
+async function refreshMemberCampaigns(selectedId=el("campaignSelect").value){
+ const data=await request("/api/my-campaigns");
+ memberCampaigns=data.campaigns;
+ el("campaignSelect").replaceChildren(new Option("All my campaigns",""),
+  ...memberCampaigns.map(c=>new Option(c.name+(c.is_test_data?" [test]":"")+(c.is_gm?" [GM]":""),c.id)));
+ el("campaignSelect").value=memberCampaigns.some(c=>c.id===selectedId)?selectedId:"";
+}
 async function refresh(){
  const q=el("scope").value==="all"?"?admin=1":"";
  const data=await request("/api/campaigns"+q);campaigns=data.campaigns;
@@ -86,10 +107,10 @@ async function refresh(){
  ["Campaign","Access","Members"].forEach(x=>{const th=document.createElement("th");th.textContent=x;head.append(th)});
  for(const c of campaigns){const row=tbody.insertRow();[c.name,c.is_gm?"GM":c.is_gm===0?"Player":c.is_test_data?"Test":"Admin view",c.members??""].forEach(x=>{const td=row.insertCell();td.textContent=String(x)})}
  el("campaigns").replaceChildren(tbody);
- el("campaignSelect").replaceChildren(...campaigns.map(c=>new Option(c.name,c.id)));
+ await refreshMemberCampaigns();
  if(!campaigns.length) el("campaigns").insertAdjacentText("beforeend",el("campaignType").value==="test"?" No test campaigns available for this account.":" No normal campaigns available for this account.");
 }
-el("identity").addEventListener("change",()=>run(refresh));
+el("identity").addEventListener("change",()=>run(async()=>{clearCharacterView();el("memberList").textContent="";await refreshMemberCampaigns("");await refresh();}));
 el("refresh").addEventListener("click",()=>run(refresh));
 for(const id of ["campaignType","scope"])el(id).addEventListener("change",()=>run(refresh));
 el("testCampaign").addEventListener("change",()=>{
@@ -108,23 +129,29 @@ el("create").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  el("campaignType").value=isTest?"test":"normal";
  el("scope").value="mine";
  await refresh();
+ el("campaignSelect").value=data.id;clearCharacterView();
  el("output").textContent="Created campaign: "+data.name+"\\n"+JSON.stringify(data,null,2);
  el("campaignName").value="";
  el("error").textContent="";
 })});
 el("members").addEventListener("click",()=>run(async()=>{
- const d=await request("/api/campaigns/"+encodeURIComponent(el("campaignSelect").value)+"/members");
+ const selected=campaignById(el("campaignSelect").value);
+ if(!selected)throw Error("Select a specific campaign to view its members");
+ const d=await request("/api/campaigns/"+encodeURIComponent(selected.id)+"/members","GET",undefined,!!selected.is_test_data);
  el("memberList").textContent=d.members.map(m=>m.display_name+(m.is_gm?" (GM)":"")+" — "+m.last_active_at).join("\n");
  el("memberList").style.whiteSpace="pre-wrap";
 }));
 el("inviteForm").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
- const d=await request("/api/campaigns/"+encodeURIComponent(el("campaignSelect").value)+"/invites","POST",
- {kind:el("kind").value,expires_days:Number(el("expires").value),max_uses:Number(el("maxUses").value)});
+ const selected=campaignById(el("campaignSelect").value);
+ if(!selected)throw Error("Select a specific campaign to generate an invitation");
+ const d=await request("/api/campaigns/"+encodeURIComponent(selected.id)+"/invites","POST",
+ {kind:el("kind").value,expires_days:Number(el("expires").value),max_uses:Number(el("maxUses").value)},!!selected.is_test_data);
  el("inviteLink").hidden=false;el("inviteLink").textContent=d.link;
 })});
 el("accept").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  let token=el("token").value.trim();if(token.includes("invite="))token=new URL(token).searchParams.get("invite");
- await request("/api/invites/accept","POST",{token});await refresh();
+ const accepted=await request("/api/invites/accept","POST",{token},true);
+ await refresh();if(accepted.campaign_id)el("campaignSelect").value=accepted.campaign_id;
 })});
 el("users").addEventListener("click",()=>run(async()=>{
  const d=await request("/api/admin/users");const table=document.createElement("table");
@@ -138,45 +165,49 @@ el("users").addEventListener("click",()=>run(async()=>{
 // Character tools use ordinary API authorization; no UI-only permission checks.
 async function loadCharacters(){
  const campaignId=el("campaignSelect").value;
- if(!campaignId)throw Error("Select a campaign first");
- const d=await request("/api/campaigns/"+encodeURIComponent(campaignId)+"/characters");
- el("characterSelect").replaceChildren(...d.characters.map(c=>new Option(c.name+" ("+c.players+" players)",c.id)));
- el("characterDetails").textContent=d.characters.length+" accessible characters in selected campaign.";
- await loadAssignablePlayers(campaignId);
+ const selected=campaignById(campaignId);
+ const data=selected
+  ? await request("/api/campaigns/"+encodeURIComponent(campaignId)+"/characters","GET",undefined,!!selected.is_test_data)
+  : await request("/api/characters");
+ const rows=selected?data.characters.map(c=>({...c,campaign_id:selected.id,campaign_name:selected.name,is_test_data:selected.is_test_data})):data.characters;
+ characterCampaignTypes=new Map(rows.map(c=>[c.id,!!c.is_test_data]));
+ el("characterSelect").replaceChildren(...rows.map(c=>new Option(
+   c.name+" — "+c.campaign_name+" ("+c.players+" players)",c.id)));
+ el("characterDetails").textContent=rows.length+" accessible characters"+(selected?" in "+selected.name:" across all my campaigns")+".";
+ el("characterNotes").replaceChildren();
+ if(selected)await loadAssignablePlayers(selected);
+ else el("assignedPlayer").replaceChildren();
 }
-async function loadAssignablePlayers(campaignId){
- const d=await request("/api/campaigns/"+encodeURIComponent(campaignId)+"/members");
+async function loadAssignablePlayers(selected){
+ const d=await request("/api/campaigns/"+encodeURIComponent(selected.id)+"/members","GET",undefined,!!selected.is_test_data);
  el("assignedPlayer").replaceChildren(...d.members.map(m=>new Option(m.display_name,m.id)));
 }
-el("campaignSelect").addEventListener("change",()=>{
- el("characterSelect").replaceChildren();el("characterDetails").textContent="";
- el("characterNotes").replaceChildren();el("assignedPlayer").replaceChildren();
-});
+el("campaignSelect").addEventListener("change",clearCharacterView);
 el("loadCharacters").addEventListener("click",()=>run(loadCharacters));
 el("uploadCharacter").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  let tokens;
  try{tokens=JSON.parse(el("characterTokens").value)}catch{throw Error("Character sheet tokens must be valid JSON")}
- const id=el("campaignSelect").value;
- if(!id)throw Error("Choose a campaign first");
- const d=await request("/api/campaigns/"+encodeURIComponent(id)+"/characters","POST",
- {name:el("characterName").value,character_sheet_tokens:tokens});
+ const selected=campaignById(el("campaignSelect").value);
+ if(!selected)throw Error("Choose a specific campaign before uploading a character");
+ const d=await request("/api/campaigns/"+encodeURIComponent(selected.id)+"/characters","POST",
+ {name:el("characterName").value,character_sheet_tokens:tokens},!!selected.is_test_data);
  await loadCharacters();el("characterSelect").value=d.id;el("characterName").value="";
 })});
 el("viewCharacter").addEventListener("click",()=>run(async()=>{
  const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
- const d=await request("/api/characters/"+encodeURIComponent(id));
+ const d=await request("/api/characters/"+encodeURIComponent(id),"GET",undefined,characterCampaignTypes.get(id));
  el("characterDetails").textContent=JSON.stringify(d.character,null,2);
  el("characterDetails").style.whiteSpace="pre-wrap";
 }));
 el("assignCharacter").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
  const user=el("assignedPlayer").value;if(!user)throw Error("Choose a campaign member");
- await request("/api/characters/"+encodeURIComponent(id)+"/assign","POST",{user_id:user});
+ await request("/api/characters/"+encodeURIComponent(id)+"/assign","POST",{user_id:user},characterCampaignTypes.get(id));
  await loadCharacters();el("characterSelect").value=id;
 })});
 el("loadNotes").addEventListener("click",()=>run(async()=>{
  const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
- const d=await request("/api/characters/"+encodeURIComponent(id)+"/notes");
+ const d=await request("/api/characters/"+encodeURIComponent(id)+"/notes","GET",undefined,characterCampaignTypes.get(id));
  const nodes=d.notes.map(n=>{const p=document.createElement("p");
  p.textContent=n.visibility+" · "+n.author_id+": "+n.body;return p});
  el("characterNotes").replaceChildren(...nodes);
@@ -185,7 +216,7 @@ el("loadNotes").addEventListener("click",()=>run(async()=>{
 el("addNote").addEventListener("submit",e=>{e.preventDefault();run(async()=>{
  const id=el("characterSelect").value;if(!id)throw Error("Choose a character");
  await request("/api/characters/"+encodeURIComponent(id)+"/notes","POST",
- {visibility:el("noteVisibility").value,body:el("noteText").value});
+ {visibility:el("noteVisibility").value,body:el("noteText").value},characterCampaignTypes.get(id));
  el("noteText").value="";el("loadNotes").click();
 })});
 const urlToken=new URL(location.href).searchParams.get("invite");if(urlToken)el("token").value=urlToken;
