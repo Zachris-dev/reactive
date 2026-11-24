@@ -305,7 +305,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           ...r,character_sheet_tokens:JSON.parse(r.character_sheet_tokens)
         })),{version:access.ch.version,name:access.ch.name,
           character_sheet_tokens:JSON.parse(access.ch.character_sheet_tokens),
-          changed_by:access.ch.uploaded_by,recorded_at:access.ch.updated_at}]});
+          changed_by:access.ch.updated_by||access.ch.uploaded_by,recorded_at:access.ch.updated_at}]});
       }
       if(method!=="POST")return fail(405,"Method not allowed");
       // A player may synchronize a PC they control. GMs synchronize
@@ -328,10 +328,10 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       }
       const isoNow=iso(now);
       await env.DB.batch([
-        env.DB.prepare("INSERT OR IGNORE INTO character_revisions(character_id,version,name,character_sheet_tokens,changed_by,recorded_at) SELECT id,version,name,character_sheet_tokens,?,? FROM characters WHERE id=? AND version=?")
-          .bind(actor.id,isoNow,access.ch.id,input.expected_version),
-        env.DB.prepare("UPDATE characters SET name=?,character_sheet_tokens=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
-          .bind(name,tokens,isoNow,access.ch.id,input.expected_version),
+        env.DB.prepare("INSERT OR IGNORE INTO character_revisions(character_id,version,name,character_sheet_tokens,changed_by,recorded_at) SELECT id,version,name,character_sheet_tokens,COALESCE(updated_by,uploaded_by),updated_at FROM characters WHERE id=? AND version=?")
+          .bind(access.ch.id,input.expected_version),
+        env.DB.prepare("UPDATE characters SET name=?,character_sheet_tokens=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? AND changes()=1")
+          .bind(name,tokens,isoNow,actor.id,access.ch.id,input.expected_version),
         env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'character.replace',?,version,? FROM characters WHERE id=? AND version=? AND changes()=1")
           .bind(input.operation_id,actor.id,access.ch.id,isoNow,access.ch.id,input.expected_version+1)
       ]);
@@ -359,7 +359,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           "SELECT version,body,visibility,changed_by,recorded_at FROM note_revisions WHERE note_id=? ORDER BY version",note.id);
         return json({note_id:note.id,revisions:[...previous,{
           version:note.version,body:note.body,visibility:note.visibility,
-          changed_by:note.author_id,recorded_at:note.updated_at}]});
+          changed_by:note.updated_by||note.author_id,recorded_at:note.updated_at}]});
       }
       if(method!=="POST")return fail(405,"Method not allowed");
       const input=await body(req);
@@ -373,10 +373,10 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       }
       const isoNow=iso(now);
       await env.DB.batch([
-        env.DB.prepare("INSERT OR IGNORE INTO note_revisions(note_id,version,body,visibility,changed_by,recorded_at) SELECT id,version,body,visibility,?,? FROM character_notes WHERE id=? AND version=?")
-          .bind(actor.id,isoNow,note.id,input.expected_version),
-        env.DB.prepare("UPDATE character_notes SET body=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
-          .bind(updated,isoNow,note.id,input.expected_version),
+        env.DB.prepare("INSERT OR IGNORE INTO note_revisions(note_id,version,body,visibility,changed_by,recorded_at) SELECT id,version,body,visibility,COALESCE(updated_by,author_id),updated_at FROM character_notes WHERE id=? AND version=?")
+          .bind(note.id,input.expected_version),
+        env.DB.prepare("UPDATE character_notes SET body=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? AND changes()=1")
+          .bind(updated,isoNow,actor.id,note.id,input.expected_version),
         env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'note.replace',?,version,? FROM character_notes WHERE id=? AND version=? AND changes()=1")
           .bind(input.operation_id,actor.id,note.id,isoNow,note.id,input.expected_version+1)
       ]);
