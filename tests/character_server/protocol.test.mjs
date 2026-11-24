@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {TYPES,DEFINITIONS,HEADER_SIZE,MAX_PAYLOAD,ProtocolError,
  encodeMessage,decodeMessage,validateMessage} from "../../packages/communications/protocol.mjs";
+import {sendMessage} from "../../packages/communications/client.mjs";
 
 const clone=frame=>Uint8Array.from(frame);
 const updateLength=(frame,n)=>new DataView(frame.buffer).setUint32(11,n);
@@ -93,4 +94,29 @@ test("mutation fuzz: malformed frames never decode successfully",()=>{
    assert.equal(variant.length,HEADER_SIZE+new DataView(variant.buffer).getUint32(11));
   }catch(error){assert.ok(error instanceof ProtocolError);}
  }
+});
+
+test("client transport enforces TLS and response correlation",async()=>{
+ const payload={status:200,data:{campaigns:[]}};
+ let wasCalled=false;
+ const mock=async (url,options)=>{
+  wasCalled=true;
+  assert.equal(options.method,"POST");
+  assert.equal(decodeMessage(options.body,"request").type,"campaign.mine");
+  return new Response(encodeMessage("operation.result",payload,23),{
+   status:200,headers:{"content-type":"application/octet-stream"}
+  });
+ };
+ await assert.rejects(sendMessage({
+  url:"http://example.com/api/protocol",type:"campaign.mine",payload:{},requestId:23,fetchImpl:mock
+ }),ProtocolError);
+ assert.equal(wasCalled,false);
+ const response=await sendMessage({
+  url:"http://127.0.0.1:8787/api/protocol",type:"campaign.mine",payload:{},requestId:23,fetchImpl:mock
+ });
+ assert.equal(response.status,200);
+ assert.equal(wasCalled,true);
+ await assert.rejects(sendMessage({
+  url:"https://example.com/api/protocol",type:"campaign.mine",payload:{},requestId:24,fetchImpl:mock
+ }),/Response request ID mismatch/);
 });
