@@ -1,6 +1,7 @@
 import { canManageCampaign, canRecoverCampaignGM, canRevokeAdministrator,
   invitationSpec, invitationValid, normalizeCampaignName } from "./policy.mjs";
 import { PAGE } from "./page.mjs";
+import {decodeMessage,encodeMessage,ProtocolError,HEADER_SIZE,MAX_PAYLOAD} from "../../../packages/communications/protocol.mjs";
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: {"content-type":"application/json; charset=utf-8","cache-control":"no-store"}
@@ -84,6 +85,87 @@ async function body(req) {
   return parsed;
 }
 
+// The binary endpoint shares the exact legacy handlers and their database
+// permission checks. This adapter is temporary while the browser UI migrates.
+function protocolTarget(type,p) {
+ const id=value=>encodeURIComponent(value);
+ const fixture=!!p.fixtures;
+ switch(type){
+  case "campaign.list":return {path:"/api/campaigns"+(p.admin?"?admin=1":""),method:"GET",fixture};
+  case "campaign.mine":return {path:"/api/my-campaigns",method:"GET"};
+  case "campaign.create":return {path:"/api/campaigns",method:"POST",data:{name:p.name,is_test_data:!!p.is_test_data},fixture:!!p.is_test_data};
+  case "campaign.members":return {path:"/api/campaigns/"+id(p.campaign_id)+"/members",method:"GET",fixture};
+  case "invitation.create":return {path:"/api/campaigns/"+id(p.campaign_id)+"/invites",method:"POST",data:{kind:p.kind,expires_days:p.expires_days??7,max_uses:p.max_uses??10},fixture};
+  case "invitation.accept":return {path:"/api/invites/accept",method:"POST",data:{token:p.token},fixture};
+  case "character.list":return {path:"/api/campaigns/"+id(p.campaign_id)+"/characters",method:"GET",fixture};
+  case "character.list-all":return {path:"/api/characters",method:"GET"};
+  case "character.upload":return {path:"/api/campaigns/"+id(p.campaign_id)+"/characters",method:"POST",data:{name:p.name,character_sheet_tokens:p.character_sheet_tokens},fixture};
+  case "character.read":return {path:"/api/characters/"+id(p.character_id),method:"GET",fixture};
+  case "character.assign":return {path:"/api/characters/"+id(p.character_id)+"/assign",method:"POST",data:{user_id:p.user_id},fixture};
+  case "note.list":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"GET",fixture};
+  case "note.create":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"POST",data:{visibility:p.visibility,body:p.body},fixture};
+  case "account.me":return {path:"/api/me",method:"GET"};
+  case "admin.users":return {path:"/api/admin/users",method:"GET",fixture};
+  case "admin.promote":return {path:"/api/admin/users/"+id(p.user_id)+"/promote",method:"POST",fixture};
+  case "admin.revoke":return {path:"/api/admin/users/"+id(p.user_id)+"/revoke",method:"POST",fixture};
+  case "admin.gm-recover":return {path:"/api/admin/campaigns/"+id(p.campaign_id)+"/recover-gm",method:"POST",data:{user_id:p.user_id},fixture};
+  default:throw new ProtocolError("Unknown operation");
+ }
+}
+async function limitedFrame(req) {
+ if(req.headers.get("content-type")?.split(";")[0].trim()!=="application/octet-stream")
+  throw new ProtocolError("Binary content type required");
+ const declared=Number(req.headers.get("content-length"));
+ if(req.headers.has("content-length")&&(!Number.isSafeInteger(declared)||declared>HEADER_SIZE+MAX_PAYLOAD))
+  throw new ProtocolError("Frame too large");
+ if(!req.body)throw new ProtocolError("Missing frame");
+ const reader=req.body.getReader(),parts=[];
+ let size=0;
+ try{
+  while(true){
+   const {value,done}=await reader.read();
+   if(done)break;
+   size+=value.byteLength;
+   if(size>HEADER_SIZE+MAX_PAYLOAD)throw new ProtocolError("Frame too large");
+   parts.push(value);
+  }
+ }catch(error){
+  await reader.cancel().catch(()=>{});
+  throw error;
+ }
+ const result=new Uint8Array(size);
+ let offset=0;
+ for(const part of parts){result.set(part,offset);offset+=part.length;}
+ return result;
+}
+async function protocolRequest(req,env,clock){
+ try{
+  const incoming=decodeMessage(await limitedFrame(req),"request");
+  const target=protocolTarget(incoming.type,incoming.payload);
+  const headers=new Headers(req.headers);
+  headers.set("x-dev-fixtures",target.fixture?"1":"0");
+  headers.delete("content-length");
+  headers.delete("content-type");
+  let body;
+  if(target.data!==undefined){
+   headers.set("content-type","application/json");
+   body=JSON.stringify(target.data);
+  }
+  const request=new Request(new URL(target.path,req.url),{method:target.method,headers,body});
+  const result=await handleRequest(request,env,clock);
+  const data=await result.json();
+  const frame=encodeMessage("operation.result",{status:result.status,data},incoming.requestId);
+  return new Response(frame,{status:result.status,headers:{
+   "content-type":"application/octet-stream","cache-control":"no-store",
+   "x-content-type-options":"nosniff"
+  }});
+ }catch(error){
+  if(error instanceof ProtocolError)return fail(400,error.message);
+  console.error("Protocol request failed",error);
+  return fail(500,"Server error");
+ }
+}
+
 export async function handleRequest(req, env, clock = () => Date.now()) {
   const url = new URL(req.url), path = url.pathname, method = req.method.toUpperCase(), now = clock();
   if (path === "/health" && method === "GET") return json({service:"reactive-character-server",alpha:true,mode:localDevelopment(req,env)?"development":"disabled"});
@@ -91,6 +173,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
   if (!path.startsWith("/api/")) return fail(404,"Not found");
   if (!localDevelopment(req, env)) return fail(503,"This alpha has no production authentication. Local development only.");
   if (!env.DB) return fail(503,"D1 database not configured");
+  if(path==="/api/protocol" && method==="POST")return protocolRequest(req,env,clock);
   try {
     // The localhost-only identity picker must load before any account is selected.
     if (path === "/api/dev/users" && method === "GET")
