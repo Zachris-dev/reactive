@@ -116,6 +116,11 @@ try{
   name:"test_Shared Wanderer",character_sheet_tokens:{skill:"4.5",role:"shared PC"}
  },"test_player_a");
  check(retry.already_applied,true,"lost acknowledgement retry is idempotent");
+ const modifiedReplay=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op1,expected_version:1,
+  name:"Modified replay",character_sheet_tokens:{skill:"0.0"}
+ },"test_player_a");
+ check(modifiedReplay.status,409,"reusing an operation ID with different content is rejected");
  const stale=await protocolApi("character.replace",{
   character_id:"test_shared_hero",fixtures:true,operation_id:op2,expected_version:1,
   name:"Outdated",character_sheet_tokens:{skill:"0.1"}
