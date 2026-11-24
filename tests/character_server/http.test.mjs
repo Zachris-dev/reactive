@@ -27,3 +27,13 @@ test("developer console served without login; API is protected separately",async
  assert.equal(response.status,200);
  assert.match(await response.text(),/Reactive Character Server/);
 });
+
+test("offline workspace shell and service worker are served without identity",async()=>{
+ const app=await handleRequest(local("/offline"),{DEV_AUTH:"local-only"});
+ assert.equal(app.status,200);
+ assert.match(await app.text(),/Reactive — Offline Workspace/);
+ const sw=await handleRequest(local("/offline-sw.js"),{DEV_AUTH:"local-only"});
+ assert.equal(sw.status,200);
+ assert.match(sw.headers.get("content-type"),/text\/javascript/);
+ assert.match(await sw.text(),/caches\.open/);
+});
