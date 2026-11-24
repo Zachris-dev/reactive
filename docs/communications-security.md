@@ -94,23 +94,33 @@ The example developer identity header is **only for the local simulator**.
 A deployed client must use the future actual authentication flow, without
 accepting an identity claimed by a user-controlled header.
 
-## Future messages, deliberately not yet registered
+## Revision synchronization operations
 
-Do not introduce a public message type merely because the operation is
-planned. Define it when its storage rules, authorization and concurrency
-handling are implemented. In particular:
+The following operations are now implemented in the local developer alpha:
 
-- `character.replace` and `character.revisions` — expected-revision
-  checks, immutable history and transactionally safe replacement
-- `note.replace` — arbitrary UTF-8 text, revision history, conflicts
+- `character.replace`: assigned players update their character sheets; a
+  GM can update an unassigned GM character. Expected revision, UUID operation
+  ID, and content hash protect against stale changes and altered retries.
+- `character.revisions`: read previous and current sheet revisions under
+  the same character access rules.
+- `note.replace`: only the original note author can change its text, with
+  expected revision and immutable historical copies. Empty replacement text
+  is permitted.
+- `note.revisions`: only the note's author may read its complete history,
+  including previously shared/private versions.
+
+Do not introduce a new public message type until its storage, authorization
+and concurrency behavior are implemented. Future planned operations include:
+
 - `attachment.*` — private binary file storage and administrator policy
 - `session.*` — real authentication, token rotation and revocation
 - `roll.*` — authoritative live dice operations
 
-The current protocol does **not** contain session secrets, replay protection,
+The current protocol does **not** contain session secrets or authentication-based replay protection,
 rate limits, file inspection, or DDoS mitigation. Those require separate
-implementation and infrastructure configuration. The developer server
-remains unsuitable for public hosting until these security requirements
+implementation and infrastructure configuration. The operation UUID + content digest provides idempotent retry detection for
+character/note replacement only, not general replay protection or login.
+The developer server remains unsuitable for public hosting until these security requirements
 and production authentication are complete.
 
 ## Tests and migration
