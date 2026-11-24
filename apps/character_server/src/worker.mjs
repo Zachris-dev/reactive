@@ -325,7 +325,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       }
       const isoNow=iso(now);
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO character_revisions(character_id,version,name,character_sheet_tokens,changed_by,recorded_at) SELECT id,version,name,character_sheet_tokens,?,? FROM characters WHERE id=? AND version=?")
+        env.DB.prepare("INSERT OR IGNORE INTO character_revisions(character_id,version,name,character_sheet_tokens,changed_by,recorded_at) SELECT id,version,name,character_sheet_tokens,?,? FROM characters WHERE id=? AND version=?")
           .bind(actor.id,isoNow,access.ch.id,input.expected_version),
         env.DB.prepare("UPDATE characters SET name=?,character_sheet_tokens=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
           .bind(name,tokens,isoNow,access.ch.id,input.expected_version),
@@ -370,7 +370,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       }
       const isoNow=iso(now);
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO note_revisions(note_id,version,body,visibility,changed_by,recorded_at) SELECT id,version,body,visibility,?,? FROM character_notes WHERE id=? AND version=?")
+        env.DB.prepare("INSERT OR IGNORE INTO note_revisions(note_id,version,body,visibility,changed_by,recorded_at) SELECT id,version,body,visibility,?,? FROM character_notes WHERE id=? AND version=?")
           .bind(actor.id,isoNow,note.id,input.expected_version),
         env.DB.prepare("UPDATE character_notes SET body=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
           .bind(updated,isoNow,note.id,input.expected_version),
