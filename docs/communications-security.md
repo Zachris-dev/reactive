@@ -102,12 +102,14 @@ The following operations are now implemented in the local developer alpha:
   GM can update an unassigned GM character. Expected revision, UUID operation
   ID, and content hash protect against stale changes and altered retries.
 - `character.revisions`: read previous and current sheet revisions under
-  the same character access rules.
+  the same character access rules, with bounded pages and an optional
+  `before_version` cursor.
 - `note.replace`: only the original note author can change its text, with
   expected revision and immutable historical copies. Empty replacement text
   is permitted.
 - `note.revisions`: only the note's author may read its complete history,
-  including previously shared/private versions.
+  including previously shared/private versions. Large histories are paginated
+  using `before_version`.
 
 Do not introduce a new public message type until its storage, authorization
 and concurrency behavior are implemented. Future planned operations include:
