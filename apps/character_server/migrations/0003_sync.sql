@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS sync_receipts (
  operation_id TEXT PRIMARY KEY,
  actor_id TEXT NOT NULL REFERENCES users(id),
  kind TEXT NOT NULL CHECK(kind IN ('character.replace','note.replace')),
+ payload_hash TEXT NOT NULL,
  resource_id TEXT NOT NULL,
  version INTEGER NOT NULL CHECK(version>=2),
  created_at TEXT NOT NULL
