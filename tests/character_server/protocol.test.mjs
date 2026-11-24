@@ -120,3 +120,14 @@ test("client transport enforces TLS and response correlation",async()=>{
   url:"https://example.com/api/protocol",type:"campaign.mine",payload:{},requestId:24,fetchImpl:mock
  }),/Response request ID mismatch/);
 });
+
+test("offline character and note replacement are strict registered messages",()=>{
+ const operation_id="f0000000-0000-4000-8000-000000000001";
+ const char={character_id:"c",operation_id,expected_version:1,name:"Auðun",
+  character_sheet_tokens:{inventory:["spear","rope"]},fixtures:true};
+ assert.deepEqual(decodeMessage(encodeMessage("character.replace",char),"request").payload,char);
+ const note={note_id:"n",operation_id,expected_version:3,body:"",fixtures:true};
+ assert.deepEqual(decodeMessage(encodeMessage("note.replace",note),"request").payload,note);
+ assert.throws(()=>encodeMessage("note.replace",{...note,body:3}),ProtocolError);
+ assert.throws(()=>encodeMessage("character.replace",{...char,expected_version:-1}),ProtocolError);
+});
