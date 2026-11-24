@@ -342,7 +342,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           .bind(input.operation_id,actor.id,hash,access.ch.id,isoNow,access.ch.id,input.expected_version+1)
       ]);
       const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
-      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===access.ch.id)
+      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===access.ch.id && accepted.kind==="character.replace" && accepted.payload_hash===hash)
         return json({ok:true,version:accepted.version,operation_id:input.operation_id});
       const latest=await dbRow(env.DB,"SELECT version FROM characters WHERE id=?",access.ch.id);
       return json({error:"Character revision conflict",current_version:latest.version},409);
@@ -388,7 +388,7 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           .bind(input.operation_id,actor.id,hash,note.id,isoNow,note.id,input.expected_version+1)
       ]);
       const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
-      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===note.id)
+      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===note.id && accepted.kind==="note.replace" && accepted.payload_hash===hash)
         return json({ok:true,version:accepted.version,operation_id:input.operation_id});
       const latest=await dbRow(env.DB,"SELECT version FROM character_notes WHERE id=?",note.id);
       return json({error:"Note revision conflict",current_version:latest.version},409);
