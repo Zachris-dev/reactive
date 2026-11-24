@@ -118,9 +118,9 @@ function protocolTarget(type,p) {
   case "character.upload":return {path:"/api/campaigns/"+id(p.campaign_id)+"/characters",method:"POST",data:{name:p.name,character_sheet_tokens:p.character_sheet_tokens},fixture};
   case "character.read":return {path:"/api/characters/"+id(p.character_id),method:"GET",fixture};
   case "character.replace":return {path:"/api/characters/"+id(p.character_id)+"/sync",method:"POST",data:{operation_id:p.operation_id,expected_version:p.expected_version,name:p.name,character_sheet_tokens:p.character_sheet_tokens},fixture};
-  case "character.revisions":return {path:"/api/characters/"+id(p.character_id)+"/revisions",method:"GET",fixture};
+  case "character.revisions":return {path:"/api/characters/"+id(p.character_id)+"/revisions"+(p.before_version?"?before="+p.before_version:""),method:"GET",fixture};
   case "note.replace":return {path:"/api/notes/"+id(p.note_id)+"/sync",method:"POST",data:{operation_id:p.operation_id,expected_version:p.expected_version,body:p.body},fixture};
-  case "note.revisions":return {path:"/api/notes/"+id(p.note_id)+"/revisions",method:"GET",fixture};
+  case "note.revisions":return {path:"/api/notes/"+id(p.note_id)+"/revisions"+(p.before_version?"?before="+p.before_version:""),method:"GET",fixture};
   case "character.assign":return {path:"/api/characters/"+id(p.character_id)+"/assign",method:"POST",data:{user_id:p.user_id},fixture};
   case "note.list":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"GET",fixture};
   case "note.create":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"POST",data:{visibility:p.visibility,body:p.body},fixture};
@@ -304,13 +304,18 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       if(!access.allowed)return fail(403,"Character access denied");
       if(characterSync[2]==="revisions"){
         if(method!=="GET")return fail(405,"Method not allowed");
+        const before=url.searchParams.get("before");
+        if(before!==null && (!/^[0-9]+$/.test(before) || !Number.isSafeInteger(Number(before)) || Number(before)<2))
+          return fail(400,"Invalid history cursor");
         const previous=await dbAll(env.DB,
-          "SELECT version,name,character_sheet_tokens,changed_by,recorded_at FROM character_revisions WHERE character_id=? ORDER BY version",access.ch.id);
-        return json({character_id:access.ch.id,revisions:[...previous.map(r=>({
-          ...r,character_sheet_tokens:JSON.parse(r.character_sheet_tokens)
-        })),{version:access.ch.version,name:access.ch.name,
+          "SELECT version,name,character_sheet_tokens,changed_by,recorded_at FROM character_revisions WHERE character_id=? AND version<? ORDER BY version DESC LIMIT 5",
+          access.ch.id,before?Number(before):access.ch.version);
+        const rows=previous.reverse().map(r=>({...r,character_sheet_tokens:JSON.parse(r.character_sheet_tokens)}));
+        if(!before)rows.push({version:access.ch.version,name:access.ch.name,
           character_sheet_tokens:JSON.parse(access.ch.character_sheet_tokens),
-          changed_by:access.ch.updated_by||access.ch.uploaded_by,recorded_at:access.ch.updated_at}]});
+          changed_by:access.ch.updated_by||access.ch.uploaded_by,recorded_at:access.ch.updated_at});
+        return json({character_id:access.ch.id,revisions:rows,
+          next_before_version:rows.length&&rows[0].version>1?rows[0].version:null});
       }
       if(method!=="POST")return fail(405,"Method not allowed");
       // A player may synchronize a PC they control. GMs synchronize
@@ -361,11 +366,17 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       if(note.author_id!==actor.id)return fail(403,"Note author required");
       if(noteSync[2]==="revisions"){
         if(method!=="GET")return fail(405,"Method not allowed");
+        const before=url.searchParams.get("before");
+        if(before!==null && (!/^[0-9]+$/.test(before) || !Number.isSafeInteger(Number(before)) || Number(before)<2))
+          return fail(400,"Invalid history cursor");
         const previous=await dbAll(env.DB,
-          "SELECT version,body,visibility,changed_by,recorded_at FROM note_revisions WHERE note_id=? ORDER BY version",note.id);
-        return json({note_id:note.id,revisions:[...previous,{
-          version:note.version,body:note.body,visibility:note.visibility,
-          changed_by:note.updated_by||note.author_id,recorded_at:note.updated_at}]});
+          "SELECT version,body,visibility,changed_by,recorded_at FROM note_revisions WHERE note_id=? AND version<? ORDER BY version DESC LIMIT 8",
+          note.id,before?Number(before):note.version);
+        const rows=previous.reverse();
+        if(!before)rows.push({version:note.version,body:note.body,visibility:note.visibility,
+          changed_by:note.updated_by||note.author_id,recorded_at:note.updated_at});
+        return json({note_id:note.id,revisions:rows,
+          next_before_version:rows.length&&rows[0].version>1?rows[0].version:null});
       }
       if(method!=="POST")return fail(405,"Method not allowed");
       const input=await body(req);
