@@ -21,7 +21,7 @@
     "test:character": "node tests/character_sheet/run-grouped.mjs creation",
     "test:all": "npm test && npm run test:creation && npm run test:server",
     "validate:campaign": "node tests/character_sheet/validate-campaign.mjs",
-    "test:server": "node --test tests/character_server/policy.test.mjs tests/character_server/http.test.mjs"
+    "test:server": "node --test tests/character_server/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3",
