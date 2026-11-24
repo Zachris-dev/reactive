@@ -105,6 +105,44 @@ async function markConflict(op,message){
  if(record)records.put({...record,conflict:message});
  await complete(tx);
 }
+async function serverState(record){
+ if(record.kind==="character"){
+  const c=(await request("/api/characters/"+encodeURIComponent(record.id),"GET",undefined,
+    record.fixtures,record.actor)).character;
+  return {version:c.version,data:{name:c.name,character_sheet_tokens:c.character_sheet_tokens}};
+ }
+ const notes=(await request("/api/characters/"+encodeURIComponent(record.character_id)+"/notes",
+   "GET",undefined,record.fixtures,record.actor)).notes;
+ const n=notes.find(n=>n.id===record.id);
+ if(!n)throw Error("Note no longer accessible");
+ return {version:n.version,data:{body:n.body}};
+}
+async function resolveConflict(record){
+ const remote=await serverState(record);
+ const pending=(await all("outbox")).filter(op=>op.key===record.key);
+ if(!pending.length){message("No pending operations for this resource.");return;}
+ // Present both complete states for a conscious human decision. Never silently
+ // overwrite the server or discard local work.
+ const localJson=JSON.stringify(record.data,null,2);
+ const remoteJson=JSON.stringify(remote.data,null,2);
+ const proposal="REMOTE revision "+remote.version+":\n"+remoteJson+
+   "\n\nLOCAL pending changes:\n"+localJson+
+   "\n\nOK: rebase LOCAL final state as one new pending update on current remote revision.\n"+
+   "Cancel: preserve all pending edits unchanged.";
+ if(!confirm(proposal))return;
+ const tx=database.transaction(["records","outbox"],"readwrite");
+ const records=tx.objectStore("records"),outbox=tx.objectStore("outbox");
+ for(const op of pending)outbox.delete(op.operation_id);
+ const nextSequence=(record.sequence||0)+1;
+ const operation_id=crypto.randomUUID();
+ outbox.put({operation_id,actor:record.actor,key:record.key,
+  kind:record.kind,id:record.id,data:record.data,fixtures:record.fixtures,
+  expected_version:remote.version,created_at:new Date().toISOString(),sequence:nextSequence});
+ records.put({...record,version:remote.version,sequence:nextSequence,conflict:null});
+ await complete(tx);
+ message("Rebased local changes. They are still pending until explicitly synchronized.");
+ await render();
+}
 async function request(path,method="GET",body,fixture=false,who=actor()){
  const res=await fetch(path,{method,headers:{
   "x-dev-user":who,"x-dev-fixtures":fixture?"1":"0",
@@ -180,6 +218,10 @@ async function render(){
    " · pending: "+pending.filter(x=>x.key===record.key).length+
    (record.editable?" · editable":" · read-only"));
   if(record.conflict)txt(box,"p",record.conflict).className="warning";
+  if(record.conflict && record.editable){
+   const resolve=txt(box,"button","Review conflict and rebase");
+   resolve.addEventListener("click",()=>run(()=>resolveConflict(record)));
+  }
   const label=txt(box,"label",record.kind==="character"?"Character sheet JSON":"Note text");
   const input=document.createElement("textarea");input.disabled=!record.editable;
   input.value=record.kind==="character"?
