@@ -220,6 +220,34 @@ the character already has assigned players. Revoking assignments and
 transferring characters between campaigns are not implemented in this
 alpha.
 
+## Shared communications protocol (initial security layer)
+
+The first version of Reactive's shared communications package is in
+`packages/communications/` and is used by both the client transport helper
+and Character Server. It defines all **currently implemented** operations
+(campaigns, memberships, invitations, characters, notes and administrator
+actions), strict field schemas, protocol versioning, a binary length-delimited
+envelope and strict UTF-8 decoding.
+
+The Worker accepts binary frames at `POST /api/protocol` in **local developer
+mode only**. It translates validated operations into the same permission-checked
+handlers already used by the local browser console. The browser console itself
+**still uses the older developer-only JSON endpoints** during migration.
+Existing campaigns and test users are unaffected. No database migration is
+required for this protocol update.
+
+A security-focused unit suite now checks malformed lengths (both shorter and
+longer), invalid UTF-8, duplicate JSON properties, unknown operations,
+unexpected fields, nesting limits and mutation fuzz cases. D1 integration
+tests also send binary frames and attempt unauthorized cross-user actions.
+
+This is **not** yet production authentication, connection-level DDoS defense,
+encrypted private-file storage or session/replay protection. The request ID
+is for correlating replies and is not a credential. HTTPS is required by the
+client transport outside localhost. Do not deploy the current local identity
+simulator publicly. See [communications-security.md](communications-security.md)
+for the full protocol specification and security boundaries.
+
 ## Automated tests
 
 From the repository root:
