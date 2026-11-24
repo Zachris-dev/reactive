@@ -16,6 +16,26 @@ DELETE FROM audit_events WHERE
    JOIN campaigns ca ON ca.id=c.campaign_id WHERE ca.is_test_data=1
   ));
 
+-- Synchronization state for test resources must be removed before deleting
+-- parent characters and notes. Normal campaigns are deliberately untouched.
+DELETE FROM sync_receipts WHERE
+ (kind='character.replace' AND resource_id IN (
+   SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
+   WHERE ca.is_test_data=1
+ ))
+ OR (kind='note.replace' AND resource_id IN (
+   SELECT n.id FROM character_notes n JOIN characters c ON c.id=n.character_id
+   JOIN campaigns ca ON ca.id=c.campaign_id WHERE ca.is_test_data=1
+ ));
+DELETE FROM note_revisions WHERE note_id IN (
+ SELECT n.id FROM character_notes n JOIN characters c ON c.id=n.character_id
+ JOIN campaigns ca ON ca.id=c.campaign_id WHERE ca.is_test_data=1
+);
+DELETE FROM character_revisions WHERE character_id IN (
+ SELECT c.id FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id
+ WHERE ca.is_test_data=1
+);
+
 -- Delete dependent records first, then character rows. Normal campaigns and
 -- their characters remain untouched.
 DELETE FROM character_notes WHERE character_id IN (
