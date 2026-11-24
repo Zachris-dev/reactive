@@ -62,6 +62,16 @@ function noteText(value) {
     throw new Error("Note text must contain 1–4000 characters");
   return value;
 }
+function validSyncInput(input) {
+ return input && typeof input.operation_id==="string" &&
+   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.operation_id) &&
+   Number.isSafeInteger(input.expected_version) && input.expected_version>=1;
+}
+function noteSyncText(value) {
+ if(typeof value!=="string"||value.length>4000)throw new Error("Note text exceeds 4000 characters");
+ // Unlike original note creation, a replacement may legitimately be empty.
+ return value;
+}
 async function characterAccess(db, id, actor, fixtures) {
   const ch=await dbRow(db, "SELECT c.*,ca.is_test_data FROM characters c JOIN campaigns ca ON ca.id=c.campaign_id WHERE c.id=?",id);
   if (!ch || (!!ch.is_test_data)!==fixtures) return null;
@@ -101,6 +111,10 @@ function protocolTarget(type,p) {
   case "character.list-all":return {path:"/api/characters",method:"GET"};
   case "character.upload":return {path:"/api/campaigns/"+id(p.campaign_id)+"/characters",method:"POST",data:{name:p.name,character_sheet_tokens:p.character_sheet_tokens},fixture};
   case "character.read":return {path:"/api/characters/"+id(p.character_id),method:"GET",fixture};
+  case "character.replace":return {path:"/api/characters/"+id(p.character_id)+"/sync",method:"POST",data:{operation_id:p.operation_id,expected_version:p.expected_version,name:p.name,character_sheet_tokens:p.character_sheet_tokens},fixture};
+  case "character.revisions":return {path:"/api/characters/"+id(p.character_id)+"/revisions",method:"GET",fixture};
+  case "note.replace":return {path:"/api/notes/"+id(p.note_id)+"/sync",method:"POST",data:{operation_id:p.operation_id,expected_version:p.expected_version,body:p.body},fixture};
+  case "note.revisions":return {path:"/api/notes/"+id(p.note_id)+"/revisions",method:"GET",fixture};
   case "character.assign":return {path:"/api/characters/"+id(p.character_id)+"/assign",method:"POST",data:{user_id:p.user_id},fixture};
   case "note.list":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"GET",fixture};
   case "note.create":return {path:"/api/characters/"+id(p.character_id)+"/notes",method:"POST",data:{visibility:p.visibility,body:p.body},fixture};
@@ -270,6 +284,104 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       const players=await dbAll(env.DB,
         "SELECT user_id FROM character_players WHERE character_id=? ORDER BY assigned_at,user_id",access.ch.id);
       return json({character:publicCharacter(access.ch,players.map(p=>p.user_id))});
+    }
+
+    // Changes originating on a disconnected client must carry immutable operation
+    // IDs and the revision on which the edit was based. An acknowledged retry
+    // returns its original receipt; a divergent edit receives HTTP 409.
+    const characterSync=path.match(/^\/api\/characters\/([^/]+)\/(sync|revisions)$/);
+    if(characterSync && (method==="POST"||method==="GET")){
+      const access=await characterAccess(env.DB,decodeURIComponent(characterSync[1]),actor,fixtures);
+      if(!access)return fail(404,"Character not found");
+      if(!access.allowed)return fail(403,"Character access denied");
+      if(characterSync[2]==="revisions"){
+        if(method!=="GET")return fail(405,"Method not allowed");
+        const previous=await dbAll(env.DB,
+          "SELECT version,name,character_sheet_tokens,changed_by,recorded_at FROM character_revisions WHERE character_id=? ORDER BY version",access.ch.id);
+        return json({character_id:access.ch.id,revisions:[...previous.map(r=>({
+          ...r,character_sheet_tokens:JSON.parse(r.character_sheet_tokens)
+        })),{version:access.ch.version,name:access.ch.name,
+          character_sheet_tokens:JSON.parse(access.ch.character_sheet_tokens),
+          changed_by:access.ch.uploaded_by,recorded_at:access.ch.updated_at}]});
+      }
+      if(method!=="POST")return fail(405,"Method not allowed");
+      // A player may synchronize a PC they control. GMs synchronize
+      // unassigned NPCs/GM characters only; GM status alone must not
+      // let them overwrite a player's sheet.
+      const playerCount=await count(env.DB,
+        "SELECT COUNT(*) AS n FROM character_players WHERE character_id=?",access.ch.id);
+      if(!(access.assigned || (access.membership?.is_gm && playerCount===0)))
+        return fail(403,"Only assigned players or the GM of an unassigned character can synchronize");
+      const input=await body(req);
+      if(!validSyncInput(input))return fail(400,"Invalid sync operation ID or expected revision");
+      // Validate payload even on retries; a retry is never permitted to
+      // bypass the normal schema checks or permissions.
+      const name=characterName(input.name),tokens=characterTokens(input.character_sheet_tokens);
+      const receipt=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
+      if(receipt){
+        if(receipt.actor_id!==actor.id || receipt.kind!=="character.replace" || receipt.resource_id!==access.ch.id)
+          return fail(409,"Operation ID already used");
+        return json({ok:true,already_applied:true,version:receipt.version,operation_id:input.operation_id});
+      }
+      const isoNow=iso(now);
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO character_revisions(character_id,version,name,character_sheet_tokens,changed_by,recorded_at) SELECT id,version,name,character_sheet_tokens,?,? FROM characters WHERE id=? AND version=?")
+          .bind(actor.id,isoNow,access.ch.id,input.expected_version),
+        env.DB.prepare("UPDATE characters SET name=?,character_sheet_tokens=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
+          .bind(name,tokens,isoNow,access.ch.id,input.expected_version),
+        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'character.replace',?,version,? FROM characters WHERE id=? AND version=? AND changes()=1")
+          .bind(input.operation_id,actor.id,access.ch.id,isoNow,access.ch.id,input.expected_version+1)
+      ]);
+      const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
+      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===access.ch.id)
+        return json({ok:true,version:accepted.version,operation_id:input.operation_id});
+      const latest=await dbRow(env.DB,"SELECT version FROM characters WHERE id=?",access.ch.id);
+      return json({error:"Character revision conflict",current_version:latest.version},409);
+    }
+
+    const noteSync=path.match(/^\/api\/notes\/([^/]+)\/(sync|revisions)$/);
+    if(noteSync && (method==="POST"||method==="GET")){
+      const note=await dbRow(env.DB,
+        "SELECT n.*,c.campaign_id,ca.is_test_data FROM character_notes n JOIN characters c ON c.id=n.character_id JOIN campaigns ca ON ca.id=c.campaign_id WHERE n.id=?",
+        decodeURIComponent(noteSync[1]));
+      if(!note || (!!note.is_test_data)!==fixtures)return fail(404,"Note not found");
+      const access=await characterAccess(env.DB,note.character_id,actor,fixtures);
+      if(!access?.allowed)return fail(403,"Character access denied");
+      // The author exclusively controls updates and complete history.
+      // Shared visibility grants reading only, not ownership.
+      if(note.author_id!==actor.id)return fail(403,"Note author required");
+      if(noteSync[2]==="revisions"){
+        if(method!=="GET")return fail(405,"Method not allowed");
+        const previous=await dbAll(env.DB,
+          "SELECT version,body,visibility,changed_by,recorded_at FROM note_revisions WHERE note_id=? ORDER BY version",note.id);
+        return json({note_id:note.id,revisions:[...previous,{
+          version:note.version,body:note.body,visibility:note.visibility,
+          changed_by:note.author_id,recorded_at:note.updated_at}]});
+      }
+      if(method!=="POST")return fail(405,"Method not allowed");
+      const input=await body(req);
+      if(!validSyncInput(input))return fail(400,"Invalid sync operation ID or expected revision");
+      const updated=noteSyncText(input.body);
+      const receipt=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
+      if(receipt){
+        if(receipt.actor_id!==actor.id || receipt.kind!=="note.replace" || receipt.resource_id!==note.id)
+          return fail(409,"Operation ID already used");
+        return json({ok:true,already_applied:true,version:receipt.version,operation_id:input.operation_id});
+      }
+      const isoNow=iso(now);
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO note_revisions(note_id,version,body,visibility,changed_by,recorded_at) SELECT id,version,body,visibility,?,? FROM character_notes WHERE id=? AND version=?")
+          .bind(actor.id,isoNow,note.id,input.expected_version),
+        env.DB.prepare("UPDATE character_notes SET body=?,version=version+1,updated_at=? WHERE id=? AND version=? AND changes()=1")
+          .bind(updated,isoNow,note.id,input.expected_version),
+        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'note.replace',?,version,? FROM character_notes WHERE id=? AND version=? AND changes()=1")
+          .bind(input.operation_id,actor.id,note.id,isoNow,note.id,input.expected_version+1)
+      ]);
+      const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
+      if(accepted && accepted.actor_id===actor.id && accepted.resource_id===note.id)
+        return json({ok:true,version:accepted.version,operation_id:input.operation_id});
+      const latest=await dbRow(env.DB,"SELECT version FROM character_notes WHERE id=?",note.id);
+      return json({error:"Note revision conflict",current_version:latest.version},409);
     }
 
     const characterAssignment=path.match(/^\/api\/characters\/([^/]+)\/assign$/);
