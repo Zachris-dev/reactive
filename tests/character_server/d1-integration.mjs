@@ -435,6 +435,7 @@ try{
  const restoredShared=await api("/api/characters/test_shared_hero","test_player_a");
  check(restoredShared.status,200,"selective reset restores baseline shared character");
  check(restoredShared.character.players.length,2,"reset restores shared character assignments");
+ check(restoredShared.character.version,1,"reset clears test-only synchronization revision state");
  const restoredPrivate=await api("/api/characters/test_shared_hero/notes","test_player_b");
  check(restoredPrivate.notes.some(n=>n.id==="test_private_a"),false,"reset keeps player A private notes hidden from player B");
 
