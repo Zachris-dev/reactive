@@ -14,7 +14,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f1f3f6;padding:1rem;
 .badge{font-size:.75rem;border-radius:4px;padding:.1rem .4rem;background:#e6eaf1}
 #error{color:#8e2323;font-weight:600}
 </style></head>
-<body><header><div><h1>Reactive Character Server</h1><div class="muted">Local alpha · Developer simulation only</div></div>
+<body><header><div><h1>Reactive Character Server</h1><div class="muted">Local alpha · Developer simulation only</div><div><a href="/offline">Offline character and note workspace</a> · save edits locally and synchronize later</div></div>
 <div><label for="identity">Act as test account</label><select id="identity"></select></div></header>
 <section><h2>Campaigns</h2><p class="muted">Test campaigns are separate from ordinary campaigns. Only the local developer console can access test data.</p>
 <div class="row"><button id="refresh">Refresh</button><label>Campaign type <select id="campaignType"><option value="normal">Normal campaigns</option><option value="test">Test campaigns</option></select></label>
