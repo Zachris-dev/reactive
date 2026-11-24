@@ -7,7 +7,7 @@
     "dev": "wrangler dev --local --ip 127.0.0.1 --config wrangler.local.jsonc",
     "db:init": "wrangler d1 migrations apply reactive-character-server-local --local --config wrangler.local.jsonc",
     "db:seed": "wrangler d1 execute reactive-character-server-local --local --config wrangler.local.jsonc --file fixtures/seed.sql",
-    "test": "node --test ../../tests/character_server/*.test.mjs",
+    "test": "node --test ../../tests/character_server/policy.test.mjs ../../tests/character_server/http.test.mjs ../../tests/character_server/protocol.test.mjs",
     "test:integration": "node ../../tests/character_server/d1-integration.mjs",
     "db:reset": "wrangler d1 execute reactive-character-server-local --local --config wrangler.local.jsonc --file fixtures/reset.sql"
   },
