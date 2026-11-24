@@ -63,6 +63,11 @@ function noteText(value) {
     throw new Error("Note text must contain 1–4000 characters");
   return value;
 }
+async function syncHash(value) {
+ const data=new TextEncoder().encode(JSON.stringify(value));
+ const digest=await crypto.subtle.digest("SHA-256",data);
+ return Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,"0")).join("");
+}
 function validSyncInput(input) {
  return input && typeof input.operation_id==="string" &&
    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.operation_id) &&
@@ -320,9 +325,10 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       // Validate payload even on retries; a retry is never permitted to
       // bypass the normal schema checks or permissions.
       const name=characterName(input.name),tokens=characterTokens(input.character_sheet_tokens);
+      const hash=await syncHash({expected_version:input.expected_version,name,tokens});
       const receipt=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
       if(receipt){
-        if(receipt.actor_id!==actor.id || receipt.kind!=="character.replace" || receipt.resource_id!==access.ch.id)
+        if(receipt.actor_id!==actor.id || receipt.kind!=="character.replace" || receipt.resource_id!==access.ch.id || receipt.payload_hash!==hash)
           return fail(409,"Operation ID already used");
         return json({ok:true,already_applied:true,version:receipt.version,operation_id:input.operation_id});
       }
@@ -332,8 +338,8 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           .bind(access.ch.id,input.expected_version),
         env.DB.prepare("UPDATE characters SET name=?,character_sheet_tokens=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? AND changes()=1")
           .bind(name,tokens,isoNow,actor.id,access.ch.id,input.expected_version),
-        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'character.replace',?,version,? FROM characters WHERE id=? AND version=? AND changes()=1")
-          .bind(input.operation_id,actor.id,access.ch.id,isoNow,access.ch.id,input.expected_version+1)
+        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,payload_hash,resource_id,version,created_at) SELECT ?,?,'character.replace',?,?,version,? FROM characters WHERE id=? AND version=? AND changes()=1")
+          .bind(input.operation_id,actor.id,hash,access.ch.id,isoNow,access.ch.id,input.expected_version+1)
       ]);
       const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
       if(accepted && accepted.actor_id===actor.id && accepted.resource_id===access.ch.id)
@@ -365,9 +371,10 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
       const input=await body(req);
       if(!validSyncInput(input))return fail(400,"Invalid sync operation ID or expected revision");
       const updated=noteSyncText(input.body);
+      const hash=await syncHash({expected_version:input.expected_version,body:updated});
       const receipt=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
       if(receipt){
-        if(receipt.actor_id!==actor.id || receipt.kind!=="note.replace" || receipt.resource_id!==note.id)
+        if(receipt.actor_id!==actor.id || receipt.kind!=="note.replace" || receipt.resource_id!==note.id || receipt.payload_hash!==hash)
           return fail(409,"Operation ID already used");
         return json({ok:true,already_applied:true,version:receipt.version,operation_id:input.operation_id});
       }
@@ -377,8 +384,8 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
           .bind(note.id,input.expected_version),
         env.DB.prepare("UPDATE character_notes SET body=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? AND changes()=1")
           .bind(updated,isoNow,actor.id,note.id,input.expected_version),
-        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,resource_id,version,created_at) SELECT ?,?,'note.replace',?,version,? FROM character_notes WHERE id=? AND version=? AND changes()=1")
-          .bind(input.operation_id,actor.id,note.id,isoNow,note.id,input.expected_version+1)
+        env.DB.prepare("INSERT INTO sync_receipts(operation_id,actor_id,kind,payload_hash,resource_id,version,created_at) SELECT ?,?,'note.replace',?,?,version,? FROM character_notes WHERE id=? AND version=? AND changes()=1")
+          .bind(input.operation_id,actor.id,hash,note.id,isoNow,note.id,input.expected_version+1)
       ]);
       const accepted=await dbRow(env.DB,"SELECT * FROM sync_receipts WHERE operation_id=?",input.operation_id);
       if(accepted && accepted.actor_id===actor.id && accepted.resource_id===note.id)
