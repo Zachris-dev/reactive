@@ -101,6 +101,72 @@ try{
  const normalAfterAttack=await protocolApi("campaign.mine",{},"test_player_a");
  check(normalAfterAttack.campaigns.length,2,"malformed protocol requests do not damage legitimate session");
 
+ // Offline retries, player ownership and conflicts use real D1 transactions.
+ const op1="f1000000-0000-4000-8000-000000000001";
+ const op2="f1000000-0000-4000-8000-000000000002";
+ const op3="f1000000-0000-4000-8000-000000000003";
+ const playerUpdate=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op1,expected_version:1,
+  name:"test_Shared Wanderer",character_sheet_tokens:{skill:"4.5",role:"shared PC"}
+ },"test_player_a");
+ check(playerUpdate.status,200,"assigned player synchronizes sheet through protocol");
+ check(playerUpdate.version,2,"character revision increases");
+ const retry=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op1,expected_version:1,
+  name:"test_Shared Wanderer",character_sheet_tokens:{skill:"4.5",role:"shared PC"}
+ },"test_player_a");
+ check(retry.already_applied,true,"lost acknowledgement retry is idempotent");
+ const stale=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op2,expected_version:1,
+  name:"Outdated",character_sheet_tokens:{skill:"0.1"}
+ },"test_player_b");
+ check(stale.status,409,"second player offline conflict returns 409");
+ check(stale.current_version,2,"conflict returns server revision");
+ const gmOverwrite=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op3,expected_version:2,
+  name:"GM overwrite",character_sheet_tokens:{}
+ },"test_gm_a");
+ check(gmOverwrite.status,403,"GM cannot synchronize assigned player sheet");
+ const outsiderOverwrite=await protocolApi("character.replace",{
+  character_id:"test_shared_hero",fixtures:true,operation_id:op3,expected_version:2,
+  name:"Outsider overwrite",character_sheet_tokens:{}
+ },"test_uninvited");
+ check(outsiderOverwrite.status,403,"outsider cannot change character");
+ const revisions=await protocolApi("character.revisions",{
+  character_id:"test_shared_hero",fixtures:true
+ },"test_player_a");
+ check(revisions.revisions.length,2,"character history retains original and current versions");
+ check(revisions.revisions[0].character_sheet_tokens.skill,"3.5","original character sheet not lost");
+ const pnoteOp="f2000000-0000-4000-8000-000000000001";
+ const privateSync=await protocolApi("note.replace",{
+  note_id:"test_private_a",fixtures:true,operation_id:pnoteOp,
+  expected_version:1,body:"Updated private Unicode entry: ä 😀"
+ },"test_player_a");
+ check(privateSync.version,2,"author may synchronize private note");
+ const privateRetry=await protocolApi("note.replace",{
+  note_id:"test_private_a",fixtures:true,operation_id:pnoteOp,
+  expected_version:1,body:"Updated private Unicode entry: ä 😀"
+ },"test_player_a");
+ check(privateRetry.already_applied,true,"private note retry is idempotent");
+ const otherNote=await protocolApi("note.replace",{
+  note_id:"test_private_a",fixtures:true,
+  operation_id:"f2000000-0000-4000-8000-000000000002",
+  expected_version:2,body:"stolen"
+ },"test_player_b");
+ check(otherNote.status,403,"other assigned player cannot synchronize private note");
+ const gmPrivate=await protocolApi("note.revisions",{
+  note_id:"test_private_a",fixtures:true
+ },"test_gm_a");
+ check(gmPrivate.status,403,"GM cannot read private note history");
+ const noteHistory=await protocolApi("note.revisions",{
+  note_id:"test_private_a",fixtures:true
+ },"test_player_a");
+ check(noteHistory.revisions[0].body,"Private clue for player A only.","private note history retains original text");
+ const afterRejected=await protocolApi("character.read",{
+  character_id:"test_shared_hero",fixtures:true
+ },"test_player_a");
+ check(afterRejected.character.character_sheet_tokens.skill,"4.5","rejected conflicts never overwrite current data");
+
  const seededShared=await api("/api/characters/test_shared_hero","test_player_a");
  check(seededShared.status,200,"seeded shared character is accessible to assigned player");
  check(seededShared.character.players.length,2,"seeded shared character has two assigned players");
