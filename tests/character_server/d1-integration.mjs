@@ -6,6 +6,7 @@ import {tmpdir} from "node:os";
 import {join,resolve,dirname} from "node:path";
 import {fileURLToPath} from "node:url";
 import assert from "node:assert/strict";
+import {encodeMessage,decodeMessage} from "../../packages/communications/protocol.mjs";
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"../../apps/character_server");
 const config="wrangler.local.jsonc", database="reactive-character-server-local";
 const cli=process.platform==="win32"?"npx.cmd":"npx", win=process.platform==="win32";
@@ -39,6 +40,25 @@ async function api(path,actor,method="GET",data,fixtures=true){
  });
  const result=await res.json();return {status:res.status,...result};
 }
+async function protocolApi(type,payload,actor,requestId=17){
+ const frame=encodeMessage(type,payload,requestId);
+ const res=await fetch(base+"/api/protocol",{method:"POST",headers:{
+  "content-type":"application/octet-stream","x-dev-user":actor
+ },body:frame});
+ const bytes=new Uint8Array(await res.arrayBuffer());
+ if(res.headers.get("content-type")?.startsWith("application/octet-stream")){
+  const reply=decodeMessage(bytes,"response");
+  assert.equal(reply.requestId,requestId,"request/response ID matches");
+  return {status:res.status,...reply.payload.data};
+ }
+ return {status:res.status,raw:new TextDecoder().decode(bytes)};
+}
+async function invalidProtocol(frame,actor="test_creator"){
+ const res=await fetch(base+"/api/protocol",{method:"POST",headers:{
+  "content-type":"application/octet-stream","x-dev-user":actor
+ },body:frame});
+ return res.status;
+}
 function check(actual,expected,description) {
  assert.equal(actual,expected,description);checks++;process.stdout.write("PASS "+description+"\n");
 }
@@ -63,6 +83,24 @@ try{
  const dev=await api("/api/campaigns?admin=1","test_admin","GET",undefined,true);
  // explicit fixture view is enabled above; check the fixtures are present.
  check(dev.campaigns.length,3,"developer fixtures loaded");
+ // Binary protocol uses the same session and authorization as existing routes.
+ const framedMine=await protocolApi("campaign.mine",{},"test_player_a");
+ check(framedMine.campaigns.some(c=>c.id==="test_viking"),true,"binary protocol lists current player's campaigns");
+ const framedChars=await protocolApi("character.list-all",{},"test_player_a");
+ check(framedChars.characters.some(c=>c.id==="test_shared_hero"),true,"binary protocol lists assigned characters");
+ const framedUnauthorized=await protocolApi("admin.users",{},"test_player_a");
+ check(framedUnauthorized.status,403,"binary request cannot bypass administrator permissions");
+ const badLength=encodeMessage("campaign.mine",{},33);
+ new DataView(badLength.buffer).setUint32(11,99);
+ check(await invalidProtocol(badLength),400,"binary protocol rejects too-long declared payload");
+ const extraBytes=Uint8Array.from([...encodeMessage("campaign.mine",{},34),0]);
+ check(await invalidProtocol(extraBytes),400,"binary protocol rejects extra bytes");
+ const badType=encodeMessage("campaign.mine",{},35);
+ new DataView(badType.buffer).setUint16(5,65535);
+ check(await invalidProtocol(badType),400,"binary protocol rejects unknown message types");
+ const normalAfterAttack=await protocolApi("campaign.mine",{},"test_player_a");
+ check(normalAfterAttack.campaigns.length,2,"malformed protocol requests do not damage legitimate session");
+
  const seededShared=await api("/api/characters/test_shared_hero","test_player_a");
  check(seededShared.status,200,"seeded shared character is accessible to assigned player");
  check(seededShared.character.players.length,2,"seeded shared character has two assigned players");
@@ -108,6 +146,15 @@ try{
  const creatorCampaign=await api("/api/campaigns","test_creator","POST",
    {name:"Invitation Playground",is_test_data:true});
  check(creatorCampaign.status,201,"ordinary registered user creates a test campaign");
+ const framedCreate=await protocolApi("character.upload",
+  {campaign_id:creatorCampaign.id,name:"Protocol Hero",character_sheet_tokens:{skill:"3.3"}},"test_creator");
+ check(framedCreate.status,201,"binary protocol creates character through same GM permission checks");
+ const framedRead=await protocolApi("character.read",
+  {character_id:framedCreate.id,fixtures:true},"test_creator");
+ check(framedRead.character.character_sheet_tokens.skill,"3.3","binary protocol reads character tokens");
+ const framedOutsider=await protocolApi("character.read",
+  {character_id:framedCreate.id,fixtures:true},"test_uninvited");
+ check(framedOutsider.status,403,"binary protocol denies third-party character access");
  check(creatorCampaign.name,"test_Invitation Playground","test name auto-prefixed for non-admin creator");
  const campaignId=creatorCampaign.id;
  const creatorMembers=await api("/api/campaigns/"+campaignId+"/members","test_creator");
