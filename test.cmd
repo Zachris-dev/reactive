@@ -82,9 +82,9 @@ if /I "%~1"=="server" (
   if not "%~2"=="" if /I not "%~2"=="-v" if /I not "%~2"=="--verbose" goto :usage
   if not "%~3"=="" goto :usage
   if "%~2"=="" (
-    call node --test tests/character_server/*.test.mjs
+    call node --test tests/character_server/policy.test.mjs tests/character_server/http.test.mjs tests/character_server/protocol.test.mjs
   ) else (
-    call node --test --test-reporter spec tests/character_server/*.test.mjs
+    call node --test --test-reporter spec tests/character_server/policy.test.mjs tests/character_server/http.test.mjs tests/character_server/protocol.test.mjs
   )
   call set "TEST_ERROR=%%ERRORLEVEL%%"
   goto :check
