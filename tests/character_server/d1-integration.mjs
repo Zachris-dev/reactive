@@ -154,10 +154,10 @@ try{
   expected_version:2,body:"stolen"
  },"test_player_b");
  check(otherNote.status,403,"other assigned player cannot synchronize private note");
- const gmPrivate=await protocolApi("note.revisions",{
+ const gmPrivateHistory=await protocolApi("note.revisions",{
   note_id:"test_private_a",fixtures:true
  },"test_gm_a");
- check(gmPrivate.status,403,"GM cannot read private note history");
+ check(gmPrivateHistory.status,403,"GM cannot read private note history");
  const noteHistory=await protocolApi("note.revisions",{
   note_id:"test_private_a",fixtures:true
  },"test_player_a");
