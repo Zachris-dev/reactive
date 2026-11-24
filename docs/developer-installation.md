@@ -11,7 +11,8 @@ types, administrator promotion and inactivity revocation, and GM inactivity
 recovery. It does **not** yet implement production authentication, accounts,
 integration with the main character-sheet application, backup import/export, or live opposed rolls.
 Do not expose this developer server to the internet or use it as a production
-campaign host yet.
+campaign host yet. For security design choices, implemented protections and
+release blockers, see [Security Architecture](security-architecture.md).
 
 ## Windows quick start
 
