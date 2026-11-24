@@ -14,6 +14,8 @@ const names=Object.freeze({
   "character.read":10,"character.assign":11,"note.list":12,
   "note.create":13,"account.me":14,"admin.users":15,
   "admin.promote":16,"admin.revoke":17,"admin.gm-recover":18,
+  "character.replace":19,"character.revisions":20,
+  "note.replace":21,"note.revisions":22,
   "operation.result":100
 });
 export const TYPES=names;
@@ -34,9 +36,13 @@ export const DEFINITIONS=Object.freeze({
  "character.list-all":{direction:"request",schema:object()},
  "character.upload":{direction:"request",schema:object({campaign_id:str(),name:str(100),character_sheet_tokens:anyJson},{fixtures:bool})},
  "character.read":{direction:"request",schema:object({character_id:str()},{fixtures:bool})},
+ "character.replace":{direction:"request",schema:object({character_id:str(),operation_id:str(36,36),expected_version:num(1,2147483647),name:str(100),character_sheet_tokens:anyJson},{fixtures:bool})},
+ "character.revisions":{direction:"request",schema:object({character_id:str()},{fixtures:bool})},
  "character.assign":{direction:"request",schema:object({character_id:str(),user_id:str()},{fixtures:bool})},
  "note.list":{direction:"request",schema:object({character_id:str()},{fixtures:bool})},
  "note.create":{direction:"request",schema:object({character_id:str(),visibility:{kind:"enum",values:["private","shared"]},body:str(4000,1)},{fixtures:bool})},
+ "note.replace":{direction:"request",schema:object({note_id:str(),operation_id:str(36,36),expected_version:num(1,2147483647),body:str(4000,0)},{fixtures:bool})},
+ "note.revisions":{direction:"request",schema:object({note_id:str()},{fixtures:bool})},
  "account.me":{direction:"request",schema:object()},
  "admin.users":{direction:"request",schema:object({},{fixtures:bool})},
  "admin.promote":{direction:"request",schema:object({user_id:str()},{fixtures:bool})},
