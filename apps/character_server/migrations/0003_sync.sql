@@ -1,3 +1,7 @@
+-- Track the identity that actually committed the current revision.
+ALTER TABLE characters ADD COLUMN updated_by TEXT REFERENCES users(id);
+ALTER TABLE character_notes ADD COLUMN updated_by TEXT REFERENCES users(id);
+
 -- Offline synchronization foundations: immutable prior revisions and durable
 -- idempotency receipts. Existing characters/notes remain at revision 1.
 CREATE TABLE IF NOT EXISTS character_revisions (
