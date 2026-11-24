@@ -1,5 +1,7 @@
 # Reactive communications protocol (v1, developer alpha)
 
+For the overall threat model, implementation status, remaining risks and release checklist, see [Security Architecture and Assurance Register](security-architecture.md).
+
 ## Shared source of truth
 
 Client and server import the same modules:
