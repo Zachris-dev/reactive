@@ -9,7 +9,7 @@ The alpha currently covers the server foundation: local developer identities,
 Unicode campaign names, campaign membership and multiple GMs, three invitation
 types, administrator promotion and inactivity revocation, and GM inactivity
 recovery. It does **not** yet implement production authentication, accounts,
-character-sheet application synchronization, backup import/export, or live opposed rolls.
+integration with the main character-sheet application, backup import/export, or live opposed rolls.
 Do not expose this developer server to the internet or use it as a production
 campaign host yet.
 
