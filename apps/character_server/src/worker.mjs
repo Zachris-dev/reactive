@@ -1,6 +1,7 @@
 import { canManageCampaign, canRecoverCampaignGM, canRevokeAdministrator,
   invitationSpec, invitationValid, normalizeCampaignName } from "./policy.mjs";
 import { PAGE } from "./page.mjs";
+import {OFFLINE_PAGE,OFFLINE_SW} from "./offline-page.mjs";
 import {decodeMessage,encodeMessage,ProtocolError,HEADER_SIZE,MAX_PAYLOAD} from "../../../packages/communications/protocol.mjs";
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
@@ -184,6 +185,8 @@ export async function handleRequest(req, env, clock = () => Date.now()) {
   const url = new URL(req.url), path = url.pathname, method = req.method.toUpperCase(), now = clock();
   if (path === "/health" && method === "GET") return json({service:"reactive-character-server",alpha:true,mode:localDevelopment(req,env)?"development":"disabled"});
   if (path === "/" && method === "GET") return new Response(PAGE, {headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store"}});
+  if(path==="/offline" && method==="GET")return new Response(OFFLINE_PAGE,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"}});
+  if(path==="/offline-sw.js" && method==="GET")return new Response(OFFLINE_SW,{headers:{"content-type":"text/javascript; charset=utf-8","cache-control":"no-store","service-worker-allowed":"/","x-content-type-options":"nosniff"}});
   if (!path.startsWith("/api/")) return fail(404,"Not found");
   if (!localDevelopment(req, env)) return fail(503,"This alpha has no production authentication. Local development only.");
   if (!env.DB) return fail(503,"D1 database not configured");
