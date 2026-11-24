@@ -220,6 +220,63 @@ the character already has assigned players. Revoking assignments and
 transferring characters between campaigns are not implemented in this
 alpha.
 
+## Offline editing and character/note synchronization (developer alpha)
+
+After updating this branch, **stop the local server** and run:
+
+```bat
+server.cmd init
+server.cmd start
+```
+
+Migration `0003_sync.sql` adds revision histories, the identity of the
+author of each committed revision, and durable idempotency receipts.
+Existing characters and private/shared notes are preserved. **No reset or
+reseed is necessary.**
+
+Open `http://127.0.0.1:8787/offline` in a browser **while the local
+server is running**. The workspace installs a service worker to cache its
+offline page. Click **Download accessible characters and notes** as an
+individual test player (or GM). After that, the cached page can be
+opened without the local server. Edits are written to IndexedDB
+immediately when you click **Save locally**; each edit receives a stable
+operation UUID and the revision from which it originated. **Refresh** can
+display locally stored records without connecting to the server.
+
+When connectivity returns, click **Synchronize my pending edits**.
+The server checks character assignments or GM ownership of unassigned
+characters, checks note authorship, performs compare-and-swap updates,
+preserves old revisions, and acknowledges an accepted operation.
+Repeated transmissions of an acknowledged operation receive the same
+receipt, provided the original content is identical; changing the
+content while reusing its operation ID is rejected.
+
+If somebody else has modified the resource, the client leaves the
+local data untouched and shows a conflict. **Review conflict and
+rebase** explicitly displays current remote and proposed local
+contents before offering a new pending operation. Rebase means
+replace the latest remote content **only if the user intentionally
+approves that complete replacement**; it is not an automatic merge.
+
+**Privacy and implementation scope:** The offline IndexedDB storage
+is plaintext within the local browser profile. Do not use it for
+private notes on a shared or untrusted computer. The identity selector
+remains a simulated localhost-only developer feature, **not real
+account authentication**. The offline workspace currently supports
+**previously downloaded character sheets and notes on one browser
+device**. It does **not** yet integrate with the primary Character
+Sheet or GM apps, support GM-owned encounters/campaign resources,
+provide peer-to-peer/LAN/Bluetooth synchronization, manage file
+attachments, or permit multi-device games independent of the GM's
+local web server. Those pieces require additional work before
+production use or a fully disconnected multi-player cottage session.
+
+The new protocol messages are `character.replace`,
+`character.revisions`, `note.replace`, and `note.revisions`.
+The REST and binary endpoints use the same authorization and revision
+storage. Run `test.cmd server` and `test.cmd server integration`
+to exercise framing and real Wrangler/D1 synchronization cases.
+
 ## Shared communications protocol (initial security layer)
 
 The first version of Reactive's shared communications package is in
